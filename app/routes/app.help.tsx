@@ -344,10 +344,12 @@ export default function Help() {
                   <HelpIcon type="magic" />
                 </span>
                 <div>
-                  <s-heading>Popular custom work</s-heading>
-                  <s-text color="subdued">
+                  <h2 className={styles.darkPanelTitle}>
+                    Popular custom work
+                  </h2>
+                  <p className={styles.darkPanelText}>
                     Practical Shopify improvements with clear business value.
-                  </s-text>
+                  </p>
                 </div>
               </div>
               <div className={styles.divider} />
@@ -359,7 +361,7 @@ export default function Help() {
                 ].map((item) => (
                   <li key={item}>
                     <span>✓</span>
-                    <s-text>{item}</s-text>
+                    <p>{item}</p>
                   </li>
                 ))}
               </ul>
@@ -424,12 +426,12 @@ export default function Help() {
               <span className={styles.smallIcon}>
                 <HelpIcon type="email" />
               </span>
-              <s-heading>Direct contact</s-heading>
+              <h2 className={styles.darkPanelTitle}>Direct contact</h2>
             </div>
-            <s-paragraph>
+            <p className={styles.darkPanelText}>
               Prefer email? Send us context about the store, the gifting
               problem, and the result you want.
-            </s-paragraph>
+            </p>
             <div className={styles.emailBox}>{contactEmail}</div>
             <s-button onClick={() => setOpenModal("support")}>
               Send from app

@@ -67,9 +67,9 @@
 
 .popularCard {
   background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.13) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
-    #2d5b4d;
+    linear-gradient(90deg, rgba(255, 250, 242, 0.14) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 250, 242, 0.13) 1px, transparent 1px),
+    #20483c;
   background-size: 28px 28px;
   border: 1px solid rgba(45, 91, 77, 0.18);
   border-radius: 8px;
@@ -97,7 +97,44 @@
 
 .popularCard :global(s-text),
 .popularCard :global(s-heading) {
-  color: inherit;
+  color: #fffaf2;
+}
+
+.popularCard .cardTitle,
+.popularCard .checkList {
+  position: relative;
+  z-index: 1;
+}
+
+.popularCard .cardTitle :global(s-text) {
+  color: #f7efe5;
+}
+
+.popularCard .checkList li {
+  color: #fffaf2;
+}
+
+.popularCard .checkList :global(s-text) {
+  color: #fffaf2;
+}
+
+.darkPanelTitle,
+.darkPanelText {
+  color: #fffaf2;
+  margin: 0;
+}
+
+.darkPanelTitle {
+  font-size: 1rem;
+  font-weight: 760;
+  line-height: 1.25;
+}
+
+.darkPanelText {
+  color: #f7efe5;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  margin-top: 0.25rem;
 }
 
 .cardTitle {
@@ -168,8 +205,12 @@
   gap: 0.625rem;
 }
 
+.checkList p {
+  margin: 0;
+}
+
 .checkList span {
-  color: #d67f54;
+  color: #f0b473;
   font-weight: 800;
   line-height: 1.4;
 }
@@ -212,18 +253,23 @@
 }
 
 .contactCard {
-  background: #2d5b4d;
+  background: #20483c;
   color: #fffaf2;
 }
 
 .contactCard :global(s-heading),
-.contactCard :global(s-paragraph) {
-  color: inherit;
+.contactCard :global(s-paragraph),
+.contactCard :global(s-text) {
+  color: #fffaf2;
+}
+
+.contactCard .cardTitle {
+  color: #fffaf2;
 }
 
 .emailBox {
-  background: rgba(255, 250, 242, 0.12);
-  border: 1px solid rgba(255, 250, 242, 0.28);
+  background: rgba(255, 250, 242, 0.16);
+  border: 1px solid rgba(255, 250, 242, 0.34);
   border-radius: 8px;
   color: #fffaf2;
   font-family: ui-monospace, SFMono-Regular, monospace;
