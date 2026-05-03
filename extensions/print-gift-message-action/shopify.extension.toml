@@ -1,0 +1,11 @@
+api_version = "2026-07"
+uid = "eac93437-b838-06ae-b2f9-0cad8210c45844dd791b"
+
+[[extensions]]
+type   = "ui_extension"
+name   = "Print Gift Message"
+handle = "print-gift-message-action"
+
+  [[extensions.targeting]]
+  module = "./src/index.jsx"
+  target = "admin.order-details.print-action.render"

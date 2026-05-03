@@ -1,0 +1,278 @@
+.hero {
+  background:
+    linear-gradient(135deg, #0f2f2c 0%, #173f3a 63%, #f3efe2 63.2%, #fffaf0 100%);
+  border: 1px solid #d7e5df;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.heroInner {
+  align-items: center;
+  display: grid;
+  gap: 2.5rem;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.75fr);
+  padding: 1.75rem;
+}
+
+.heroCopy {
+  color: #ffffff;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.softBadge {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: #e8fff2;
+  display: inline-flex;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  min-height: 28px;
+  padding: 0.1875rem 0.625rem;
+}
+
+.heroTitle {
+  color: #ffffff;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.08;
+  margin: 0;
+  max-width: 720px;
+}
+
+.heroText {
+  color: #d8eee8;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 650px;
+}
+
+.actions,
+.privacyActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.popularCard {
+  background: #ffffff;
+  border: 1px solid rgba(15, 47, 44, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 14px 35px rgba(15, 47, 44, 0.14);
+  display: grid;
+  gap: 1rem;
+  padding: 1.125rem;
+}
+
+.cardTitle {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.iconBox,
+.iconBoxBlue,
+.smallIcon {
+  align-items: center;
+  border-radius: 9px;
+  color: #0c5132;
+  display: inline-flex;
+  flex: 0 0 auto;
+  justify-content: center;
+}
+
+.iconBox {
+  background: #dff7ea;
+  height: 40px;
+  width: 40px;
+}
+
+.iconBoxBlue {
+  background: #eef2ff;
+  color: #273a8a;
+  height: 40px;
+  width: 40px;
+}
+
+.smallIcon {
+  color: #16433f;
+  height: 32px;
+  width: 32px;
+}
+
+.iconBox svg,
+.iconBoxBlue svg,
+.smallIcon svg {
+  fill: none;
+  height: 22px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+  width: 22px;
+}
+
+.checkList {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+}
+
+.checkList li {
+  align-items: start;
+  display: flex;
+  gap: 0.625rem;
+}
+
+.checkList span {
+  color: #0c5132;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.requestGrid,
+.serviceGrid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.requestCard,
+.serviceCard,
+.contactCard,
+.privacyCard {
+  background: #ffffff;
+  border: 1px solid #d8dbdf;
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.serviceContactGrid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1.35fr 0.65fr;
+}
+
+.serviceCard {
+  background: #f6f6f7;
+  border-color: #e1e3e5;
+}
+
+.emailBox {
+  background: #f7f5ee;
+  border: 1px solid #e4ddc8;
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  overflow-wrap: anywhere;
+  padding: 0.75rem 0.875rem;
+}
+
+.divider {
+  background: #e1e3e5;
+  height: 1px;
+}
+
+.modalBackdrop {
+  align-items: center;
+  background: rgba(31, 33, 36, 0.38);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 30;
+}
+
+.modal {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 24px 60px rgba(31, 33, 36, 0.24);
+  display: grid;
+  gap: 1rem;
+  max-width: 560px;
+  padding: 1rem;
+  width: 100%;
+}
+
+.modalHeader,
+.modalActions {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.formGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+.formGrid label {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.formGrid input,
+.formGrid textarea {
+  border: 1px solid #8c9196;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: #202223;
+  font: inherit;
+  line-height: 1.45;
+  padding: 0.625rem 0.75rem;
+  width: 100%;
+}
+
+.formGrid textarea {
+  resize: vertical;
+}
+
+.formGrid input:focus,
+.formGrid textarea:focus {
+  border-color: #008060;
+  box-shadow: 0 0 0 1px #008060;
+  outline: none;
+}
+
+@media (max-width: 1000px) {
+  .heroInner,
+  .serviceContactGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .requestGrid,
+  .serviceGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .heroInner {
+    padding: 1rem;
+  }
+
+  .heroTitle {
+    font-size: 2rem;
+  }
+
+  .actions,
+  .privacyActions,
+  .modalActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,7 @@
+api_version = "2026-07"
+uid = "fac21525-3b54-886f-31ab-aea093109e9223df2721"
+
+[[extensions]]
+type   = "theme"
+name   = "Gift Message Block"
+handle = "gift-message-block"

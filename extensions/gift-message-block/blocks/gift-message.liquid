@@ -1,0 +1,303 @@
+{%- liquid
+  comment
+    Mode is determined automatically from the page type:
+    • product page  →  line item property (submitted with the add-to-cart form)
+    • any other page (cart, etc.)  →  cart attribute (saved via AJAX)
+  endcomment
+
+  if request.page_type == 'product'
+    assign mode = 'product'
+  else
+    assign mode = 'order'
+  endif
+
+  assign lbl       = block.settings.label       | default: 'Add a gift message'
+  assign ph        = block.settings.placeholder | default: 'Write a birthday, thank you, wedding love, etc.'
+  assign max_chars = block.settings.char_limit  | default: 250
+  assign prop_name = block.settings.property_name | default: 'Gift Message'
+  assign preset    = block.settings.preset      | default: 'default'
+  assign custom_css = block.settings.custom_css | default: ''
+
+  if mode == 'order'
+    assign existing = cart.attributes.gift_message | default: ''
+    assign existing_sender = cart.attributes.gift_message_from | default: ''
+    assign existing_recipient = cart.attributes.gift_message_to | default: ''
+    assign has_msg  = false
+    if existing != blank or existing_sender != blank or existing_recipient != blank
+      assign has_msg = true
+    endif
+  else
+    assign has_msg  = false
+    assign existing = ''
+    assign existing_sender = ''
+    assign existing_recipient = ''
+  endif
+-%}
+
+<link rel="stylesheet" href="{{ 'gift-message.css' | asset_url }}">
+
+<div
+  class="gmb-box"
+  data-gmb-block
+  data-mode="{{ mode }}"
+  data-cart-token="{{ cart.token }}"
+  data-property-name="{{ prop_name | escape }}"
+  data-product-id="{% if mode == 'product' %}{{ product.id }}{% endif %}"
+  data-product-title="{% if mode == 'product' %}{{ product.title | escape }}{% endif %}"
+  data-product-handle="{% if mode == 'product' %}{{ product.handle | escape }}{% endif %}"
+  id="gmb-{{ block.id }}"
+  {{ block.shopify_attributes }}
+>
+  {%- comment -%} ── Toggle ──────────────────────────────────────────────── {%- endcomment -%}
+  <div class="gmb-toggle">
+    <input
+      type="checkbox"
+      id="gmb-chk-{{ block.id }}"
+      class="gmb-check"
+      aria-controls="gmb-field-{{ block.id }}"
+      aria-expanded="{{ has_msg | json }}"
+      {%- if has_msg %} checked{%- endif -%}
+    >
+    <label for="gmb-chk-{{ block.id }}" class="gmb-label">
+      {{- lbl -}}
+    </label>
+  </div>
+
+  {%- comment -%} ── Collapsible field ────────────────────────────────────── {%- endcomment -%}
+  <div
+    id="gmb-field-{{ block.id }}"
+    class="gmb-panel"
+    {%- unless has_msg %} hidden{%- endunless -%}
+  >
+    {%- if mode == 'product' -%}
+      {%- comment -%}
+        Product page: JS mirrors these fields into the add-to-cart form as
+        line item properties, even when this app section is outside the form.
+      {%- endcomment -%}
+      <div class="gmb-row">
+        <input
+          class="gmb-input gmb-from"
+          placeholder="From"
+          aria-label="Gift message from"
+          {%- unless has_msg %} disabled{%- endunless -%}
+        >
+        <input
+          class="gmb-input gmb-to"
+          placeholder="To"
+          aria-label="Gift message to"
+          {%- unless has_msg %} disabled{%- endunless -%}
+        >
+      </div>
+      <textarea
+        id="gmb-ta-{{ block.id }}"
+        class="gmb-message"
+        placeholder="{{ ph | escape }}"
+        maxlength="{{ max_chars }}"
+        rows="3"
+        aria-label="{{ lbl | escape }}"
+        {%- unless has_msg %} disabled{%- endunless -%}
+      ></textarea>
+      <input
+        type="hidden"
+        class="gmb-message-id"
+        value=""
+        disabled
+      >
+      <input
+        type="hidden"
+        class="gmb-property-name"
+        value="{{ prop_name | escape }}"
+        disabled
+      >
+      <script type="application/json" class="gmb-variants-json">
+        {{- product.variants | json -}}
+      </script>
+
+    {%- else -%}
+      {%- comment -%}
+        Cart / other pages: no name attribute – the value is saved to
+        cart.attributes via /apps/gift-message (app proxy) by gift-message.js.
+        Pre-filled from Liquid on page load.
+      {%- endcomment -%}
+      <div class="gmb-row">
+        <input
+          class="gmb-input gmb-from"
+          placeholder="From"
+          aria-label="Gift message from"
+          value="{{ existing_sender | escape }}"
+        >
+        <input
+          class="gmb-input gmb-to"
+          placeholder="To"
+          aria-label="Gift message to"
+          value="{{ existing_recipient | escape }}"
+        >
+      </div>
+      <textarea
+        id="gmb-ta-{{ block.id }}"
+        class="gmb-message"
+        placeholder="{{ ph | escape }}"
+        maxlength="{{ max_chars }}"
+        rows="3"
+        aria-label="{{ lbl | escape }}"
+      >{{- existing | escape -}}</textarea>
+
+    {%- endif -%}
+
+    <div class="gmb-note">
+      <span class="gmb-status" aria-live="polite"></span>
+      <span class="gmb-count" aria-live="polite">
+        <span class="gmb-count-left">
+          {{- max_chars | minus: existing.size -}}
+        </span>
+        <span class="gmb-count-total"> / {{ max_chars }}</span>
+      </span>
+    </div>
+  </div>
+</div>
+
+{%- comment -%} ── Style preset ────────────────────────────────────────── {%- endcomment -%}
+{%- unless preset == 'default' -%}
+<style>
+{%- case preset -%}
+
+  {%- when 'rounded' -%}
+  /* Rounded — pill inputs, soft container */
+  #gmb-{{ block.id }}{border:1px solid currentColor;border-radius:1.5rem;padding:1rem 1.25rem;}
+  #gmb-{{ block.id }} .gmb-input,
+  #gmb-{{ block.id }} .gmb-message{border-radius:.75rem;}
+
+  {%- when 'minimal' -%}
+  /* Minimal — underline only, no box */
+  #gmb-{{ block.id }} .gmb-input,
+  #gmb-{{ block.id }} .gmb-message{border:none;border-bottom:1px solid currentColor;border-radius:0;padding-left:0;padding-right:0;background:transparent;resize:none;}
+  #gmb-{{ block.id }} .gmb-input:focus,
+  #gmb-{{ block.id }} .gmb-message:focus{box-shadow:none;border-bottom-width:2px;opacity:1;}
+
+  {%- when 'card' -%}
+  /* Card — elevated card with shadow */
+  #gmb-{{ block.id }}{border:1px solid rgba(0,0,0,.1);border-radius:.625rem;box-shadow:0 2px 8px rgba(0,0,0,.08);padding:1.25rem;}
+  #gmb-{{ block.id }} .gmb-input,
+  #gmb-{{ block.id }} .gmb-message{background:rgba(0,0,0,.03);border-color:transparent;border-radius:.375rem;}
+  #gmb-{{ block.id }} .gmb-input:focus,
+  #gmb-{{ block.id }} .gmb-message:focus{background:transparent;border-color:currentColor;}
+
+  {%- when 'accent' -%}
+  /* Accent — bold left border, square inputs */
+  #gmb-{{ block.id }}{border-left:3px solid currentColor;padding-left:1rem;}
+  #gmb-{{ block.id }} .gmb-label{font-weight:700;}
+  #gmb-{{ block.id }} .gmb-input,
+  #gmb-{{ block.id }} .gmb-message{border-radius:0;}
+
+  {%- when 'soft' -%}
+  /* Soft — filled inputs, no visible border */
+  #gmb-{{ block.id }} .gmb-input,
+  #gmb-{{ block.id }} .gmb-message{border:none;background:rgba(0,0,0,.06);border-radius:.375rem;}
+  #gmb-{{ block.id }} .gmb-input:focus,
+  #gmb-{{ block.id }} .gmb-message:focus{background:rgba(0,0,0,.09);box-shadow:none;opacity:1;}
+
+  {%- when 'warm' -%}
+  /* Warm — sandy/linen background for the block */
+  #gmb-{{ block.id }}{background:#fdf8f2;border:1px solid #e8dfd4;border-radius:.5rem;padding:1.125rem 1.25rem;}
+  #gmb-{{ block.id }} .gmb-input,
+  #gmb-{{ block.id }} .gmb-message{background:rgba(255,255,255,.75);border-color:#c5b8ab;}
+  #gmb-{{ block.id }} .gmb-input:focus,
+  #gmb-{{ block.id }} .gmb-message:focus{background:#fff;}
+
+  {%- when 'dark' -%}
+  /* Dark — inverted, for dark-background sections */
+  #gmb-{{ block.id }}{background:#1a1a1a;border-radius:.5rem;color:#f5f5f5;padding:1.125rem 1.25rem;}
+  #gmb-{{ block.id }} .gmb-check{accent-color:#fff;}
+  #gmb-{{ block.id }} .gmb-input,
+  #gmb-{{ block.id }} .gmb-message{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#f5f5f5;}
+  #gmb-{{ block.id }} .gmb-input::placeholder,
+  #gmb-{{ block.id }} .gmb-message::placeholder{color:rgba(255,255,255,.4);opacity:1;}
+  #gmb-{{ block.id }} .gmb-input:focus,
+  #gmb-{{ block.id }} .gmb-message:focus{border-color:rgba(255,255,255,.6);box-shadow:none;}
+
+  {%- when 'glass' -%}
+  /* Glass — frosted-glass, works over images/gradients */
+  #gmb-{{ block.id }}{background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.35);border-radius:.75rem;padding:1.125rem 1.25rem;}
+  #gmb-{{ block.id }} .gmb-input,
+  #gmb-{{ block.id }} .gmb-message{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.45);}
+
+  {%- when 'outlined' -%}
+  /* Outlined — strong frame, editorial feel */
+  #gmb-{{ block.id }}{border:2px solid currentColor;padding:1.125rem 1.25rem;}
+  #gmb-{{ block.id }} .gmb-label{font-size:1.05em;letter-spacing:.01em;}
+  #gmb-{{ block.id }} .gmb-input,
+  #gmb-{{ block.id }} .gmb-message{border-color:rgba(0,0,0,.2);}
+  #gmb-{{ block.id }} .gmb-input:focus,
+  #gmb-{{ block.id }} .gmb-message:focus{border-color:currentColor;}
+
+{%- endcase -%}
+</style>
+{%- endunless -%}
+
+{%- if custom_css != blank -%}
+  <style>#gmb-{{ block.id }}{--gmb-custom:1;}{{ custom_css }}</style>
+{%- endif -%}
+
+<script src="{{ 'gift-message.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Gift Message",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "label",
+      "label": "Toggle label",
+      "default": "Add a gift message"
+    },
+    {
+      "type": "textarea",
+      "id": "placeholder",
+      "label": "Placeholder text",
+      "default": "Write a birthday, thank you, wedding love, etc."
+    },
+    {
+      "type": "range",
+      "id": "char_limit",
+      "label": "Character limit",
+      "min": 50,
+      "max": 1000,
+      "step": 10,
+      "unit": "ch",
+      "default": 250
+    },
+    {
+      "type": "text",
+      "id": "property_name",
+      "label": "Line item property name",
+      "info": "The key shown on the order line item. Only applies on product pages.",
+      "default": "Gift Message"
+    },
+    {
+      "type": "select",
+      "id": "preset",
+      "label": "Style preset",
+      "options": [
+        { "value": "default",  "label": "Default — inherits theme styles" },
+        { "value": "rounded",  "label": "Rounded — pill inputs, soft border" },
+        { "value": "minimal",  "label": "Minimal — underlines only" },
+        { "value": "card",     "label": "Card — elevated box with shadow" },
+        { "value": "accent",   "label": "Accent — bold left border" },
+        { "value": "soft",     "label": "Soft — filled inputs, no borders" },
+        { "value": "warm",     "label": "Warm — sandy/linen background" },
+        { "value": "dark",     "label": "Dark — inverted for dark sections" },
+        { "value": "glass",    "label": "Glass — frosted glass over images" },
+        { "value": "outlined", "label": "Outlined — strong frame border" }
+      ],
+      "default": "default"
+    },
+    {
+      "type": "textarea",
+      "id": "custom_css",
+      "label": "Custom CSS (applied on top of preset)",
+      "info": "Available classes: .gmb-label, .gmb-check, .gmb-panel, .gmb-row, .gmb-input, .gmb-message, .gmb-note."
+    }
+  ]
+}
+{% endschema %}

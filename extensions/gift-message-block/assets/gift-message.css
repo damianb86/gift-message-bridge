@@ -1,0 +1,127 @@
+/* ── Gift Message Block ─────────────────────────────────────────────────────
+   Uses currentColor / inherit so the block matches any theme automatically.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.gmb-box {
+  margin: 1.25rem 0;
+  font-size: 1rem;
+}
+
+/* Toggle row */
+.gmb-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55em;
+  cursor: pointer;
+}
+
+.gmb-check {
+  width: 1.05em;
+  height: 1.05em;
+  margin-top: 0.15em;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: currentColor;
+}
+
+.gmb-label {
+  cursor: pointer;
+  line-height: 1.4;
+  user-select: none;
+}
+
+/* Collapsible field */
+.gmb-panel {
+  margin-top: 0.75rem;
+  animation: gmb-slide-in 0.15s ease both;
+}
+
+.gmb-panel[hidden] {
+  display: none;
+}
+
+.gmb-panel[data-gmb-open="true"] {
+  display: block;
+}
+
+.gmb-toggle:has(.gmb-check:checked) + .gmb-panel {
+  display: block;
+}
+
+@keyframes gmb-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Inputs */
+.gmb-row {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 0.5rem;
+}
+
+.gmb-input,
+.gmb-message {
+  display: block;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: var(--inputs-radius, var(--buttons-radius, 4px));
+  font-family: inherit;
+  font-size: 0.875em;
+  line-height: 1.55;
+  color: inherit;
+  background: transparent;
+  resize: vertical;
+  box-sizing: border-box;
+  opacity: 0.75;
+  transition:
+    opacity 0.15s,
+    box-shadow 0.15s;
+}
+
+.gmb-message {
+  min-height: 4.5rem;
+}
+
+.gmb-input:focus,
+.gmb-message:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px currentColor;
+  opacity: 1;
+}
+
+.gmb-input::placeholder,
+.gmb-message::placeholder {
+  opacity: 0.5;
+}
+
+@media (max-width: 480px) {
+  .gmb-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Footer: saving indicator + char counter */
+.gmb-note {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.3rem;
+  font-size: 0.72em;
+  opacity: 0.55;
+  min-height: 1.3em;
+}
+
+.gmb-count-left[data-warn] {
+  color: #c40000;
+  opacity: 1;
+  font-weight: 600;
+}
