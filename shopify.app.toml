@@ -2,7 +2,7 @@
 
 client_id = "5648b993ebb2c0c32aebf341a158f812"
 name = "Gift Message Bridge Lite"
-application_url = "https://gift-message-bridge-lite.yourdomain.com"
+application_url = "https://qorve-2.duckdns.org"
 embedded = true
 
 [build]
@@ -13,15 +13,15 @@ api_version = "2026-04"
 
   [[webhooks.subscriptions]]
   compliance_topics = [ "customers/data_request" ]
-  uri = "https://gift-message-bridge-lite.yourdomain.com/webhooks/customers/data_request"
+  uri = "https://qorve-2.duckdns.org/webhooks/customers/data_request"
 
   [[webhooks.subscriptions]]
   compliance_topics = [ "customers/redact" ]
-  uri = "https://gift-message-bridge-lite.yourdomain.com/webhooks/customers/redact"
+  uri = "https://qorve-2.duckdns.org/webhooks/customers/redact"
 
   [[webhooks.subscriptions]]
   compliance_topics = [ "shop/redact" ]
-  uri = "https://gift-message-bridge-lite.yourdomain.com/webhooks/shop/redact"
+  uri = "https://qorve-2.duckdns.org/webhooks/shop/redact"
 
   [[webhooks.subscriptions]]
   uri = "/webhooks/app/scopes_update"
@@ -36,9 +36,9 @@ api_version = "2026-04"
 scopes = "read_orders"
 
 [auth]
-redirect_urls = [ "https://gift-message-bridge-lite.yourdomain.com/auth/callback" ]
+redirect_urls = [ "https://qorve-2.duckdns.org/auth/callback" ]
 
 [app_proxy]
-url = "https://gift-message-bridge-lite.yourdomain.com/proxy/gift-message"
+url = "https://qorve-2.duckdns.org/proxy/gift-message"
 subpath = "gift-message"
 prefix = "apps"
