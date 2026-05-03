@@ -10,7 +10,6 @@ import type { Prisma } from "@prisma/client";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import db from "../db.server";
-import { MOCK_GIFT_MESSAGES } from "../mock-messages";
 import styles from "../styles/print-setup.module.css";
 import {
   CUSTOM_TEMPLATE_ID,
@@ -58,21 +57,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ];
   }
 
-  const [baseMessages, totalMessageCount, templateSettings] = await Promise.all(
-    [
-      db.giftMessage.findMany({
-        where: baseWhere,
-        orderBy: { updatedAt: "desc" },
-        take: 200,
-      }),
-      db.giftMessage.count({
-        where: { shop: session.shop, message: { not: "" } },
-      }),
-      db.printTemplateSettings.findUnique({
-        where: { shop: session.shop },
-      }),
-    ],
-  );
+  const [baseMessages, templateSettings] = await Promise.all([
+    db.giftMessage.findMany({
+      where: baseWhere,
+      orderBy: { updatedAt: "desc" },
+      take: 200,
+    }),
+    db.printTemplateSettings.findUnique({
+      where: { shop: session.shop },
+    }),
+  ]);
 
   // Product options come from the messages matching every filter except product.
   const dbProductOptions = buildProductOptions(baseMessages);
@@ -137,31 +131,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     date: m.date,
   });
 
-  // Mock fallback (DB empty)
-  const useMock = totalMessageCount === 0;
-  const mockBase = useMock
-    ? filterMockBase(MOCK_GIFT_MESSAGES, { dateRange, query, showPrinted })
-    : [];
-  const mockFiltered = useMock
-    ? mockBase.filter((m) => matchesMockProduct(m, product))
-    : [];
+  const printMessages = limitedDbMessages.map((m) =>
+    mapMessage({
+      ...m,
+      date: m.updatedAt.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+    }),
+  );
 
-  const printMessages = useMock
-    ? mockFiltered.map((m) => mapMessage(m))
-    : limitedDbMessages.map((m) =>
-        mapMessage({
-          ...m,
-          date: m.updatedAt.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-        }),
-      );
-
-  const productOptions = useMock
-    ? buildProductOptions(mockBase)
-    : dbProductOptions;
+  const productOptions = dbProductOptions;
 
   return {
     printMessages,
@@ -232,13 +213,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       .map((id) => id.trim())
       .filter(Boolean);
 
-    // Mock IDs (demo-*) aren't in the DB — acknowledge without mutating.
-    const realIds = ids.filter((id) => !id.startsWith("demo-"));
     const printed = intent === "mark-printed";
 
-    if (realIds.length > 0) {
+    if (ids.length > 0) {
       await db.giftMessage.updateMany({
-        where: { shop: session.shop, id: { in: realIds } },
+        where: { shop: session.shop, id: { in: ids } },
         data: { printed },
       });
     }
@@ -379,62 +358,6 @@ function formatProductReference(
   }
 
   return parts.join(" | ");
-}
-
-/** Filter mock messages by every filter EXCEPT product (used for the pool that
- *  also feeds the product dropdown). Mocks are never marked as printed. */
-function filterMockBase(
-  messages: typeof MOCK_GIFT_MESSAGES,
-  filters: { dateRange: string; query: string; showPrinted: boolean },
-) {
-  const updatedAt = getUpdatedAtFilter(filters.dateRange);
-  const query = filters.query.toLowerCase();
-
-  return messages.filter((message) => {
-    // Mirror the same logic as the DB: hide printed when showPrinted is off
-    if (!filters.showPrinted && message.printed) return false;
-
-    if (updatedAt?.gte) {
-      const messageDate = new Date(`${message.date} 00:00:00`);
-      if (messageDate < updatedAt.gte) return false;
-    }
-
-    if (!query) return true;
-
-    return [
-      message.id,
-      message.sourceId,
-      message.cartToken,
-      message.cartReference,
-      message.sender,
-      message.recipient,
-      message.message,
-      message.productTitle,
-      message.productVariantTitle,
-      message.productSku,
-      message.productHandle,
-    ]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(query));
-  });
-}
-
-function matchesMockProduct(
-  message: (typeof MOCK_GIFT_MESSAGES)[number],
-  product: string,
-): boolean {
-  if (product === "all") return true;
-  if (product === "__no_product") return !message.productTitle;
-  return (
-    product ===
-    (message.productId ||
-      message.productSku ||
-      formatProductReference(
-        message.productTitle,
-        message.productVariantTitle,
-        message.productSku,
-      ))
-  );
 }
 
 type PrintMessage = Awaited<ReturnType<typeof loader>>["printMessages"][number];

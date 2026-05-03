@@ -43,12 +43,12 @@ export default function App() {
               <span />
             </div>
             <div className={styles.queueItem}>
-              <strong>Order #1048</strong>
-              <small>To: Sofia</small>
+              <strong>Ready to print</strong>
+              <small>Gift card queued</small>
             </div>
             <div className={styles.queueItem}>
-              <strong>Order #1051</strong>
-              <small>To: Mateo</small>
+              <strong>Needs review</strong>
+              <small>Product note saved</small>
             </div>
             <div className={styles.queueItemMuted}>
               <strong>Printed</strong>
@@ -59,9 +59,9 @@ export default function App() {
           <div className={styles.giftCard}>
             <div className={styles.ribbon} />
             <div className={styles.notePaper}>
-              <span>For Olivia</span>
-              <p>Happy birthday. Hope this makes the day brighter.</p>
-              <small>From Nico</small>
+              <span>Gift note</span>
+              <p>Message saved with sender, recipient, and fulfillment context.</p>
+              <small>Ready for packing</small>
             </div>
           </div>
         </div>

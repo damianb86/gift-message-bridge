@@ -1,21 +1,21 @@
 .hero {
-  background:
-    linear-gradient(135deg, #0f2f2c 0%, #173f3a 63%, #f3efe2 63.2%, #fffaf0 100%);
-  border: 1px solid #d7e5df;
-  border-radius: 12px;
+  background: #f7efe5;
+  border: 1px solid rgba(45, 91, 77, 0.14);
+  border-radius: 8px;
   overflow: hidden;
 }
 
 .heroInner {
-  align-items: center;
+  align-items: stretch;
   display: grid;
-  gap: 2.5rem;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.75fr);
-  padding: 1.75rem;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.7fr);
+  padding: 1.5rem;
 }
 
 .heroCopy {
-  color: #ffffff;
+  align-content: center;
+  color: #17201c;
   display: grid;
   gap: 1.25rem;
 }
@@ -28,32 +28,33 @@
 
 .softBadge {
   align-items: center;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  color: #e8fff2;
+  background: rgba(45, 91, 77, 0.1);
+  border: 1px solid rgba(45, 91, 77, 0.14);
+  border-radius: 8px;
+  color: #2d5b4d;
   display: inline-flex;
   font-size: 0.8125rem;
-  font-weight: 550;
+  font-weight: 700;
   min-height: 28px;
   padding: 0.1875rem 0.625rem;
 }
 
 .heroTitle {
-  color: #ffffff;
-  font-size: 2.5rem;
-  font-weight: 700;
+  color: #17201c;
+  font-size: 2.625rem;
+  font-weight: 760;
   letter-spacing: 0;
-  line-height: 1.08;
+  line-height: 1.06;
   margin: 0;
   max-width: 720px;
 }
 
 .heroText {
-  color: #d8eee8;
+  color: #43524c;
   font-size: 1rem;
   line-height: 1.6;
   margin: 0;
-  max-width: 650px;
+  max-width: 660px;
 }
 
 .actions,
@@ -65,49 +66,78 @@
 }
 
 .popularCard {
-  background: #ffffff;
-  border: 1px solid rgba(15, 47, 44, 0.12);
-  border-radius: 10px;
-  box-shadow: 0 14px 35px rgba(15, 47, 44, 0.14);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.13) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+    #2d5b4d;
+  background-size: 28px 28px;
+  border: 1px solid rgba(45, 91, 77, 0.18);
+  border-radius: 8px;
+  box-shadow: 0 18px 46px rgba(45, 91, 77, 0.18);
+  color: #fffaf2;
   display: grid;
   gap: 1rem;
+  overflow: hidden;
   padding: 1.125rem;
+  position: relative;
+}
+
+.popularCard::after {
+  background: #d67f54;
+  border-radius: 8px;
+  bottom: -36px;
+  box-shadow: inset 50px 0 0 #f5d06f;
+  content: "";
+  height: 132px;
+  position: absolute;
+  right: -28px;
+  transform: rotate(-8deg);
+  width: 132px;
+}
+
+.popularCard :global(s-text),
+.popularCard :global(s-heading) {
+  color: inherit;
 }
 
 .cardTitle {
   align-items: center;
   display: flex;
   gap: 0.75rem;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .iconBox,
 .iconBoxBlue,
 .smallIcon {
   align-items: center;
-  border-radius: 9px;
-  color: #0c5132;
+  border-radius: 8px;
+  color: #2d5b4d;
   display: inline-flex;
   flex: 0 0 auto;
   justify-content: center;
 }
 
 .iconBox {
-  background: #dff7ea;
+  background: #f5d06f;
   height: 40px;
   width: 40px;
 }
 
 .iconBoxBlue {
-  background: #eef2ff;
-  color: #273a8a;
+  background: #dfebe6;
+  color: #2d5b4d;
   height: 40px;
   width: 40px;
 }
 
 .smallIcon {
-  color: #16433f;
-  height: 32px;
-  width: 32px;
+  background: #f3eadc;
+  color: #2d5b4d;
+  height: 34px;
+  width: 34px;
 }
 
 .iconBox svg,
@@ -125,8 +155,11 @@
 .checkList {
   display: grid;
   gap: 0.75rem;
+  list-style: none;
   margin: 0;
   padding: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .checkList li {
@@ -136,8 +169,8 @@
 }
 
 .checkList span {
-  color: #0c5132;
-  font-weight: 700;
+  color: #d67f54;
+  font-weight: 800;
   line-height: 1.4;
 }
 
@@ -152,12 +185,18 @@
 .serviceCard,
 .contactCard,
 .privacyCard {
-  background: #ffffff;
-  border: 1px solid #d8dbdf;
+  background: #fffaf2;
+  border: 1px solid rgba(45, 91, 77, 0.14);
   border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(45, 91, 77, 0.08);
   display: grid;
   gap: 1rem;
   padding: 1rem;
+}
+
+.requestCard {
+  align-content: space-between;
+  min-height: 190px;
 }
 
 .serviceContactGrid {
@@ -167,27 +206,39 @@
 }
 
 .serviceCard {
-  background: #f6f6f7;
-  border-color: #e1e3e5;
+  background: #f7efe5;
+  border-color: rgba(214, 127, 84, 0.2);
+  box-shadow: none;
+}
+
+.contactCard {
+  background: #2d5b4d;
+  color: #fffaf2;
+}
+
+.contactCard :global(s-heading),
+.contactCard :global(s-paragraph) {
+  color: inherit;
 }
 
 .emailBox {
-  background: #f7f5ee;
-  border: 1px solid #e4ddc8;
+  background: rgba(255, 250, 242, 0.12);
+  border: 1px solid rgba(255, 250, 242, 0.28);
   border-radius: 8px;
+  color: #fffaf2;
   font-family: ui-monospace, SFMono-Regular, monospace;
   overflow-wrap: anywhere;
   padding: 0.75rem 0.875rem;
 }
 
 .divider {
-  background: #e1e3e5;
+  background: rgba(45, 91, 77, 0.16);
   height: 1px;
 }
 
 .modalBackdrop {
   align-items: center;
-  background: rgba(31, 33, 36, 0.38);
+  background: rgba(23, 32, 28, 0.46);
   display: flex;
   inset: 0;
   justify-content: center;
@@ -197,9 +248,10 @@
 }
 
 .modal {
-  background: #ffffff;
+  background: #fffaf2;
+  border: 1px solid rgba(45, 91, 77, 0.14);
   border-radius: 8px;
-  box-shadow: 0 24px 60px rgba(31, 33, 36, 0.24);
+  box-shadow: 0 24px 70px rgba(23, 32, 28, 0.28);
   display: grid;
   gap: 1rem;
   max-width: 560px;
@@ -227,10 +279,11 @@
 
 .formGrid input,
 .formGrid textarea {
-  border: 1px solid #8c9196;
+  background: #ffffff;
+  border: 1px solid #c4d1ca;
   border-radius: 8px;
   box-sizing: border-box;
-  color: #202223;
+  color: #17201c;
   font: inherit;
   line-height: 1.45;
   padding: 0.625rem 0.75rem;
@@ -243,8 +296,8 @@
 
 .formGrid input:focus,
 .formGrid textarea:focus {
-  border-color: #008060;
-  box-shadow: 0 0 0 1px #008060;
+  border-color: #2d5b4d;
+  box-shadow: 0 0 0 3px rgba(45, 91, 77, 0.14);
   outline: none;
 }
 
