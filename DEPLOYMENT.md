@@ -2,8 +2,8 @@
 
 This app is designed to run with shared infrastructure outside the app folder:
 
-- `../shared-docker`: one Caddy Docker Proxy container, one PostgreSQL container,
-  one shared Docker network.
+- `../../shared-docker`: one Caddy Docker Proxy container, one PostgreSQL
+  container, one shared Docker network.
 - `./docker-compose.yml`: this app container plus a one-shot `db-init` job that
   creates this app's database and role in the shared PostgreSQL container.
 
@@ -12,9 +12,10 @@ duplicate infra containers when more apps are deployed.
 
 ## First Server Setup
 
-From `../shared-docker`:
+From the shared infra folder:
 
 ```sh
+cd ../../shared-docker
 cp .env.example .env
 nano .env
 docker compose up -d
@@ -32,7 +33,7 @@ nano .env
 
 The deploy script reads both env files:
 
-- `../shared-docker/.env` for shared PostgreSQL admin access.
+- `../../shared-docker/.env` for shared PostgreSQL admin access.
 - `./.env` for this app's Shopify, SMTP, domain, and database settings.
 
 ## Add Another App

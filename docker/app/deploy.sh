@@ -2,8 +2,15 @@
 set -eu
 
 APP_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
-SHARED_ENV_FILE=${SHARED_ENV_FILE:-"$APP_DIR/../shared-docker/.env"}
 APP_ENV_FILE=${APP_ENV_FILE:-"$APP_DIR/.env"}
+
+if [ -z "${SHARED_ENV_FILE:-}" ]; then
+  if [ -f "$APP_DIR/../shared-docker/.env" ]; then
+    SHARED_ENV_FILE="$APP_DIR/../shared-docker/.env"
+  else
+    SHARED_ENV_FILE="$APP_DIR/../../shared-docker/.env"
+  fi
+fi
 
 if [ ! -f "$SHARED_ENV_FILE" ]; then
   echo "Missing shared env file: $SHARED_ENV_FILE" >&2
