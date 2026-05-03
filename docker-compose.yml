@@ -1,63 +1,56 @@
+name: ${COMPOSE_PROJECT_NAME:?Set COMPOSE_PROJECT_NAME in the app .env}
+
 services:
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    environment:
-      GIFT_MESSAGE_BRIDGE_HOST: ${GIFT_MESSAGE_BRIDGE_HOST}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - gift-message-bridge-lite
-
-  postgres:
+  db-init:
     image: postgres:16-alpine
-    restart: unless-stopped
+    restart: "no"
     environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      GIFT_MESSAGE_BRIDGE_DB_PASSWORD: ${GIFT_MESSAGE_BRIDGE_DB_PASSWORD}
-    command:
-      - postgres
-      - -c
-      - shared_buffers=128MB
-      - -c
-      - max_connections=40
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set POSTGRES_ADMIN_PASSWORD in ../shared-docker/.env}
+      APP_DB_NAME: ${APP_DB_NAME:?Set APP_DB_NAME in the app .env}
+      APP_DB_USER: ${APP_DB_USER:?Set APP_DB_USER in the app .env}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in the app .env}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - ./docker/app/init-db.sh:/init-db.sh:ro
+    command: ["/bin/sh", "/init-db.sh"]
+    networks:
+      - shared_apps
 
-  gift-message-bridge-lite:
+  app:
     build: .
     restart: unless-stopped
+    init: true
+    expose:
+      - "3000"
     environment:
       NODE_ENV: production
+      NODE_OPTIONS: ${NODE_OPTIONS}
       PORT: 3000
-      SHOPIFY_API_KEY: ${SHOPIFY_API_KEY}
-      SHOPIFY_API_SECRET: ${SHOPIFY_API_SECRET}
-      SCOPES: ${SCOPES}
-      DATABASE_URL: ${DATABASE_URL}
-      SHOPIFY_APP_URL: https://${GIFT_MESSAGE_BRIDGE_HOST}
-      CONTACT_EMAIL: ${CONTACT_EMAIL}
-      EMAIL_HOST: ${EMAIL_HOST}
-      EMAIL_PORT: ${EMAIL_PORT}
-      EMAIL_USER: ${EMAIL_USER}
-      EMAIL_PASS: ${EMAIL_PASS}
+      SHOPIFY_API_KEY: ${SHOPIFY_API_KEY:?Set SHOPIFY_API_KEY in the app .env}
+      SHOPIFY_API_SECRET: ${SHOPIFY_API_SECRET:?Set SHOPIFY_API_SECRET in the app .env}
+      SCOPES: ${SCOPES:?Set SCOPES in the app .env}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in the app .env}
+      SHOPIFY_APP_URL: ${SHOPIFY_APP_URL:?Set SHOPIFY_APP_URL in the app .env}
+      CONTACT_EMAIL: ${CONTACT_EMAIL:?Set CONTACT_EMAIL in the app .env}
+      EMAIL_HOST: ${EMAIL_HOST:?Set EMAIL_HOST in the app .env}
+      EMAIL_PORT: ${EMAIL_PORT:?Set EMAIL_PORT in the app .env}
+      EMAIL_USER: ${EMAIL_USER:?Set EMAIL_USER in the app .env}
+      EMAIL_PASS: ${EMAIL_PASS:?Set EMAIL_PASS in the app .env}
+    labels:
+      caddy: ${GIFT_MESSAGE_BRIDGE_HOST:?Set GIFT_MESSAGE_BRIDGE_HOST in the app .env}
+      caddy.encode: zstd gzip
+      caddy.reverse_proxy: "{{upstreams 3000}}"
+      caddy_ingress_network: ${SHARED_DOCKER_NETWORK:-shared_apps}
     depends_on:
-      postgres:
-        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    networks:
+      - shared_apps
 
-volumes:
-  caddy_data:
-  caddy_config:
-  postgres_data:
+networks:
+  shared_apps:
+    external: true
+    name: ${SHARED_DOCKER_NETWORK:-shared_apps}

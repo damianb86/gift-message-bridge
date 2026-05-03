@@ -1,4 +1,0 @@
-{$GIFT_MESSAGE_BRIDGE_HOST} {
-  encode zstd gzip
-  reverse_proxy gift-message-bridge-lite:3000
-}

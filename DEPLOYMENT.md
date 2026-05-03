@@ -1,0 +1,49 @@
+# Docker Deployment
+
+This app is designed to run with shared infrastructure outside the app folder:
+
+- `../shared-docker`: one Caddy Docker Proxy container, one PostgreSQL container,
+  one shared Docker network.
+- `./docker-compose.yml`: this app container plus a one-shot `db-init` job that
+  creates this app's database and role in the shared PostgreSQL container.
+
+Do not start Caddy or PostgreSQL from this app folder. That would create
+duplicate infra containers when more apps are deployed.
+
+## First Server Setup
+
+From `../shared-docker`:
+
+```sh
+cp .env.example .env
+nano .env
+docker compose up -d
+```
+
+## Deploy This App
+
+From this app folder:
+
+```sh
+cp .env.example .env
+nano .env
+./docker/app/deploy.sh
+```
+
+The deploy script reads both env files:
+
+- `../shared-docker/.env` for shared PostgreSQL admin access.
+- `./.env` for this app's Shopify, SMTP, domain, and database settings.
+
+## Add Another App
+
+For each new app:
+
+- Use a unique `COMPOSE_PROJECT_NAME`.
+- Use a unique hostname.
+- Use a unique `APP_DB_NAME` and `APP_DB_USER`.
+- Keep `DATABASE_URL` pointed at `postgres`, never `localhost`.
+- Keep a low Prisma `connection_limit`, such as `3`, on this small server.
+
+Caddy discovers the app from Docker labels, so there is no shared Caddyfile to
+edit for each app.
