@@ -28,7 +28,7 @@ From this app folder:
 ```sh
 cp .env.example .env
 nano .env
-./docker/app/deploy.sh
+./deploy.sh
 ```
 
 The deploy script reads both env files:
