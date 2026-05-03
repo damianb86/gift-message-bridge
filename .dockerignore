@@ -1,3 +1,17 @@
 .cache
+.git
+.shopify
+.shopify.lock
+.env
+.env.*
 build
 node_modules
+npm-debug.log*
+Dockerfile
+docker-compose*.yml
+prisma/dev.sqlite
+prisma/dev.sqlite-journal
+database.sqlite
+*.db
+*.sqlite
+extensions/*/dist

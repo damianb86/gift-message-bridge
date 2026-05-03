@@ -4,7 +4,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useFetcher } from "react-router";
+import { useFetcher, useLoaderData } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
@@ -12,11 +12,13 @@ import db from "../db.server";
 import { sendContactEmail } from "../email.server";
 import styles from "../styles/help.module.css";
 
-const CONTACT_EMAIL = "damianbe86@gmail.com";
+const DEFAULT_CONTACT_EMAIL = "support@example.com";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
-  return null;
+  return {
+    contactEmail: process.env.CONTACT_EMAIL ?? DEFAULT_CONTACT_EMAIL,
+  };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -186,6 +188,7 @@ const requestCards = [
 ];
 
 export default function Help() {
+  const { contactEmail } = useLoaderData<typeof loader>();
   const shopify = useAppBridge();
   const fetcher = useFetcher<typeof action>();
   const privacyFetcher = useFetcher<typeof action>();
@@ -257,7 +260,7 @@ export default function Help() {
     } else {
       shopify.toast.show(data.message, { isError: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetcher.state, fetcher.data]);
 
   // Privacy actions → toast
@@ -273,7 +276,7 @@ export default function Help() {
     } else {
       shopify.toast.show(data.message, { isError: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [privacyFetcher.state, privacyFetcher.data]);
 
   const submitForm = () => {
@@ -399,8 +402,8 @@ export default function Help() {
             <div>
               <s-heading>What our Shopify team can customize</s-heading>
               <s-paragraph>
-                Keep the app simple for everyday use, and add the exact
-                behavior your store needs behind the scenes.
+                Keep the app simple for everyday use, and add the exact behavior
+                your store needs behind the scenes.
               </s-paragraph>
             </div>
             <div className={styles.serviceGrid}>
@@ -427,7 +430,7 @@ export default function Help() {
               Prefer email? Send us context about the store, the gifting
               problem, and the result you want.
             </s-paragraph>
-            <div className={styles.emailBox}>{CONTACT_EMAIL}</div>
+            <div className={styles.emailBox}>{contactEmail}</div>
             <s-button onClick={() => setOpenModal("support")}>
               Send from app
             </s-button>
@@ -543,7 +546,9 @@ export default function Help() {
             aria-labelledby="contact-modal-title"
           >
             <div className={styles.modalHeader}>
-              <s-heading id="contact-modal-title">{activeModal.title}</s-heading>
+              <s-heading id="contact-modal-title">
+                {activeModal.title}
+              </s-heading>
               <s-button variant="tertiary" onClick={closeModal}>
                 Close
               </s-button>

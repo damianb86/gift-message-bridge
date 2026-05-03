@@ -1,2 +1,0 @@
-ALTER TABLE "GiftMessage" ADD COLUMN "sender" TEXT NOT NULL DEFAULT '';
-ALTER TABLE "GiftMessage" ADD COLUMN "recipient" TEXT NOT NULL DEFAULT '';

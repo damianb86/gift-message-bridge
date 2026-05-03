@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gift Message Bridge Lite Privacy Policy</title>
+    <meta
+      name="description"
+      content="Privacy policy for Gift Message Bridge Lite, a Shopify app for collecting and printing gift messages."
+    />
+    <style>
+      :root {
+        color: #202223;
+        background: #ffffff;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      main {
+        max-width: 840px;
+        margin: 0 auto;
+        padding: 40px 20px 64px;
+      }
+
+      h1,
+      h2 {
+        line-height: 1.2;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 2rem;
+      }
+
+      h2 {
+        margin: 32px 0 8px;
+        font-size: 1.25rem;
+      }
+
+      p,
+      li {
+        font-size: 1rem;
+      }
+
+      .updated {
+        color: #616161;
+        margin-top: 0;
+      }
+
+      a {
+        color: #005bd3;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Gift Message Bridge Lite Privacy Policy</h1>
+      <p class="updated">Last updated: May 3, 2026</p>
+
+      <p>
+        Gift Message Bridge Lite helps merchants collect, review, and print gift
+        messages for orders. This policy explains what data the app processes,
+        how it is used, and how merchants can contact us about privacy requests.
+      </p>
+
+      <h2>Data read from Shopify</h2>
+      <p>
+        The app uses Shopify APIs and Shopify app surfaces only as needed to
+        provide gift message and printing workflows. Depending on merchant setup,
+        the app may read shop domain, app installation/session data, order
+        context needed to locate gift messages, product or variant references,
+        cart references, and order identifiers sent by Shopify surfaces or
+        extensions. The app does not sell this data.
+      </p>
+
+      <h2>Data provided by merchants</h2>
+      <p>
+        Merchants may provide print template settings, custom template HTML or
+        CSS, support messages, customization requests, suggestions, and optional
+        reply email addresses. These records are used to operate the app,
+        provide support, and improve the gift message workflow.
+      </p>
+
+      <h2>Data provided by shoppers</h2>
+      <p>
+        Shoppers may enter gift message text, sender names, recipient names, and
+        related line-item or cart references through storefront or checkout
+        surfaces enabled by the merchant. Merchants control whether these
+        surfaces are enabled and are responsible for informing shoppers about
+        their use.
+      </p>
+
+      <h2>How data is used</h2>
+      <ul>
+        <li>To save gift messages and make them available to the merchant.</li>
+        <li>To generate printable gift-message pages and track printed status.</li>
+        <li>To store merchant print template preferences.</li>
+        <li>To authenticate the embedded app inside Shopify admin.</li>
+        <li>To respond to support, privacy, and customization requests.</li>
+      </ul>
+
+      <h2>Retention and deletion</h2>
+      <p>
+        Gift messages, print template settings, contact requests, and session
+        records are retained while the merchant uses the app, unless deleted
+        earlier by request. Public print links use short-lived tokens and should
+        not be shared outside the merchant's operations team. When Shopify sends
+        a shop redaction webhook after uninstall, the app deletes stored data for
+        that shop from its database unless retention is legally required.
+      </p>
+
+      <h2>Service providers</h2>
+      <p>
+        The app may use hosting, database, email delivery, logging, and Shopify
+        platform services to operate. These providers process data only for app
+        operation, support, security, and maintenance.
+      </p>
+
+      <h2>Security</h2>
+      <p>
+        The app is designed to run over HTTPS, validate Shopify webhook HMAC
+        signatures, store data in PostgreSQL, and use environment variables for
+        secrets. Access to production systems should be limited to authorized
+        operators.
+      </p>
+
+      <h2>Privacy webhooks and rights</h2>
+      <p>
+        The app implements Shopify mandatory privacy webhooks for
+        customers/data_request, customers/redact, and shop/redact. Merchants and
+        affected individuals may request access, deletion, or help with privacy
+        questions by contacting support. We will respond to valid privacy
+        requests within the time required by applicable law and Shopify policy.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        For privacy questions, support, or data requests, contact
+        <a href="mailto:support@example.com">support@example.com</a>. Replace
+        this address with the production support address configured in
+        CONTACT_EMAIL before submitting the app for review.
+      </p>
+    </main>
+  </body>
+</html>
