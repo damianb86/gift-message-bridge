@@ -12,24 +12,24 @@ automatically_update_urls_on_dev = false
 api_version = "2026-04"
 
   [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/data_request"
   compliance_topics = [ "customers/data_request" ]
-  uri = "https://qorve-2.duckdns.org/webhooks/customers/data_request"
 
   [[webhooks.subscriptions]]
+  uri = "/webhooks/customers/redact"
   compliance_topics = [ "customers/redact" ]
-  uri = "https://qorve-2.duckdns.org/webhooks/customers/redact"
 
   [[webhooks.subscriptions]]
+  uri = "/webhooks/shop/redact"
   compliance_topics = [ "shop/redact" ]
-  uri = "https://qorve-2.duckdns.org/webhooks/shop/redact"
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/app/scopes_update"
-  topics = [ "app/scopes_update" ]
 
   [[webhooks.subscriptions]]
   uri = "/webhooks/app/uninstalled"
   topics = [ "app/uninstalled" ]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = [ "app/scopes_update" ]
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes

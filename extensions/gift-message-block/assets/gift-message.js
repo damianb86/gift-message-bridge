@@ -4,8 +4,6 @@
   var WARN_THRESHOLD = 20;
   var PROXY_PATH = "/apps/gift-message";
   var MESSAGE_REFERENCE_PROPERTY = "Gift Message Ref";
-  var ORDER_REFERENCE_PROPERTY = "Gift Order Ref";
-  var PRODUCT_REFERENCE_PROPERTY = "Gift Product Ref";
   var REFERENCE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   var REFERENCE_LENGTH = 5;
 
@@ -296,9 +294,6 @@
       if (!hasContent) return false;
 
       var messageId = ensureMessageId();
-      var orderReference = ensureCartReference();
-      var variant = getSelectedVariant(form);
-      var productReference = formatProductReference(variant);
 
       addProductProperty(
         form,
@@ -306,10 +301,6 @@
         formatLineItemGiftMessage(sender, recipient, value),
       );
       addProductProperty(form, MESSAGE_REFERENCE_PROPERTY, messageId);
-      addProductProperty(form, ORDER_REFERENCE_PROPERTY, orderReference);
-      if (productReference) {
-        addProductProperty(form, PRODUCT_REFERENCE_PROPERTY, productReference);
-      }
       addProductProperty(form, "_Gift Message Property", propertyName);
 
       return true;
@@ -597,22 +588,6 @@
     function getVariantTitle(variant) {
       var title = variant && variant.title ? String(variant.title).trim() : "";
       return title && title.toLowerCase() !== "default title" ? title : "";
-    }
-
-    function formatProductReference(variant) {
-      var parts = [];
-      var variantTitle = getVariantTitle(variant);
-      var sku = variant && variant.sku ? String(variant.sku).trim() : "";
-
-      if (productTitle) {
-        parts.push(productTitle + (variantTitle ? " - " + variantTitle : ""));
-      }
-
-      if (sku) {
-        parts.push("SKU: " + sku);
-      }
-
-      return parts.join(" | ");
     }
 
     function formatLineItemGiftMessage(sender, recipient, message) {

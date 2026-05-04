@@ -1,11 +1,6 @@
-import {
-  BlockStack,
-  Heading,
-  Text,
-  TextBlock,
-  View,
-  extension,
-} from "@shopify/ui-extensions/checkout";
+import "@shopify/ui-extensions/preact";
+import { render } from "preact";
+import { useEffect, useState } from "preact/hooks";
 
 const GIFT_MESSAGE_ATTRIBUTE = "gift_message";
 const GIFT_MESSAGE_FROM_ATTRIBUTE = "gift_message_from";
@@ -14,93 +9,74 @@ const GIFT_MESSAGE_PROPERTY = "Gift Message";
 const GIFT_MESSAGE_FROM_PROPERTY = "Gift Message From";
 const GIFT_MESSAGE_TO_PROPERTY = "Gift Message To";
 const GIFT_MESSAGE_PROPERTY_NAME = "_Gift Message Property";
+const EMPTY_ARRAY = [];
 
-export default extension("purchase.checkout.block.render", (root, api) => {
-  const renderMessages = () => {
-    const checkoutMessages = collectCheckoutMessages(api);
+export default function extension() {
+  render(<Extension />, document.body);
+}
 
-    if (checkoutMessages.length === 0) {
-      root.replaceChildren(createEmptyState(root, api));
-      return;
-    }
-
-    root.replaceChildren(createMessageBlock(root, checkoutMessages));
-  };
-
-  renderMessages();
-
-  const unsubscribeAttributes = api.attributes.subscribe(renderMessages);
-  const unsubscribeLines = api.lines.subscribe(renderMessages);
-
-  return () => {
-    unsubscribeAttributes();
-    unsubscribeLines();
-  };
-});
-
-function createMessageBlock(root, checkoutMessages) {
-  const cards = checkoutMessages.map((giftMessage) =>
-    root.createComponent(
-      View,
-      {
-        padding: "base",
-        border: "base",
-        cornerRadius: "base",
-      },
-      root.createComponent(
-        BlockStack,
-        { spacing: "extraTight" },
-        root.createComponent(
-          Text,
-          { emphasis: "bold" },
-          root.createText(giftMessage.label),
-        ),
-        root.createComponent(
-          Text,
-          { appearance: "subdued" },
-          root.createText(formatNames(giftMessage)),
-        ),
-        root.createComponent(
-          TextBlock,
-          null,
-          root.createText(giftMessage.message),
-        ),
-      ),
-    ),
+function Extension() {
+  const [attributes, setAttributes] = useSignalState(
+    shopify.attributes,
+    EMPTY_ARRAY,
   );
+  const [lines, setLines] = useSignalState(shopify.lines, EMPTY_ARRAY);
+  const checkoutMessages = collectCheckoutMessages(attributes, lines);
 
-  return root.createComponent(
-    BlockStack,
-    { spacing: "base" },
-    root.createComponent(Heading, null, root.createText("Gift messages")),
-    root.createComponent(BlockStack, { spacing: "tight" }, cards),
+  return (
+    <s-stack gap="base">
+      <s-heading>Gift messages</s-heading>
+      {checkoutMessages.length > 0 ? (
+        <s-stack gap="small">
+          {checkoutMessages.map((giftMessage) => (
+            <s-box
+              key={giftMessage.id}
+              padding="base"
+              border="base"
+              borderRadius="base"
+            >
+              <s-stack gap="small-200">
+                <s-text type="strong">{giftMessage.label}</s-text>
+                <s-text color="subdued">{formatNames(giftMessage)}</s-text>
+                <s-text>{giftMessage.message}</s-text>
+              </s-stack>
+            </s-box>
+          ))}
+        </s-stack>
+      ) : (
+        <s-box padding="base" border="base" borderRadius="base">
+          <s-stack gap="small-200">
+            <s-text>
+              {shopify.editor
+                ? "This block will show the gift messages collected from the product page or cart."
+                : "No gift messages were added to this checkout."}
+            </s-text>
+          </s-stack>
+        </s-box>
+      )}
+    </s-stack>
   );
 }
 
-function createEmptyState(root, api) {
-  const text = api.editor
-    ? "This block will show the gift messages collected from the product page or cart."
-    : "No gift messages were added to this checkout.";
+function useSignalState(signal, fallback) {
+  const [value, setValue] = useState(() => getSignalValue(signal, fallback));
 
-  return root.createComponent(
-    View,
-    {
-      padding: "base",
-      border: "base",
-      cornerRadius: "base",
-    },
-    root.createComponent(
-      BlockStack,
-      { spacing: "extraTight" },
-      root.createComponent(Heading, null, root.createText("Gift messages")),
-      root.createComponent(TextBlock, null, root.createText(text)),
-    ),
-  );
+  useEffect(() => {
+    if (!signal || typeof signal.subscribe !== "function") return undefined;
+    return signal.subscribe((nextValue) => {
+      setValue(nextValue || fallback);
+    });
+  }, [signal, fallback]);
+
+  return [value, setValue];
 }
 
-function collectCheckoutMessages(api) {
+function getSignalValue(signal, fallback) {
+  return signal?.value ?? signal?.current ?? fallback;
+}
+
+function collectCheckoutMessages(attributes, lines) {
   const messages = [];
-  const attributes = getSubscribableValue(api.attributes) || [];
   const cartMessage = findAttributeValue(attributes, GIFT_MESSAGE_ATTRIBUTE);
 
   if (cartMessage) {
@@ -113,7 +89,7 @@ function collectCheckoutMessages(api) {
     });
   }
 
-  for (const line of getSubscribableValue(api.lines) || []) {
+  for (const line of lines || []) {
     const lineAttributes = line.attributes || [];
     const lineMessage = findGiftMessage(lineAttributes);
 
@@ -147,10 +123,6 @@ function formatNames(giftMessage) {
   return `From ${sender} to ${recipient}`;
 }
 
-function getSubscribableValue(subscribable) {
-  return subscribable.value ?? subscribable.current;
-}
-
 function findGiftMessage(attributes) {
   const propertyName = findAttributeValue(
     attributes,
@@ -176,7 +148,7 @@ function findGiftMessage(attributes) {
 }
 
 function findAttributeValue(attributes, key) {
-  const attribute = attributes.find((item) => item.key === key);
+  const attribute = (attributes || []).find((item) => item.key === key);
   return cleanMessage(attribute?.value);
 }
 

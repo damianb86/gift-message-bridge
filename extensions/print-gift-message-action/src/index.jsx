@@ -9,14 +9,8 @@
 
 /* global __APP_URL__ */
 
-import {
-  extension,
-  AdminPrintAction,
-  Banner,
-  BlockStack,
-  Checkbox,
-  Text,
-} from "@shopify/ui-extensions/admin";
+import { render } from "preact";
+import { useCallback, useEffect, useState } from "preact/hooks";
 
 const APP_URL =
   typeof __APP_URL__ !== "undefined" && __APP_URL__ ? __APP_URL__ : "";
@@ -24,8 +18,6 @@ const APP_URL =
 const GIFT_MESSAGE_PROPERTY = "Gift Message";
 const GIFT_MESSAGE_PROPERTY_NAME = "_Gift Message Property";
 const GIFT_MESSAGE_REF_PROPERTY = "Gift Message Ref";
-const GIFT_ORDER_REF_PROPERTY = "Gift Order Ref";
-const GIFT_PRODUCT_REF_PROPERTY = "Gift Product Ref";
 
 const ORDER_QUERY = `#graphql
 query GiftMessageOrder($id: ID!) {
@@ -48,195 +40,186 @@ query GiftMessageOrder($id: ID!) {
   }
 }`;
 
-export default extension(
-  "admin.order-details.print-action.render",
-  (root, api) => {
-    const contentArea = root.createComponent(BlockStack, { gap: "base" });
-    const printAction = root.createComponent(AdminPrintAction, {}, contentArea);
-    let markPrinted = true;
-    let currentOrder = null;
-    let currentMessages = [];
+export default async function extension() {
+  render(<Extension />, document.body);
+}
 
-    root.appendChild(printAction);
+function Extension() {
+  const [markPrinted, setMarkPrinted] = useState(true);
+  const [order, setOrder] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [printUrl, setPrintUrl] = useState(undefined);
+  const [status, setStatus] = useState({
+    type: "loading",
+    count: 0,
+  });
 
-    function showLoading() {
-      printAction.updateProps({ src: undefined });
-      contentArea.replaceChildren(
-        root.createComponent(
-          BlockStack,
-          { gap: "small" },
-          root.createComponent(
-            Text,
-            {},
-            root.createText("Preparing gift messages..."),
-          ),
-          root.createComponent(
-            Text,
-            {},
-            root.createText(
-              "Reading this order and applying the saved print template.",
-            ),
-          ),
-        ),
-      );
-    }
+  useEffect(() => {
+    let active = true;
 
-    function showReady(count, printUrl) {
-      printAction.updateProps({ src: printUrl });
-      contentArea.replaceChildren(
-        root.createComponent(
-          BlockStack,
-          { gap: "small" },
-          root.createComponent(
-            Text,
-            {},
-            root.createText(
-              `${count} gift message${count === 1 ? "" : "s"} ready to print.`,
-            ),
-          ),
-          root.createComponent(
-            Text,
-            {},
-            root.createText(
-              "Use the print preview above to print this order's messages.",
-            ),
-          ),
-          root.createComponent(Checkbox, {
-            checked: markPrinted,
-            label: "Mark messages as printed after printing",
-            onChange: (checked) => {
-              markPrinted = checked;
-              createPrintView(currentOrder, currentMessages);
-            },
-          }),
-        ),
-      );
-    }
+    async function loadOrder() {
+      setStatus({ type: "loading", count: 0 });
+      setPrintUrl(undefined);
 
-    function showNotFound() {
-      printAction.updateProps({ src: undefined });
-      contentArea.replaceChildren(
-        root.createComponent(
-          Banner,
-          { tone: "info", title: "No gift messages in this order" },
-          root.createText(
-            "This order does not have a Gift Message line item property.",
-          ),
-        ),
-      );
-    }
-
-    function showOrderAccessError() {
-      printAction.updateProps({ src: undefined });
-      contentArea.replaceChildren(
-        root.createComponent(
-          Banner,
-          { tone: "critical", title: "Could not read the order" },
-          root.createText(
-            "The app needs permission to read orders so it can print the Gift Message line item properties.",
-          ),
-        ),
-      );
-    }
-
-    function showTemplateError() {
-      printAction.updateProps({ src: undefined });
-      contentArea.replaceChildren(
-        root.createComponent(
-          Banner,
-          { tone: "critical", title: "Could not create the print view" },
-          root.createText(
-            "The order was read, but the app could not load the print template.",
-          ),
-        ),
-      );
-    }
-
-    async function load() {
-      showLoading();
-
-      const orderId = api.data?.selected?.[0]?.id ?? "";
+      const orderId = shopify.data?.selected?.[0]?.id ?? "";
       if (!orderId) {
-        showOrderAccessError();
+        setStatus({ type: "order_access_error", count: 0 });
         return;
       }
 
       try {
-        const result = await api.query(ORDER_QUERY, {
+        const result = await shopify.query(ORDER_QUERY, {
           variables: { id: orderId },
         });
 
+        if (!active) return;
+
         if (result.errors?.length || !result.data?.order) {
-          showOrderAccessError();
+          setStatus({ type: "order_access_error", count: 0 });
           return;
         }
 
-        currentOrder = result.data.order;
+        const currentOrder = result.data.order;
+        const currentMessages = collectGiftMessages(currentOrder);
+
+        setOrder(currentOrder);
+        setMessages(currentMessages);
+
+        if (currentMessages.length === 0) {
+          setStatus({ type: "not_found", count: 0 });
+        }
       } catch (_) {
-        showOrderAccessError();
-        return;
-      }
-
-      currentMessages = collectGiftMessages(currentOrder);
-      if (currentMessages.length === 0) {
-        showNotFound();
-        return;
-      }
-
-      createPrintView(currentOrder, currentMessages);
-    }
-
-    async function createPrintView(order, messages) {
-      if (!order || !messages?.length) {
-        showTemplateError();
-        return;
-      }
-
-      try {
-        const token = await api.auth.idToken();
-        const headers = {
-          "Content-Type": "application/json",
-        };
-
-        if (token) {
-          headers.Authorization = `Bearer ${token}`;
+        if (active) {
+          setStatus({ type: "order_access_error", count: 0 });
         }
-
-        const endpoint = APP_URL
-          ? `${APP_URL}/api/print-order-gift-message`
-          : "/api/print-order-gift-message";
-
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            orderId: order.id,
-            orderName: order.name,
-            markPrinted,
-            messages,
-          }),
-        });
-
-        if (!res.ok) {
-          showTemplateError();
-          return;
-        }
-
-        const json = await res.json();
-        if (json.error || !json.found || !json.printUrl) {
-          showTemplateError();
-          return;
-        }
-
-        showReady(json.count, json.printUrl);
-      } catch (_) {
-        showTemplateError();
       }
     }
 
-    load();
-  },
-);
+    loadOrder();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const createPrintView = useCallback(async () => {
+    if (!order || !messages.length) {
+      return;
+    }
+
+    setStatus({ type: "loading", count: messages.length });
+    setPrintUrl(undefined);
+
+    try {
+      const token = await shopify.auth.idToken();
+      const headers = {
+        "Content-Type": "application/json",
+      };
+
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const endpoint = APP_URL
+        ? `${APP_URL}/api/print-order-gift-message`
+        : "/api/print-order-gift-message";
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          orderId: order.id,
+          orderName: order.name,
+          markPrinted,
+          messages,
+        }),
+      });
+
+      if (!res.ok) {
+        setStatus({ type: "template_error", count: messages.length });
+        return;
+      }
+
+      const json = await res.json();
+      if (json.error || !json.found || !json.printUrl) {
+        setStatus({ type: "template_error", count: messages.length });
+        return;
+      }
+
+      setPrintUrl(json.printUrl);
+      setStatus({ type: "ready", count: json.count });
+    } catch (_) {
+      setStatus({ type: "template_error", count: messages.length });
+    }
+  }, [markPrinted, messages, order]);
+
+  useEffect(() => {
+    createPrintView();
+  }, [createPrintView]);
+
+  return (
+    <s-admin-print-action src={printUrl}>
+      <PrintActionContent
+        markPrinted={markPrinted}
+        onMarkPrintedChange={setMarkPrinted}
+        status={status}
+      />
+    </s-admin-print-action>
+  );
+}
+
+function PrintActionContent({ markPrinted, onMarkPrintedChange, status }) {
+  if (status.type === "loading") {
+    return (
+      <s-stack gap="small">
+        <s-text>Preparing gift messages...</s-text>
+        <s-text>Reading this order and applying the saved print template.</s-text>
+      </s-stack>
+    );
+  }
+
+  if (status.type === "not_found") {
+    return (
+      <s-banner tone="info" heading="No gift messages in this order">
+        This order does not have a Gift Message line item property.
+      </s-banner>
+    );
+  }
+
+  if (status.type === "order_access_error") {
+    return (
+      <s-banner tone="critical" heading="Could not read the order">
+        The app needs permission to read orders so it can print the Gift Message
+        line item properties.
+      </s-banner>
+    );
+  }
+
+  if (status.type === "template_error") {
+    return (
+      <s-banner tone="critical" heading="Could not create the print view">
+        The order was read, but the app could not load the print template.
+      </s-banner>
+    );
+  }
+
+  return (
+    <s-stack gap="small">
+      <s-text>
+        {status.count} gift message{status.count === 1 ? "" : "s"} ready to
+        print.
+      </s-text>
+      <s-text>Use the print preview above to print this order's messages.</s-text>
+      <s-checkbox
+        checked={markPrinted}
+        label="Mark messages as printed after printing"
+        onChange={(event) =>
+          onMarkPrintedChange(Boolean(event.currentTarget.checked))
+        }
+      />
+    </s-stack>
+  );
+}
 
 function collectGiftMessages(order) {
   const lines = order?.lineItems?.nodes || [];
@@ -263,13 +246,9 @@ function collectGiftMessages(order) {
         reference:
           findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY) ||
           `${orderReference || "Order"}-${index + 1}`,
-        cartReference:
-          findAttributeValue(attributes, GIFT_ORDER_REF_PROPERTY) ||
-          orderReference,
-        cartToken:
-          findAttributeValue(attributes, GIFT_ORDER_REF_PROPERTY) ||
-          orderReference,
-        productReference: buildProductReference(line, attributes),
+        cartReference: orderReference,
+        cartToken: orderReference,
+        productReference: buildProductReference(line),
         sender: parsed.sender,
         recipient: parsed.recipient,
         message,
@@ -292,15 +271,7 @@ function findGiftMessage(attributes) {
   );
 }
 
-function buildProductReference(line, attributes) {
-  const savedReference = findAttributeValue(
-    attributes,
-    GIFT_PRODUCT_REF_PROPERTY,
-  );
-  if (savedReference) {
-    return savedReference;
-  }
-
+function buildProductReference(line) {
   const title = clean(line.title);
   const variantTitle = clean(line.variantTitle);
   const sku = clean(line.sku);
