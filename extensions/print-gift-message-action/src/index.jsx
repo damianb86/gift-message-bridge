@@ -8,6 +8,7 @@
  */
 
 /* global __APP_URL__ */
+/* eslint-disable react/prop-types */
 
 import { render } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
@@ -209,7 +210,7 @@ function PrintActionContent({ markPrinted, onMarkPrintedChange, status }) {
         {status.count} gift message{status.count === 1 ? "" : "s"} ready to
         print.
       </s-text>
-      <s-text>Use the print preview above to print this order's messages.</s-text>
+      <s-text>Use the print preview above to print this order&apos;s messages.</s-text>
       <s-checkbox
         checked={markPrinted}
         label="Mark messages as printed after printing"
