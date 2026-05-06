@@ -147,27 +147,27 @@ type IconType =
 const customizationServices = [
   {
     icon: "settings" as const,
-    title: "Store-specific message workflows",
-    text: "Rules tuned to your product types, fulfillment process, gift packaging, and team review flow.",
+    title: "Store-specific setup guidance",
+    text: "Configuration help for product types, fulfillment process, gift packaging, and team review flow.",
   },
   {
     icon: "store" as const,
-    title: "Printing and fulfillment tools",
-    text: "Private flows for picking, batching, QA review, packing slips, and fulfillment handoff.",
+    title: "Printing and fulfillment guidance",
+    text: "Support for picking, batching, QA review, packing slips, and fulfillment handoff.",
   },
   {
     icon: "code" as const,
-    title: "Shopify integrations",
-    text: "Connect ERP, WMS, order tagging, analytics, custom dashboards, or internal admin tools.",
+    title: "Shopify workflow support",
+    text: "Help aligning order tagging, analytics, dashboards, and internal admin workflows with the app.",
   },
 ];
 
 const requestCards = [
   {
     icon: "wrench" as const,
-    title: "Customize the app",
-    text: "Hire Shopify professionals to adapt Gift Message Bridge Lite to how your business handles gifting.",
-    action: "Request customization",
+    title: "Request setup help",
+    text: "Ask our app support team for guidance on fitting Gift Message Bridge Lite to your gifting workflow.",
+    action: "Request help",
     modal: "customization" as const,
     tone: "primary",
   },
@@ -181,7 +181,7 @@ const requestCards = [
   {
     icon: "chat" as const,
     title: "Contact support",
-    text: "Ask about setup, theme blocks, checkout extensions, printing, templates, or data handling.",
+    text: "Ask about setup, theme blocks, printing, templates, or data handling.",
     action: "Contact us",
     modal: "support" as const,
   },
@@ -203,15 +203,15 @@ export default function Help() {
 
   const modalContent = {
     customization: {
-      title: "Request customization",
+      title: "Request setup help",
       type: "customization",
       subjectPlaceholder: "Custom gift message workflow",
-      messageLabel: "What should we build or adapt?",
+      messageLabel: "What workflow do you need help with?",
       messagePlaceholder:
-        "Example: Add a packing-team review queue and print cards grouped by fulfillment location.",
+        "Example: Configure a packing-team review queue and print cards grouped by fulfillment location.",
       intro:
-        "Share the business case, what happens today, and what a successful workflow should do.",
-      primary: "Send request",
+        "Share what happens today, where setup is unclear, and what a successful workflow should do.",
+      primary: "Send help request",
     },
     suggestion: {
       title: "Suggest an improvement",
@@ -304,25 +304,24 @@ export default function Help() {
   };
 
   return (
-    <s-page heading="Help, customization & contact" inlineSize="large">
+    <s-page heading="Help & contact" inlineSize="large">
       <s-section>
         <div className={styles.hero}>
           <div className={styles.heroInner}>
             <div className={styles.heroCopy}>
               <div className={styles.badges}>
-                <s-badge tone="success">Shopify professionals</s-badge>
+                <s-badge tone="success">App support</s-badge>
                 <span className={styles.softBadge}>Private workflows</span>
-                <span className={styles.softBadge}>Custom app development</span>
+                <span className={styles.softBadge}>Setup guidance</span>
               </div>
               <div>
                 <h1 className={styles.heroTitle}>
                   Make Gift Message Bridge Lite fit your store.
                 </h1>
                 <p className={styles.heroText}>
-                  We can adapt the app to your catalog, team process, and
-                  Shopify setup: custom message flows, richer filters,
-                  fulfillment workflows, integrations, and store-specific
-                  automations.
+                  Get guidance for using the app with your catalog, team
+                  process, and Shopify setup: message flows, filters,
+                  fulfillment workflows, and store-specific operations.
                 </p>
               </div>
               <div className={styles.actions}>
@@ -330,7 +329,7 @@ export default function Help() {
                   variant="primary"
                   onClick={() => setOpenModal("customization")}
                 >
-                  Request customization
+                  Request setup help
                 </s-button>
                 <s-button onClick={() => setOpenModal("support")}>
                   Contact us
@@ -345,10 +344,10 @@ export default function Help() {
                 </span>
                 <div>
                   <h2 className={styles.darkPanelTitle}>
-                    Popular custom work
+                    Common support topics
                   </h2>
                   <p className={styles.darkPanelText}>
-                    Practical Shopify improvements with clear business value.
+                    Practical setup questions with clear workflow value.
                   </p>
                 </div>
               </div>
@@ -357,7 +356,7 @@ export default function Help() {
                 {[
                   "Gift workflows based on products, tags, order attributes, and fulfillment locations",
                   "Bulk print flows for packing teams, seasonal campaigns, or wholesale orders",
-                  "Private Shopify tools for gift notes, operations, or customer service teams",
+                  "Operational guidance for gift notes, packing teams, and customer service teams",
                 ].map((item) => (
                   <li key={item}>
                     <span>✓</span>
@@ -402,10 +401,10 @@ export default function Help() {
         <div className={styles.serviceContactGrid}>
           <div className={styles.privacyCard}>
             <div>
-              <s-heading>What our Shopify team can customize</s-heading>
+              <s-heading>How our app support can help</s-heading>
               <s-paragraph>
-                Keep the app simple for everyday use, and add the exact behavior
-                your store needs behind the scenes.
+                Keep the app simple for everyday use, and get help configuring
+                the behavior your store needs.
               </s-paragraph>
             </div>
             <div className={styles.serviceGrid}>

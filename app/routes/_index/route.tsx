@@ -1,7 +1,5 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { redirect, Form, useLoaderData } from "react-router";
-
-import { login } from "../../shopify.server";
+import { redirect } from "react-router";
 
 import styles from "./styles.module.css";
 
@@ -12,12 +10,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
 
-  return { showForm: Boolean(login) };
+  return null;
 };
 
 export default function App() {
-  const { showForm } = useLoaderData<typeof loader>();
-
   return (
     <main className={styles.index}>
       <section className={styles.hero}>
@@ -69,26 +65,11 @@ export default function App() {
         <div className={styles.loginPanel}>
           <div>
             <h2>Open the embedded app</h2>
-            <p>Enter your Shopify store domain to continue inside admin.</p>
+            <p>
+              Install or open Gift Message Bridge Lite from Shopify admin or
+              the Shopify App Store.
+            </p>
           </div>
-          {showForm && (
-            <Form className={styles.form} method="post" action="/auth/login">
-              <label className={styles.label}>
-                <span>Shop domain</span>
-                <input
-                  className={styles.input}
-                  type="text"
-                  name="shop"
-                  placeholder="my-store.myshopify.com"
-                  autoComplete="organization"
-                />
-                <small>Use the full myshopify.com domain.</small>
-              </label>
-              <button className={styles.button} type="submit">
-                Log in
-              </button>
-            </Form>
-          )}
         </div>
       </section>
 

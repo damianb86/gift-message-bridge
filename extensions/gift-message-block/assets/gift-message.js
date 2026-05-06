@@ -531,16 +531,7 @@
         return cartReference;
       }
 
-      try {
-        cartReference = window.localStorage.getItem("gmb-order-ref") || "";
-        if (!cartReference) {
-          cartReference = createReference("GO");
-          window.localStorage.setItem("gmb-order-ref", cartReference);
-        }
-      } catch (err) {
-        cartReference = createReference("GO");
-      }
-
+      cartReference = createReference("GO");
       return cartReference;
     }
 

@@ -5,56 +5,17 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import styles from "../styles/block-setup.module.css";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const editorBase = `https://${session.shop}/admin/themes/current/editor`;
-  const shopHandle = session.shop.replace(".myshopify.com", "");
-
-  const response = await admin.graphql(`
-    #graphql
-    query ShopPlan {
-      shop {
-        plan {
-          displayName
-          partnerDevelopment
-        }
-      }
-    }
-  `);
-  const planData = (await response.json()) as {
-    data?: {
-      shop?: {
-        plan?: {
-          displayName?: string;
-          partnerDevelopment?: boolean;
-        };
-      };
-    };
-  };
-  const plan = planData.data?.shop?.plan;
-  const planName = plan?.displayName || "Unknown plan";
-  const checkoutSupported = planName.toLowerCase().includes("plus");
 
   return {
     editorProductUrl: `${editorBase}?template=product`,
     editorCartUrl: `${editorBase}?template=cart`,
-    checkoutEditorUrl: `https://admin.shopify.com/store/${shopHandle}/settings/checkout/editor`,
-    checkoutSettingsUrl: `https://admin.shopify.com/store/${shopHandle}/settings/checkout`,
-    checkoutSupported,
-    planName,
-    planUrl: `https://admin.shopify.com/store/${shopHandle}/settings/plan`,
   };
 };
 
 export default function GiftMessageSetup() {
-  const {
-    checkoutEditorUrl,
-    checkoutSettingsUrl,
-    checkoutSupported,
-    editorCartUrl,
-    editorProductUrl,
-    planName,
-    planUrl,
-  } =
+  const { editorCartUrl, editorProductUrl } =
     useLoaderData<typeof loader>();
 
   return (
@@ -67,33 +28,8 @@ export default function GiftMessageSetup() {
             tone="success"
           />
           <SetupStatus label="Cart Page" status="Theme block" tone="success" />
-          <SetupStatus
-            label="Checkout Page"
-            status="Checkout extension"
-            tone="info"
-          />
         </div>
       </s-section>
-
-      {!checkoutSupported && (
-        <s-section>
-          <div className={styles.planNotice}>
-            <div>
-              <s-heading>Checkout block unavailable on this store</s-heading>
-              <s-paragraph>
-                Shopify only exposes checkout UI extension blocks for checkout
-                steps on Shopify Plus stores. This store is currently on{" "}
-                {planName}, so the checkout editor can show an empty Apps list.
-                If the store is already Plus, review checkout settings and
-                upgrade to the latest checkout version there.
-              </s-paragraph>
-            </div>
-            <s-button href={planUrl} target="_blank">
-              Review store plan
-            </s-button>
-          </div>
-        </s-section>
-      )}
 
       <s-section>
         <div className={styles.setupGrid}>
@@ -122,19 +58,6 @@ export default function GiftMessageSetup() {
             ]}
             action="Open cart template"
             href={editorCartUrl}
-          />
-          <SetupPanel
-            title="Checkout Page"
-            eyebrow="Checkout display"
-            description="Shows the collected gift messages during checkout so merchants and customers can verify them."
-            preview="checkout"
-            steps={[
-              "Open the checkout editor",
-              "Place the Gift messages block",
-              "Preview checkout",
-            ]}
-            action="Open checkout editor"
-            href={checkoutEditorUrl}
           />
         </div>
       </s-section>
@@ -167,14 +90,6 @@ export default function GiftMessageSetup() {
               description="The printed message is packed with the product."
             />
           </div>
-          <div className={styles.checkoutHelp}>
-            <s-text color="subdued">
-              Checkout blocks are managed from checkout settings.
-            </s-text>
-            <s-button href={checkoutSettingsUrl} target="_blank">
-              Open checkout settings
-            </s-button>
-          </div>
         </div>
       </s-section>
     </s-page>
@@ -188,7 +103,7 @@ function SetupStatus({
 }: {
   label: string;
   status: string;
-  tone: "success" | "info";
+  tone: "success";
 }) {
   return (
     <div className={styles.statusItem}>
@@ -213,7 +128,7 @@ function SetupPanel({
   title: string;
   eyebrow: string;
   description: string;
-  preview: "product" | "cart" | "checkout";
+  preview: "product" | "cart";
   steps: string[];
   action: string;
   href: string;
@@ -225,9 +140,7 @@ function SetupPanel({
           <s-text color="subdued">{eyebrow}</s-text>
           <s-heading>{title}</s-heading>
         </div>
-        <s-badge tone={preview === "checkout" ? "info" : "success"}>
-          {preview === "checkout" ? "Extension" : "Theme"}
-        </s-badge>
+        <s-badge tone="success">Theme</s-badge>
       </div>
 
       <PreviewFrame type={preview} />
@@ -250,7 +163,7 @@ function SetupPanel({
   );
 }
 
-function PreviewFrame({ type }: { type: "product" | "cart" | "checkout" }) {
+function PreviewFrame({ type }: { type: "product" | "cart" }) {
   return (
     <div className={`${styles.preview} ${styles[`preview${type}`]}`}>
       <div className={styles.previewChrome}>
@@ -285,22 +198,6 @@ function PreviewFrame({ type }: { type: "product" | "cart" | "checkout" }) {
               <div />
               <span />
               <span />
-            </div>
-          </>
-        )}
-        {type === "checkout" && (
-          <>
-            <div className={styles.checkoutMain}>
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className={styles.checkoutSide}>
-              <div className={styles.giftBlock}>
-                <div />
-                <span />
-                <span />
-              </div>
             </div>
           </>
         )}
