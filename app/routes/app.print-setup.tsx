@@ -391,8 +391,8 @@ body { margin: 0; padding: 10mm; background: #fff; }
   margin: 0;
 }
 .print-meta {
-  border: 1px solid #d8dbe0;
-  color: #202223;
+  border: 1px solid rgba(51, 65, 85, .16);
+  color: #334155;
   display: grid;
   font-family: Arial, sans-serif;
   font-size: 8px;
@@ -401,7 +401,7 @@ body { margin: 0; padding: 10mm; background: #fff; }
   padding: 4mm;
 }
 .print-meta-title {
-  color: #6d7175;
+  color: #64748b;
   font-size: 7px;
   font-weight: 700;
   letter-spacing: .08em;
@@ -412,7 +412,7 @@ body { margin: 0; padding: 10mm; background: #fff; }
   overflow-wrap: anywhere;
 }
 .print-meta-muted {
-  color: #6d7175;
+  color: #64748b;
   overflow-wrap: anywhere;
 }
 /* Shared helper used by templateHtml layouts */
@@ -422,7 +422,7 @@ body { margin: 0; padding: 10mm; background: #fff; }
   margin: 4mm 0;
   font-size: 10px;
   line-height: 1.4;
-  color: #6d7175;
+  color: #64748b;
   text-transform: uppercase;
   letter-spacing: .06em;
 }
@@ -1213,7 +1213,10 @@ body > .gift-card {
                   <div className={styles.templateSectionHeader}>
                     <div>
                       <h3>Choose a template</h3>
-                      <p>11 presets plus your custom design.</p>
+                      <p>
+                        {presetPrintTemplates.length} presets plus your custom
+                        design.
+                      </p>
                     </div>
                     <s-badge>
                       {CUSTOM_TEMPLATE_ID === selectedTemplateId

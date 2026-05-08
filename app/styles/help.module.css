@@ -1,6 +1,12 @@
 .hero {
-  background: #f7efe5;
-  border: 1px solid rgba(45, 91, 77, 0.14);
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      rgba(220, 232, 255, 0.68),
+      transparent 30%
+    ),
+    var(--gmb-mint);
+  border: 1px solid rgba(79, 175, 143, 0.18);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -15,7 +21,7 @@
 
 .heroCopy {
   align-content: center;
-  color: #17201c;
+  color: var(--gmb-charcoal);
   display: grid;
   gap: 1.25rem;
 }
@@ -28,10 +34,10 @@
 
 .softBadge {
   align-items: center;
-  background: rgba(45, 91, 77, 0.1);
-  border: 1px solid rgba(45, 91, 77, 0.14);
+  background: rgba(79, 175, 143, 0.12);
+  border: 1px solid rgba(79, 175, 143, 0.18);
   border-radius: 8px;
-  color: #2d5b4d;
+  color: var(--gmb-charcoal);
   display: inline-flex;
   font-size: 0.8125rem;
   font-weight: 700;
@@ -40,7 +46,7 @@
 }
 
 .heroTitle {
-  color: #17201c;
+  color: var(--gmb-charcoal);
   font-size: 2.625rem;
   font-weight: 760;
   letter-spacing: 0;
@@ -50,7 +56,7 @@
 }
 
 .heroText {
-  color: #43524c;
+  color: var(--gmb-muted);
   font-size: 1rem;
   line-height: 1.6;
   margin: 0;
@@ -67,14 +73,14 @@
 
 .popularCard {
   background:
-    linear-gradient(90deg, rgba(255, 250, 242, 0.14) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(255, 250, 242, 0.13) 1px, transparent 1px),
-    #20483c;
+    linear-gradient(90deg, rgba(238, 248, 244, 0.14) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(238, 248, 244, 0.13) 1px, transparent 1px),
+    var(--gmb-charcoal);
   background-size: 28px 28px;
-  border: 1px solid rgba(45, 91, 77, 0.18);
+  border: 1px solid rgba(79, 175, 143, 0.24);
   border-radius: 8px;
-  box-shadow: 0 18px 46px rgba(45, 91, 77, 0.18);
-  color: #fffaf2;
+  box-shadow: 0 18px 46px rgba(51, 65, 85, 0.18);
+  color: var(--gmb-mint);
   display: grid;
   gap: 1rem;
   overflow: hidden;
@@ -83,10 +89,10 @@
 }
 
 .popularCard::after {
-  background: #d67f54;
+  background: var(--gmb-primary);
   border-radius: 8px;
   bottom: -36px;
-  box-shadow: inset 50px 0 0 #f5d06f;
+  box-shadow: inset 50px 0 0 var(--gmb-sage);
   content: "";
   height: 132px;
   position: absolute;
@@ -97,7 +103,7 @@
 
 .popularCard :global(s-text),
 .popularCard :global(s-heading) {
-  color: #fffaf2;
+  color: var(--gmb-mint);
 }
 
 .popularCard .cardTitle,
@@ -107,20 +113,20 @@
 }
 
 .popularCard .cardTitle :global(s-text) {
-  color: #f7efe5;
+  color: var(--gmb-selected);
 }
 
 .popularCard .checkList li {
-  color: #fffaf2;
+  color: var(--gmb-mint);
 }
 
 .popularCard .checkList :global(s-text) {
-  color: #fffaf2;
+  color: var(--gmb-mint);
 }
 
 .darkPanelTitle,
 .darkPanelText {
-  color: #fffaf2;
+  color: var(--gmb-mint);
   margin: 0;
 }
 
@@ -131,7 +137,7 @@
 }
 
 .darkPanelText {
-  color: #f7efe5;
+  color: var(--gmb-selected);
   font-size: 0.875rem;
   line-height: 1.45;
   margin-top: 0.25rem;
@@ -151,28 +157,28 @@
 .smallIcon {
   align-items: center;
   border-radius: 8px;
-  color: #2d5b4d;
+  color: var(--gmb-charcoal);
   display: inline-flex;
   flex: 0 0 auto;
   justify-content: center;
 }
 
 .iconBox {
-  background: #f5d06f;
+  background: var(--gmb-success);
   height: 40px;
   width: 40px;
 }
 
 .iconBoxBlue {
-  background: #dfebe6;
-  color: #2d5b4d;
+  background: var(--gmb-selected);
+  color: var(--gmb-selected-strong);
   height: 40px;
   width: 40px;
 }
 
 .smallIcon {
-  background: #f3eadc;
-  color: #2d5b4d;
+  background: var(--gmb-blush);
+  color: var(--gmb-charcoal);
   height: 34px;
   width: 34px;
 }
@@ -210,7 +216,7 @@
 }
 
 .checkList span {
-  color: #f0b473;
+  color: var(--gmb-sage);
   font-weight: 800;
   line-height: 1.4;
 }
@@ -226,10 +232,10 @@
 .serviceCard,
 .contactCard,
 .privacyCard {
-  background: #fffaf2;
-  border: 1px solid rgba(45, 91, 77, 0.14);
+  background: var(--gmb-surface);
+  border: 1px solid rgba(79, 175, 143, 0.16);
   border-radius: 8px;
-  box-shadow: 0 10px 28px rgba(45, 91, 77, 0.08);
+  box-shadow: 0 10px 28px var(--gmb-shadow);
   display: grid;
   gap: 1rem;
   padding: 1rem;
@@ -247,44 +253,44 @@
 }
 
 .serviceCard {
-  background: #f7efe5;
-  border-color: rgba(214, 127, 84, 0.2);
+  background: var(--gmb-mint);
+  border-color: rgba(134, 197, 174, 0.32);
   box-shadow: none;
 }
 
 .contactCard {
-  background: #20483c;
-  color: #fffaf2;
+  background: var(--gmb-charcoal);
+  color: var(--gmb-mint);
 }
 
 .contactCard :global(s-heading),
 .contactCard :global(s-paragraph),
 .contactCard :global(s-text) {
-  color: #fffaf2;
+  color: var(--gmb-mint);
 }
 
 .contactCard .cardTitle {
-  color: #fffaf2;
+  color: var(--gmb-mint);
 }
 
 .emailBox {
-  background: rgba(255, 250, 242, 0.16);
-  border: 1px solid rgba(255, 250, 242, 0.34);
+  background: rgba(238, 248, 244, 0.14);
+  border: 1px solid rgba(238, 248, 244, 0.32);
   border-radius: 8px;
-  color: #fffaf2;
+  color: var(--gmb-mint);
   font-family: ui-monospace, SFMono-Regular, monospace;
   overflow-wrap: anywhere;
   padding: 0.75rem 0.875rem;
 }
 
 .divider {
-  background: rgba(45, 91, 77, 0.16);
+  background: rgba(79, 175, 143, 0.18);
   height: 1px;
 }
 
 .modalBackdrop {
   align-items: center;
-  background: rgba(23, 32, 28, 0.46);
+  background: rgba(51, 65, 85, 0.46);
   display: flex;
   inset: 0;
   justify-content: center;
@@ -294,10 +300,10 @@
 }
 
 .modal {
-  background: #fffaf2;
-  border: 1px solid rgba(45, 91, 77, 0.14);
+  background: var(--gmb-surface);
+  border: 1px solid rgba(79, 175, 143, 0.18);
   border-radius: 8px;
-  box-shadow: 0 24px 70px rgba(23, 32, 28, 0.28);
+  box-shadow: 0 24px 70px rgba(51, 65, 85, 0.28);
   display: grid;
   gap: 1rem;
   max-width: 560px;
@@ -325,11 +331,11 @@
 
 .formGrid input,
 .formGrid textarea {
-  background: #ffffff;
-  border: 1px solid #c4d1ca;
+  background: var(--gmb-surface);
+  border: 1px solid rgba(51, 65, 85, 0.18);
   border-radius: 8px;
   box-sizing: border-box;
-  color: #17201c;
+  color: var(--gmb-ink);
   font: inherit;
   line-height: 1.45;
   padding: 0.625rem 0.75rem;
@@ -342,8 +348,8 @@
 
 .formGrid input:focus,
 .formGrid textarea:focus {
-  border-color: #2d5b4d;
-  box-shadow: 0 0 0 3px rgba(45, 91, 77, 0.14);
+  border-color: var(--gmb-primary);
+  box-shadow: 0 0 0 3px rgba(79, 175, 143, 0.18);
   outline: none;
 }
 

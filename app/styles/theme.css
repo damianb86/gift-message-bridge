@@ -1,0 +1,28 @@
+:root {
+  --gmb-primary: #4faf8f;
+  --gmb-primary-hover: #3f9d7f;
+  --gmb-sage: #86c5ae;
+  --gmb-mint: #eef8f4;
+  --gmb-selected: #dce8ff;
+  --gmb-selected-strong: #3973d9;
+  --gmb-blush: #f9e7e7;
+  --gmb-charcoal: #334155;
+  --gmb-success: #ddf5e8;
+  --gmb-neutral: #f3f4f6;
+  --gmb-surface: #ffffff;
+  --gmb-ink: #1f2937;
+  --gmb-muted: #64748b;
+  --gmb-border: rgba(51, 65, 85, 0.16);
+  --gmb-shadow: rgba(51, 65, 85, 0.12);
+}
+
+html,
+body {
+  background: var(--gmb-neutral);
+  color: var(--gmb-ink);
+}
+
+::selection {
+  background: var(--gmb-selected);
+  color: var(--gmb-charcoal);
+}

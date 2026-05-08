@@ -176,9 +176,9 @@
 
   {%- when 'card' -%}
   /* Card — elevated card with shadow */
-  #gmb-{{ block.id }}{border:1px solid rgba(0,0,0,.1);border-radius:.625rem;box-shadow:0 2px 8px rgba(0,0,0,.08);padding:1.25rem;}
+  #gmb-{{ block.id }}{border:1px solid rgba(79,175,143,.2);border-radius:.625rem;box-shadow:0 8px 24px rgba(51,65,85,.1);padding:1.25rem;}
   #gmb-{{ block.id }} .gmb-input,
-  #gmb-{{ block.id }} .gmb-message{background:rgba(0,0,0,.03);border-color:transparent;border-radius:.375rem;}
+  #gmb-{{ block.id }} .gmb-message{background:#eef8f4;border-color:transparent;border-radius:.375rem;}
   #gmb-{{ block.id }} .gmb-input:focus,
   #gmb-{{ block.id }} .gmb-message:focus{background:transparent;border-color:currentColor;}
 
@@ -191,22 +191,23 @@
 
   {%- when 'soft' -%}
   /* Soft — filled inputs, no visible border */
+  #gmb-{{ block.id }}{background:#eef8f4;border:1px solid rgba(134,197,174,.34);border-radius:.75rem;padding:1.125rem 1.25rem;}
   #gmb-{{ block.id }} .gmb-input,
-  #gmb-{{ block.id }} .gmb-message{border:none;background:rgba(0,0,0,.06);border-radius:.375rem;}
+  #gmb-{{ block.id }} .gmb-message{border:none;background:rgba(255,255,255,.76);border-radius:.5rem;}
   #gmb-{{ block.id }} .gmb-input:focus,
-  #gmb-{{ block.id }} .gmb-message:focus{background:rgba(0,0,0,.09);box-shadow:none;opacity:1;}
+  #gmb-{{ block.id }} .gmb-message:focus{background:#fff;box-shadow:0 0 0 3px rgba(79,175,143,.18);opacity:1;}
 
   {%- when 'warm' -%}
-  /* Warm — sandy/linen background for the block */
-  #gmb-{{ block.id }}{background:#fdf8f2;border:1px solid #e8dfd4;border-radius:.5rem;padding:1.125rem 1.25rem;}
+  /* Warm — blush background for the block */
+  #gmb-{{ block.id }}{background:#f9e7e7;border:1px solid rgba(211,95,110,.18);border-radius:.5rem;padding:1.125rem 1.25rem;}
   #gmb-{{ block.id }} .gmb-input,
-  #gmb-{{ block.id }} .gmb-message{background:rgba(255,255,255,.75);border-color:#c5b8ab;}
+  #gmb-{{ block.id }} .gmb-message{background:rgba(255,255,255,.78);border-color:rgba(51,65,85,.16);}
   #gmb-{{ block.id }} .gmb-input:focus,
   #gmb-{{ block.id }} .gmb-message:focus{background:#fff;}
 
   {%- when 'dark' -%}
   /* Dark — inverted, for dark-background sections */
-  #gmb-{{ block.id }}{background:#1a1a1a;border-radius:.5rem;color:#f5f5f5;padding:1.125rem 1.25rem;}
+  #gmb-{{ block.id }}{background:#334155;border-radius:.5rem;color:#eef8f4;padding:1.125rem 1.25rem;}
   #gmb-{{ block.id }} .gmb-check{accent-color:#fff;}
   #gmb-{{ block.id }} .gmb-input,
   #gmb-{{ block.id }} .gmb-message{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#f5f5f5;}
@@ -217,9 +218,9 @@
 
   {%- when 'glass' -%}
   /* Glass — frosted-glass, works over images/gradients */
-  #gmb-{{ block.id }}{background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.35);border-radius:.75rem;padding:1.125rem 1.25rem;}
+  #gmb-{{ block.id }}{background:rgba(238,248,244,.28);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.42);border-radius:.75rem;padding:1.125rem 1.25rem;}
   #gmb-{{ block.id }} .gmb-input,
-  #gmb-{{ block.id }} .gmb-message{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.45);}
+  #gmb-{{ block.id }} .gmb-message{background:rgba(255,255,255,.42);border-color:rgba(255,255,255,.5);}
 
   {%- when 'outlined' -%}
   /* Outlined — strong frame, editorial feel */
@@ -285,7 +286,7 @@
         { "value": "card",     "label": "Card — elevated box with shadow" },
         { "value": "accent",   "label": "Accent — bold left border" },
         { "value": "soft",     "label": "Soft — filled inputs, no borders" },
-        { "value": "warm",     "label": "Warm — sandy/linen background" },
+        { "value": "warm",     "label": "Warm — blush background" },
         { "value": "dark",     "label": "Dark — inverted for dark sections" },
         { "value": "glass",    "label": "Glass — frosted glass over images" },
         { "value": "outlined", "label": "Outlined — strong frame border" }

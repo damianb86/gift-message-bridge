@@ -20,8 +20,8 @@ body { margin: 0; padding: 10mm; background: #fff; }
 }
 .print-message .gift-card { margin: 0; }
 .print-meta {
-  border: 1px solid #d8dbe0;
-  color: #202223;
+  border: 1px solid rgba(51, 65, 85, .16);
+  color: #334155;
   display: grid;
   font-family: Arial, sans-serif;
   font-size: 8px;
@@ -29,10 +29,10 @@ body { margin: 0; padding: 10mm; background: #fff; }
   line-height: 1.35;
   padding: 4mm;
 }
-.print-meta-title { color: #6d7175; font-size: 7px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.print-meta-title { color: #64748b; font-size: 7px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .print-meta-value { font-weight: 700; overflow-wrap: anywhere; }
-.print-meta-muted  { color: #6d7175; overflow-wrap: anywhere; }
-.names { display: flex; justify-content: space-between; margin: 4mm 0; font-size: 10px; line-height: 1.4; color: #6d7175; text-transform: uppercase; letter-spacing: .06em; }
+.print-meta-muted  { color: #64748b; overflow-wrap: anywhere; }
+.names { display: flex; justify-content: space-between; margin: 4mm 0; font-size: 10px; line-height: 1.4; color: #64748b; text-transform: uppercase; letter-spacing: .06em; }
 @page { margin: 10mm; }
 @media print {
   body { padding: 0; }
@@ -58,9 +58,9 @@ const FALLBACK_TEMPLATE_CSS = `.gift-card {
   min-height: 54mm;
   margin: 0 auto 10mm;
   padding: 12mm;
-  border: 1px solid #d8dbe0;
+  border: 1px solid rgba(79, 175, 143, .34);
   font-family: Arial, sans-serif;
-  color: #202223;
+  color: #334155;
   break-inside: avoid;
 }
 .card-top {
@@ -69,7 +69,7 @@ const FALLBACK_TEMPLATE_CSS = `.gift-card {
   font-size: 9px;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: #6d7175;
+  color: #64748b;
 }
 .message { margin: 12mm 0; font-size: 15px; line-height: 1.6; text-align: center; }`;
 

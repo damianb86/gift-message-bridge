@@ -6,6 +6,7 @@ import {
   ScrollRestoration,
   useLoaderData,
 } from "react-router";
+import "./styles/theme.css";
 
 export const loader = () => ({
   // eslint-disable-next-line no-undef

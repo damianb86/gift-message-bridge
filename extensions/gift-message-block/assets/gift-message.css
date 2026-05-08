@@ -1,8 +1,15 @@
 /* ── Gift Message Block ─────────────────────────────────────────────────────
-   Uses currentColor / inherit so the block matches any theme automatically.
+   Uses Gift Message Bridge palette tokens with lightweight theme inheritance.
    ───────────────────────────────────────────────────────────────────────── */
 
 .gmb-box {
+  --gmb-block-primary: #4faf8f;
+  --gmb-block-sage: #86c5ae;
+  --gmb-block-mint: #eef8f4;
+  --gmb-block-selected: #dce8ff;
+  --gmb-block-blush: #f9e7e7;
+  --gmb-block-charcoal: #334155;
+  --gmb-block-muted: #64748b;
   margin: 1.25rem 0;
   font-size: 1rem;
 }
@@ -21,7 +28,7 @@
   margin-top: 0.15em;
   flex-shrink: 0;
   cursor: pointer;
-  accent-color: currentColor;
+  accent-color: var(--gmb-block-primary);
 }
 
 .gmb-label {
@@ -32,7 +39,11 @@
 
 /* Collapsible field */
 .gmb-panel {
+  background: var(--gmb-block-mint);
+  border: 1px solid rgba(134, 197, 174, 0.36);
+  border-radius: var(--inputs-radius, var(--buttons-radius, 8px));
   margin-top: 0.75rem;
+  padding: 0.875rem;
   animation: gmb-slide-in 0.15s ease both;
 }
 
@@ -72,16 +83,16 @@
   display: block;
   width: 100%;
   padding: 0.625rem 0.75rem;
-  border: 1px solid currentColor;
+  border: 1px solid rgba(51, 65, 85, 0.18);
   border-radius: var(--inputs-radius, var(--buttons-radius, 4px));
   font-family: inherit;
   font-size: 0.875em;
   line-height: 1.55;
   color: inherit;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.82);
   resize: vertical;
   box-sizing: border-box;
-  opacity: 0.75;
+  opacity: 1;
   transition:
     opacity 0.15s,
     box-shadow 0.15s;
@@ -93,8 +104,9 @@
 
 .gmb-input:focus,
 .gmb-message:focus {
+  border-color: var(--gmb-block-primary);
   outline: none;
-  box-shadow: 0 0 0 2px currentColor;
+  box-shadow: 0 0 0 3px rgba(79, 175, 143, 0.18);
   opacity: 1;
 }
 
@@ -116,12 +128,13 @@
   align-items: center;
   margin-top: 0.3rem;
   font-size: 0.72em;
-  opacity: 0.55;
+  color: var(--gmb-block-muted);
+  opacity: 1;
   min-height: 1.3em;
 }
 
 .gmb-count-left[data-warn] {
-  color: #c40000;
+  color: #d24f62;
   opacity: 1;
   font-weight: 600;
 }

@@ -324,7 +324,7 @@ function TemplatePresetButtons({
                 }`,
                 borderRadius: "999px",
                 boxShadow: selected
-                  ? `0 0 0 2px ${theme.accent}33, 0 6px 14px rgba(31, 33, 36, 0.12)`
+                  ? `0 0 0 2px ${theme.accent}33, 0 6px 14px rgba(51, 65, 85, 0.12)`
                   : "none",
                 color: theme.text,
                 cursor: "pointer",

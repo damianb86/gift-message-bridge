@@ -113,10 +113,10 @@ function expiredResponse(): Response {
 <head><meta charset="utf-8"><title>Print link expired</title>
 <style>
   body { font-family: Arial, sans-serif; display: flex; align-items: center;
-         justify-content: center; min-height: 100vh; margin: 0; color: #202223; }
+         justify-content: center; min-height: 100vh; margin: 0; color: #334155; }
   .box { text-align: center; max-width: 360px; padding: 2rem; }
   h1 { font-size: 1.25rem; }
-  p  { color: #6d7175; font-size: .9rem; }
+  p  { color: #64748b; font-size: .9rem; }
 </style>
 </head>
 <body>
