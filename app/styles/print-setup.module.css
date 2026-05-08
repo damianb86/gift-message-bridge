@@ -180,25 +180,27 @@
 
 .templateGrid {
   display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-content: start;
+  gap: 0.625rem;
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
 }
 
 .templateCard {
-  align-content: space-between;
+  align-items: center;
   background: var(--template-bg);
   border: 1.5px solid var(--template-border);
-  border-radius: 8px;
+  border-radius: 999px;
   color: var(--template-text);
   cursor: pointer;
-  display: grid;
+  display: flex;
   font-family: var(--template-font);
-  gap: 0.5rem;
-  min-height: 118px;
+  justify-content: center;
+  min-height: 42px;
+  min-width: 0;
   overflow: hidden;
-  padding: 0.75rem;
+  padding: 0.5rem 0.875rem;
   position: relative;
-  text-align: left;
+  text-align: center;
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
@@ -208,9 +210,9 @@
 .templateCard::before {
   background: var(--template-accent);
   content: "";
-  height: 4px;
-  inset: 0 0 auto;
+  inset: 0 auto 0 0;
   position: absolute;
+  width: 9px;
 }
 
 .templateCard:hover {
@@ -222,70 +224,23 @@
 .templateCardSelected {
   border-color: var(--template-accent);
   box-shadow:
-    0 0 0 2px var(--template-accent),
-    0 14px 30px rgba(31, 33, 36, 0.14);
+    0 0 0 2px color-mix(in srgb, var(--template-accent) 78%, #ffffff),
+    0 8px 20px rgba(31, 33, 36, 0.12);
 }
 
 .templateCardCustom {
   border-style: dashed;
 }
 
-.templateCardTop {
-  align-items: center;
-  display: flex;
-  gap: 0.5rem;
-  justify-content: space-between;
-  min-width: 0;
-  position: relative;
-  z-index: 1;
-}
-
-.templateSelectedText {
-  background: var(--template-accent);
-  border-radius: 999px;
-  color: #ffffff;
-  flex: 0 0 auto;
-  font-family: Arial, sans-serif;
-  font-size: 0.65rem;
-  font-weight: 750;
-  line-height: 1;
-  opacity: 0;
-  padding: 0.25rem 0.45rem;
-}
-
 .templateName {
   color: var(--template-text);
   display: block;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 750;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.templateCardSelected .templateSelectedText {
-  opacity: 1;
-}
-
-.templateSample {
-  color: var(--template-text);
-  display: block;
-  font-size: 1rem;
-  font-weight: 750;
-  line-height: 1.25;
-  max-width: var(--template-text-width);
-  position: relative;
-  z-index: 1;
-}
-
-.templateMeta {
-  color: var(--template-muted);
-  display: block;
-  font-family: Arial, sans-serif;
-  font-size: 0.75rem;
-  font-weight: 650;
-  line-height: 1.25;
   position: relative;
   z-index: 1;
 }
@@ -345,7 +300,7 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
   max-height: min(92vh, 860px);
   overflow: hidden;
-  width: min(96vw, 1180px);
+  width: min(96vw, 1100px);
 }
 
 .templateModalHeader {
@@ -399,9 +354,7 @@
   align-items: start;
   display: grid;
   gap: 1rem;
-  grid-template-columns:
-    minmax(280px, 0.95fr) minmax(300px, 1fr)
-    minmax(340px, 1.05fr);
+  grid-template-columns: minmax(280px, 0.9fr) minmax(340px, 1.1fr);
   overflow: auto;
   padding: 1rem;
 }
@@ -413,6 +366,10 @@
   display: grid;
   gap: 1rem;
   min-width: 0;
+}
+
+.templateEditPanel {
+  grid-column: 1 / -1;
 }
 
 .templateSectionHeader {
@@ -429,11 +386,12 @@
   border-radius: 8px;
   min-width: 0;
   overflow: hidden;
-  padding: 0.75rem;
+  padding: 0.375rem;
 }
 
 .templatePreviewShell .previewFrame {
-  min-height: 470px;
+  display: block;
+  min-height: 342px;
 }
 
 .templateModalFooter {

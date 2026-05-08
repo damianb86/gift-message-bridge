@@ -18,8 +18,8 @@ export default function App() {
   return (
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
-        <s-link href="/app/print-setup">Messages & Print</s-link>
         <s-link href="/app">Block setup</s-link>
+        <s-link href="/app/print-setup">Messages & Print</s-link>
         <s-link href="/app/help">Help & Contact</s-link>
       </s-app-nav>
       <Outlet />

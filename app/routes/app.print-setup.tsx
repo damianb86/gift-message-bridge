@@ -995,7 +995,19 @@ ${
     ? "Clear the current filters to check the rest of your stored gift notes."
     : "Gift notes collected from the storefront will appear here ready to select and print.";
   const previewDocument = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${basePrintCss}
-${templateCssValue}</style></head><body>${renderTemplate(
+${templateCssValue}
+body {
+  align-items: start;
+  display: grid;
+  justify-items: center;
+  overflow: hidden;
+  padding: 3mm;
+}
+body > .gift-card {
+  margin: 0 auto !important;
+  max-width: calc(100vw - 6mm);
+  width: min(86mm, calc(100vw - 6mm)) !important;
+}</style></head><body>${renderTemplate(
     templateHtmlValue,
     previewMessage,
   )}</body></html>`;
@@ -1364,21 +1376,8 @@ ${templateCssValue}</style></head><body>${renderTemplate(
                         role="radio"
                         aria-checked={template.id === selectedTemplateId}
                       >
-                        <span className={styles.templateCardTop}>
-                          <span className={styles.templateName}>
-                            {template.name}
-                          </span>
-                          <span className={styles.templateSelectedText}>
-                            Selected
-                          </span>
-                        </span>
-                        <span className={styles.templateSample}>
-                          Gift Message
-                        </span>
-                        <span className={styles.templateMeta}>
-                          {template.id === CUSTOM_TEMPLATE_ID && !customTemplate
-                            ? "Start from current"
-                            : "Ready to print"}
+                        <span className={styles.templateName}>
+                          {template.name}
                         </span>
                       </button>
                     ))}
@@ -1503,7 +1502,7 @@ ${templateCssValue}</style></head><body>${renderTemplate(
               <div className={styles.templateModalFooter}>
                 <s-text color="subdued">
                   {isTemplateDirty
-                    ? "Unsaved changes will become your custom template."
+                    ? "Save the edits as a custom template when you are ready."
                     : "Template settings are up to date."}
                 </s-text>
                 <div className={styles.templateActions}>
@@ -1513,15 +1512,21 @@ ${templateCssValue}</style></head><body>${renderTemplate(
                   >
                     Close
                   </s-button>
-                  <s-button
-                    variant={isTemplateDirty ? "primary" : "secondary"}
-                    onClick={handleSaveCustomTemplate}
-                    disabled={
-                      !isTemplateDirty || templateFetcher.state !== "idle"
-                    }
-                  >
-                    Save custom
+                  <s-button onClick={() => setIsTemplateModalOpen(false)}>
+                    Save
                   </s-button>
+                  {isTemplateDirty && (
+                    <s-button
+                      variant="primary"
+                      onClick={() => {
+                        handleSaveCustomTemplate();
+                        setIsTemplateModalOpen(false);
+                      }}
+                      disabled={templateFetcher.state !== "idle"}
+                    >
+                      Save Custom
+                    </s-button>
+                  )}
                 </div>
               </div>
             </div>

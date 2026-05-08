@@ -15,50 +15,52 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function GiftMessageSetup() {
-  const { editorCartUrl, editorProductUrl } =
-    useLoaderData<typeof loader>();
+  const { editorCartUrl, editorProductUrl } = useLoaderData<typeof loader>();
 
   return (
     <s-page heading="Block Setup" inlineSize="large">
       <s-section>
-        <div className={styles.statusStrip}>
-          <SetupStatus
-            label="Product Page"
-            status="Theme block"
-            tone="success"
-          />
-          <SetupStatus label="Cart Page" status="Theme block" tone="success" />
-        </div>
-      </s-section>
+        <div className={styles.blockIntro}>
+          <div className={styles.blockIntroCopy}>
+            <div className={styles.blockBadgeRow}>
+              <span className={styles.blockIcon}>
+                <BlockIcon />
+              </span>
+              <span className={styles.blockBadge}>Theme app block</span>
+            </div>
+            <div>
+              <h1 className={styles.blockTitle}>Gift Message block</h1>
+              <p className={styles.blockText}>
+                Add the same block to product pages, the cart page, or both. It
+                collects the gift note and keeps it attached to the order data
+                used by Messages & Print.
+              </p>
+            </div>
+          </div>
 
-      <s-section>
-        <div className={styles.setupGrid}>
-          <SetupPanel
-            title="Product Page"
-            eyebrow="Line item message"
-            description="Adds the gift message inside the product form so it travels with the selected product."
-            preview="product"
-            steps={[
-              "Open the product template",
-              "Add Gift Message inside Product information",
-              "Save the theme",
-            ]}
-            action="Open product template"
-            href={editorProductUrl}
-          />
-          <SetupPanel
-            title="Cart Page"
-            eyebrow="Order message"
-            description="Lets customers add a general message from the cart and saves it as a cart attribute."
-            preview="cart"
-            steps={[
-              "Open the cart template",
-              "Add Gift Message in the cart section",
-              "Save the theme",
-            ]}
-            action="Open cart template"
-            href={editorCartUrl}
-          />
+          <div className={styles.blockActionPanel}>
+            <span className={styles.actionLabel}>
+              Open Shopify theme editor
+            </span>
+            <div className={styles.blockActions}>
+              <a
+                className={styles.blockAction}
+                href={editorProductUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Product page
+              </a>
+              <a
+                className={`${styles.blockAction} ${styles.blockActionSecondary}`}
+                href={editorCartUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Cart page
+              </a>
+            </div>
+          </div>
         </div>
       </s-section>
 
@@ -96,113 +98,14 @@ export default function GiftMessageSetup() {
   );
 }
 
-function SetupStatus({
-  label,
-  status,
-  tone,
-}: {
-  label: string;
-  status: string;
-  tone: "success";
-}) {
+function BlockIcon() {
   return (
-    <div className={styles.statusItem}>
-      <span className={`${styles.statusDot} ${styles[`statusDot${tone}`]}`} />
-      <div>
-        <s-text type="strong">{label}</s-text>
-        <s-text color="subdued">{status}</s-text>
-      </div>
-    </div>
-  );
-}
-
-function SetupPanel({
-  title,
-  eyebrow,
-  description,
-  preview,
-  steps,
-  action,
-  href,
-}: {
-  title: string;
-  eyebrow: string;
-  description: string;
-  preview: "product" | "cart";
-  steps: string[];
-  action: string;
-  href: string;
-}) {
-  return (
-    <article className={styles.setupPanel}>
-      <div className={styles.panelHeader}>
-        <div>
-          <s-text color="subdued">{eyebrow}</s-text>
-          <s-heading>{title}</s-heading>
-        </div>
-        <s-badge tone="success">Theme</s-badge>
-      </div>
-
-      <PreviewFrame type={preview} />
-
-      <s-paragraph>{description}</s-paragraph>
-
-      <ol className={styles.stepList}>
-        {steps.map((step, index) => (
-          <li key={step}>
-            <span>{index + 1}</span>
-            {step}
-          </li>
-        ))}
-      </ol>
-
-      <s-button href={href} target="_blank" variant="primary">
-        {action}
-      </s-button>
-    </article>
-  );
-}
-
-function PreviewFrame({ type }: { type: "product" | "cart" }) {
-  return (
-    <div className={`${styles.preview} ${styles[`preview${type}`]}`}>
-      <div className={styles.previewChrome}>
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className={styles.previewBody}>
-        {type === "product" && (
-          <>
-            <div className={styles.previewMedia} />
-            <div className={styles.previewContent}>
-              <div className={styles.previewLineWide} />
-              <div className={styles.previewLine} />
-              <div className={styles.giftBlock}>
-                <div />
-                <span />
-                <span />
-              </div>
-              <div className={styles.previewButton} />
-            </div>
-          </>
-        )}
-        {type === "cart" && (
-          <>
-            <div className={styles.cartRows}>
-              <span />
-              <span />
-              <span />
-            </div>
-            <div className={styles.giftBlock}>
-              <div />
-              <span />
-              <span />
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M5 5h14v14H5z" />
+      <path d="M8 9h8" />
+      <path d="M8 13h5" />
+      <path d="m15 16 1.5-1.5L18 16l-1.5 1.5Z" />
+    </svg>
   );
 }
 
