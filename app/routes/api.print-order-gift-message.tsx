@@ -38,6 +38,7 @@ type PrintOrderRequest = {
   orderId?: unknown;
   orderName?: unknown;
   messages?: unknown;
+  selectedTemplateId?: unknown;
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -66,13 +67,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const orderName = clean(body.orderName) || clean(body.orderId);
   const markPrinted = body.markPrinted !== false;
   const messages = sanitizeMessages(body.messages, orderName);
+  const selectedTemplateId = clean(body.selectedTemplateId);
 
   if (messages.length === 0) {
     return Response.json({ found: false }, { headers: CORS_HEADERS });
   }
 
   const messageReferences = collectMessageReferences(messages);
-  const template = await resolveShopTemplate(session.shop);
+  const template = await resolveShopTemplate(session.shop, selectedTemplateId);
   const rendered = messages
     .map((message) => renderPrintMessage(template.html, message))
     .join("\n");
@@ -103,30 +105,70 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   });
 
   return Response.json(
-    { found: true, count: messages.length, printUrl },
+    {
+      found: true,
+      count: messages.length,
+      printUrl,
+      selectedTemplateId: template.id,
+      templates: template.options,
+    },
     { headers: CORS_HEADERS },
   );
 };
 
-async function resolveShopTemplate(shop: string) {
+async function resolveShopTemplate(shop: string, requestedTemplateId = "") {
   const settings = await db.printTemplateSettings.findUnique({
     where: { shop },
   });
+  const hasCustom = Boolean(settings?.customHtml && settings.customCss);
+  const requestedPreset = presetPrintTemplates.find(
+    (template) => template.id === requestedTemplateId,
+  );
+
+  if (requestedPreset) {
+    return {
+      id: requestedPreset.id,
+      options: getTemplateOptions(hasCustom),
+      ...resolveTemplate({
+        presetHtml: requestedPreset.html,
+        presetCss: requestedPreset.css,
+      }),
+    };
+  }
+
   const useCustom =
-    settings?.selectedTemplateId === CUSTOM_TEMPLATE_ID &&
-    settings.customHtml &&
-    settings.customCss;
+    hasCustom &&
+    (requestedTemplateId === CUSTOM_TEMPLATE_ID ||
+      (!requestedTemplateId &&
+        settings?.selectedTemplateId === CUSTOM_TEMPLATE_ID));
   const selectedPreset =
     presetPrintTemplates.find(
       (template) => template.id === settings?.selectedTemplateId,
     ) ?? presetPrintTemplates[0];
 
-  return resolveTemplate({
-    customHtml: useCustom ? settings.customHtml : null,
-    customCss: useCustom ? settings.customCss : null,
-    presetHtml: selectedPreset.html,
-    presetCss: selectedPreset.css,
-  });
+  return {
+    id: useCustom ? CUSTOM_TEMPLATE_ID : selectedPreset.id,
+    options: getTemplateOptions(hasCustom),
+    ...resolveTemplate({
+      customHtml: useCustom ? settings?.customHtml : null,
+      customCss: useCustom ? settings?.customCss : null,
+      presetHtml: selectedPreset.html,
+      presetCss: selectedPreset.css,
+    }),
+  };
+}
+
+function getTemplateOptions(includeCustom: boolean) {
+  const options = presetPrintTemplates.map((preset) => ({
+    id: preset.id,
+    name: preset.name,
+  }));
+
+  if (includeCustom) {
+    options.push({ id: CUSTOM_TEMPLATE_ID, name: "Custom" });
+  }
+
+  return options;
 }
 
 function collectMessageReferences(messages: TemplateMessage[]): string[] {

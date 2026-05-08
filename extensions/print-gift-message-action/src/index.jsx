@@ -10,6 +10,7 @@
 /* global __APP_URL__ */
 /* eslint-disable react/prop-types */
 
+import "@shopify/ui-extensions/preact";
 import { render } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
 
@@ -50,6 +51,8 @@ function Extension() {
   const [order, setOrder] = useState(null);
   const [messages, setMessages] = useState([]);
   const [printUrl, setPrintUrl] = useState(undefined);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [templateOptions, setTemplateOptions] = useState([]);
   const [status, setStatus] = useState({
     type: "loading",
     count: 0,
@@ -133,6 +136,7 @@ function Extension() {
           orderName: order.name,
           markPrinted,
           messages,
+          selectedTemplateId,
         }),
       });
 
@@ -148,33 +152,77 @@ function Extension() {
       }
 
       setPrintUrl(json.printUrl);
+      if (Array.isArray(json.templates)) {
+        setTemplateOptions(json.templates);
+      }
+      if (!selectedTemplateId && json.selectedTemplateId) {
+        setSelectedTemplateId(json.selectedTemplateId);
+      }
       setStatus({ type: "ready", count: json.count });
     } catch (_) {
       setStatus({ type: "template_error", count: messages.length });
     }
-  }, [markPrinted, messages, order]);
+  }, [markPrinted, messages, order, selectedTemplateId]);
 
   useEffect(() => {
     createPrintView();
   }, [createPrintView]);
 
-  return (
-    <s-admin-print-action src={printUrl}>
-      <PrintActionContent
-        markPrinted={markPrinted}
-        onMarkPrintedChange={setMarkPrinted}
-        status={status}
-      />
-    </s-admin-print-action>
+  const printActionContent = (
+    <PrintActionContent
+      markPrinted={markPrinted}
+      onMarkPrintedChange={setMarkPrinted}
+      onTemplateChange={setSelectedTemplateId}
+      selectedTemplateId={selectedTemplateId}
+      status={status}
+      templateOptions={templateOptions}
+    />
   );
+
+  if (printUrl) {
+    return (
+      <s-admin-print-action src={printUrl}>
+        {printActionContent}
+      </s-admin-print-action>
+    );
+  }
+
+  return <s-admin-print-action>{printActionContent}</s-admin-print-action>;
 }
 
-function PrintActionContent({ markPrinted, onMarkPrintedChange, status }) {
+function PrintActionContent({
+  markPrinted,
+  onMarkPrintedChange,
+  onTemplateChange,
+  selectedTemplateId,
+  status,
+  templateOptions,
+}) {
+  const templateSelector =
+    templateOptions.length > 0 ? (
+      <s-select
+        label="Print preset"
+        value={selectedTemplateId}
+        onChange={(event) =>
+          onTemplateChange(String(event.currentTarget.value || ""))
+        }
+      >
+        {templateOptions.map((template) => (
+          <s-option key={template.id} value={template.id}>
+            {template.name}
+          </s-option>
+        ))}
+      </s-select>
+    ) : null;
+
   if (status.type === "loading") {
     return (
       <s-stack gap="small">
+        {templateSelector}
         <s-text>Preparing gift messages...</s-text>
-        <s-text>Reading this order and applying the saved print template.</s-text>
+        <s-text>
+          Reading this order and applying the saved print template.
+        </s-text>
       </s-stack>
     );
   }
@@ -198,19 +246,25 @@ function PrintActionContent({ markPrinted, onMarkPrintedChange, status }) {
 
   if (status.type === "template_error") {
     return (
-      <s-banner tone="critical" heading="Could not create the print view">
-        The order was read, but the app could not load the print template.
-      </s-banner>
+      <s-stack gap="small">
+        {templateSelector}
+        <s-banner tone="critical" heading="Could not create the print view">
+          The order was read, but the app could not load the print template.
+        </s-banner>
+      </s-stack>
     );
   }
 
   return (
     <s-stack gap="small">
+      {templateSelector}
       <s-text>
         {status.count} gift message{status.count === 1 ? "" : "s"} ready to
         print.
       </s-text>
-      <s-text>Use the print preview above to print this order&apos;s messages.</s-text>
+      <s-text>
+        Use the print preview above to print this order&apos;s messages.
+      </s-text>
       <s-checkbox
         checked={markPrinted}
         label="Mark messages as printed after printing"

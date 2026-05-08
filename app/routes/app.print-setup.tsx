@@ -744,6 +744,9 @@ export default function PrintSetup() {
     printMessages.length > 0 && selectedCount === printMessages.length;
   const partiallySelected =
     selectedCount > 0 && selectedCount < printMessages.length;
+  const getPrintTemplate = (templateId: string) =>
+    printTemplates.find((template) => template.id === templateId) ??
+    printTemplates[0];
 
   const handleTemplateChange = (templateId: string) => {
     if (templateId === CUSTOM_TEMPLATE_ID && !customTemplate) {
@@ -767,9 +770,7 @@ export default function PrintSetup() {
       return;
     }
 
-    const nextTemplate =
-      printTemplates.find((template) => template.id === templateId) ??
-      printTemplates[0];
+    const nextTemplate = getPrintTemplate(templateId);
 
     setSelectedTemplateId(nextTemplate.id);
     setTemplateHtmlValue(nextTemplate.html);
@@ -783,9 +784,13 @@ export default function PrintSetup() {
     );
   };
 
-  const buildSelectedPrintDocument = (autoPrint = false) => {
+  const buildSelectedPrintDocument = (
+    autoPrint = false,
+    templateHtml = templateHtmlValue,
+    templateCss = templateCssValue,
+  ) => {
     const renderedMessages = selectedMessages
-      .map((msg) => renderPrintMessage(templateHtmlValue, msg))
+      .map((msg) => renderPrintMessage(templateHtml, msg))
       .join("\n");
 
     return `<!DOCTYPE html>
@@ -795,7 +800,7 @@ export default function PrintSetup() {
   <title>Gift Messages</title>
   <style>
 ${basePrintCss}
-${templateCssValue}
+${templateCss}
   </style>
 </head>
 <body>
@@ -818,6 +823,15 @@ ${
     if (selectedMessages.length === 0) return;
 
     setPrintPreviewHtml(buildSelectedPrintDocument(false));
+  };
+
+  const handlePrintPreviewTemplateChange = (templateId: string) => {
+    const nextTemplate = getPrintTemplate(templateId);
+
+    handleTemplateChange(templateId);
+    setPrintPreviewHtml(
+      buildSelectedPrintDocument(false, nextTemplate.html, nextTemplate.css),
+    );
   };
 
   const closePrintPreview = () => {
@@ -1564,6 +1578,24 @@ body > .gift-card {
                   className={styles.printPreviewDocument}
                 />
                 <div className={styles.printPreviewSummary}>
+                  <s-select
+                    label="Print preset"
+                    value={selectedTemplateId}
+                    onChange={(event) =>
+                      handlePrintPreviewTemplateChange(
+                        String(
+                          (event.currentTarget as unknown as HTMLSelectElement)
+                            .value,
+                        ),
+                      )
+                    }
+                  >
+                    {printTemplates.map((template) => (
+                      <s-option key={template.id} value={template.id}>
+                        {template.name}
+                      </s-option>
+                    ))}
+                  </s-select>
                   <s-text type="strong">
                     {selectedCount} gift message
                     {selectedCount === 1 ? "" : "s"} ready to print.
