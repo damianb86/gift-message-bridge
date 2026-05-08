@@ -39,25 +39,43 @@ export default function GiftMessageSetup() {
           </div>
 
           <div className={styles.blockActionPanel}>
-            <span className={styles.actionLabel}>
-              Open Shopify theme editor
-            </span>
+            <div className={styles.blockActionPanelHeader}>
+              <span className={styles.actionLabel}>
+                Open Shopify theme editor
+              </span>
+              <p>
+                Use the same block in either storefront context. Choose the
+                place you want to edit.
+              </p>
+            </div>
             <div className={styles.blockActions}>
               <a
-                className={styles.blockAction}
+                className={`${styles.blockAction} ${styles.blockActionProduct}`}
                 href={editorProductUrl}
                 target="_blank"
                 rel="noreferrer"
               >
-                Product page
+                <span className={styles.blockActionIcon}>
+                  <ProductPageIcon />
+                </span>
+                <span className={styles.blockActionText}>
+                  <strong>Product page</strong>
+                  <small>Collect the note before add to cart</small>
+                </span>
               </a>
               <a
-                className={`${styles.blockAction} ${styles.blockActionSecondary}`}
+                className={`${styles.blockAction} ${styles.blockActionCart}`}
                 href={editorCartUrl}
                 target="_blank"
                 rel="noreferrer"
               >
-                Cart page
+                <span className={styles.blockActionIcon}>
+                  <CartPageIcon />
+                </span>
+                <span className={styles.blockActionText}>
+                  <strong>Cart page</strong>
+                  <small>Let shoppers add or edit the note later</small>
+                </span>
               </a>
             </div>
           </div>
@@ -105,6 +123,28 @@ function BlockIcon() {
       <path d="M8 9h8" />
       <path d="M8 13h5" />
       <path d="m15 16 1.5-1.5L18 16l-1.5 1.5Z" />
+    </svg>
+  );
+}
+
+function ProductPageIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M6 4h12v16H6z" />
+      <path d="M9 8h6" />
+      <path d="M9 12h4" />
+      <path d="M15 16h3" />
+    </svg>
+  );
+}
+
+function CartPageIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M5 6h2l2 10h8l2-7H8" />
+      <path d="M10 20h.01" />
+      <path d="M17 20h.01" />
+      <path d="M11 12h4" />
     </svg>
   );
 }

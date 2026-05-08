@@ -92,7 +92,7 @@ export type PrintTemplate = {
   css: string;
 };
 
-export const presetPrintTemplates: PrintTemplate[] = [
+const allPresetPrintTemplates: PrintTemplate[] = [
   // 1 ── Classic note (templateHtml — From/To side-by-side, unchanged)
   {
     id: "classic-note",
@@ -953,4 +953,36 @@ h1 {
   text-transform: uppercase;
 }`,
   },
+];
+
+const preferredPrintTemplateOrder = [
+  "classic-note",
+  "just-for-you",
+  "sage-garden",
+  "blush-heart",
+  "soft-floral",
+  "mint-keepsake",
+  "fine-border",
+  "blue-bloom",
+  "botanical-line",
+  "quiet-botanical",
+  "modern-ribbon",
+  "terrazzo",
+  "polaroid",
+  "celebration",
+  "airmail",
+  "gold-seal",
+  "luxury-band",
+];
+
+const orderedPrintTemplates = preferredPrintTemplateOrder.flatMap(
+  (templateId) =>
+    allPresetPrintTemplates.filter((template) => template.id === templateId),
+);
+
+export const presetPrintTemplates: PrintTemplate[] = [
+  ...orderedPrintTemplates,
+  ...allPresetPrintTemplates.filter(
+    (template) => !preferredPrintTemplateOrder.includes(template.id),
+  ),
 ];
