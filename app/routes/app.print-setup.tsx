@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
@@ -494,6 +495,156 @@ function truncateText(value: string, maxLength: number): string {
   return `${value.slice(0, Math.max(maxLength - 3, 0)).trimEnd()}...`;
 }
 
+type TemplateTheme = {
+  background: string;
+  border: string;
+  accent: string;
+  text: string;
+  muted: string;
+  font: string;
+  textWidth: string;
+};
+
+const defaultTemplateTheme: TemplateTheme = {
+  background: "#ffffff",
+  border: "#d8dbdf",
+  accent: "#008060",
+  text: "#202223",
+  muted: "#6d7175",
+  font: "Arial, sans-serif",
+  textWidth: "18ch",
+};
+
+const templateThemes: Record<string, TemplateTheme> = {
+  "classic-note": {
+    background: "#ffffff",
+    border: "#d8dbe0",
+    accent: "#008060",
+    text: "#202223",
+    muted: "#6d7175",
+    font: "Arial, sans-serif",
+    textWidth: "17ch",
+  },
+  "fine-border": {
+    background: "#fbfaf7",
+    border: "#202223",
+    accent: "#202223",
+    text: "#202223",
+    muted: "#6d7175",
+    font: "Georgia, serif",
+    textWidth: "14ch",
+  },
+  "soft-floral": {
+    background:
+      "radial-gradient(circle at 12% 20%, #f2a9bd 0 10px, transparent 11px), radial-gradient(circle at 24% 26%, #c9dfc7 0 9px, transparent 10px), #fffafa",
+    border: "#efd3dc",
+    accent: "#f2a9bd",
+    text: "#3d2f35",
+    muted: "#7b646e",
+    font: "Georgia, serif",
+    textWidth: "16ch",
+  },
+  airmail: {
+    background:
+      "linear-gradient(135deg, transparent 0 74%, rgba(207, 61, 53, 0.16) 74%), #ffffff",
+    border: "#2f6fbe",
+    accent: "#cf3d35",
+    text: "#1f2937",
+    muted: "#5b6472",
+    font: "Arial, sans-serif",
+    textWidth: "15ch",
+  },
+  "modern-ribbon": {
+    background: "linear-gradient(90deg, #ffffff 0 78%, #0f766e 78%)",
+    border: "#d8dbe0",
+    accent: "#0f766e",
+    text: "#202223",
+    muted: "#6d7175",
+    font: "Arial, sans-serif",
+    textWidth: "15ch",
+  },
+  terrazzo: {
+    background:
+      "radial-gradient(circle at 18% 22%, #f4a261 0 6px, transparent 7px), radial-gradient(circle at 78% 28%, #2a9d8f 0 6px, transparent 7px), radial-gradient(circle at 32% 76%, #e76f51 0 5px, transparent 6px), #fffdf8",
+    border: "#eadfd2",
+    accent: "#e76f51",
+    text: "#24313f",
+    muted: "#457b9d",
+    font: "Arial, sans-serif",
+    textWidth: "16ch",
+  },
+  celebration: {
+    background:
+      "linear-gradient(135deg, #ffe066 0 24px, transparent 25px), linear-gradient(315deg, #ff6b6b 0 24px, transparent 25px), #ffffff",
+    border: "#202223",
+    accent: "#ff6b6b",
+    text: "#202223",
+    muted: "#6d7175",
+    font: "Arial, sans-serif",
+    textWidth: "19ch",
+  },
+  "luxury-band": {
+    background: "linear-gradient(90deg, #111827 0 78%, #c8a96a 78%)",
+    border: "#111827",
+    accent: "#c8a96a",
+    text: "#f8fafc",
+    muted: "#cbd5e1",
+    font: "Georgia, serif",
+    textWidth: "13ch",
+  },
+  "botanical-line": {
+    background: "#fbfdf8",
+    border: "#91a78f",
+    accent: "#5f725c",
+    text: "#253126",
+    muted: "#5f725c",
+    font: "Georgia, serif",
+    textWidth: "16ch",
+  },
+  polaroid: {
+    background: "linear-gradient(180deg, #ffffff 0 72%, #f9fafb 72%)",
+    border: "#e5e7eb",
+    accent: "#111827",
+    text: "#111827",
+    muted: "#6b7280",
+    font: "Arial, sans-serif",
+    textWidth: "18ch",
+  },
+  "gold-seal": {
+    background: "#fffdf7",
+    border: "#d6b56d",
+    accent: "#d6b56d",
+    text: "#2f2518",
+    muted: "#7c642f",
+    font: "Georgia, serif",
+    textWidth: "15ch",
+  },
+  [CUSTOM_TEMPLATE_ID]: {
+    background:
+      "linear-gradient(135deg, #ffffff 0 55%, #eef4ff 55%), linear-gradient(90deg, #f8fafc, #ffffff)",
+    border: "#9ca3af",
+    accent: "#4b5563",
+    text: "#111827",
+    muted: "#6b7280",
+    font: "ui-monospace, SFMono-Regular, Menlo, monospace",
+    textWidth: "13ch",
+  },
+};
+
+function getTemplateStyle(templateId: string): CSSProperties {
+  const theme = templateThemes[templateId] ?? defaultTemplateTheme;
+
+  return {
+    "--template-bg": theme.background,
+    "--template-border": theme.border,
+    "--template-accent": theme.accent,
+    "--template-text": theme.text,
+    "--template-muted": theme.muted,
+    "--template-font": theme.font,
+    "--template-text-width": theme.textWidth,
+  } as CSSProperties;
+}
+
 export default function PrintSetup() {
   const { printMessages, productOptions, filters, templateSettings } =
     useLoaderData<typeof loader>();
@@ -510,16 +661,16 @@ export default function PrintSetup() {
           css: templateSettings.customCss,
         }
       : null;
+  const initialTemplateOptions = customTemplateFromSettings
+    ? [...presetPrintTemplates, customTemplateFromSettings]
+    : presetPrintTemplates;
+  const initialTemplate =
+    initialTemplateOptions.find(
+      (template) => template.id === templateSettings.selectedTemplateId,
+    ) ?? initialTemplateOptions[0];
   const [customTemplate, setCustomTemplate] = useState<PrintTemplate | null>(
     customTemplateFromSettings,
   );
-  const printTemplates = customTemplate
-    ? [...presetPrintTemplates, customTemplate]
-    : presetPrintTemplates;
-  const initialTemplate =
-    printTemplates.find(
-      (template) => template.id === templateSettings.selectedTemplateId,
-    ) ?? printTemplates[0];
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
     initialTemplate.id,
   );
@@ -527,15 +678,22 @@ export default function PrintSetup() {
   const [product, setProduct] = useState(filters.product);
   const [query, setQuery] = useState(filters.query);
   const [showPrinted, setShowPrinted] = useState(filters.showPrinted);
-  const selectedTemplate =
-    printTemplates.find((template) => template.id === selectedTemplateId) ??
-    printTemplates[0];
   const [templateHtmlValue, setTemplateHtmlValue] = useState<string>(
     initialTemplate.html,
   );
   const [templateCssValue, setTemplateCssValue] = useState<string>(
     initialTemplate.css,
   );
+  const customTemplateOption = customTemplate ?? {
+    id: CUSTOM_TEMPLATE_ID,
+    name: "Custom",
+    html: templateHtmlValue,
+    css: templateCssValue,
+  };
+  const printTemplates = [...presetPrintTemplates, customTemplateOption];
+  const selectedTemplate =
+    printTemplates.find((template) => template.id === selectedTemplateId) ??
+    printTemplates[0];
   const [previewMessage, setPreviewMessage] = useState<PreviewMessage>(
     defaultPreviewMessage,
   );
@@ -544,6 +702,7 @@ export default function PrintSetup() {
   );
   const [markPrintedAfterPrint, setMarkPrintedAfterPrint] = useState(true);
   const [printPreviewHtml, setPrintPreviewHtml] = useState("");
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const printPreviewFrameRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
@@ -563,6 +722,19 @@ export default function PrintSetup() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [printPreviewHtml]);
 
+  useEffect(() => {
+    if (!isTemplateModalOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsTemplateModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isTemplateModalOpen]);
+
   const selectedMessages = useMemo(
     () => printMessages.filter((message) => selectedMessageIds.has(message.id)),
     [printMessages, selectedMessageIds],
@@ -574,6 +746,27 @@ export default function PrintSetup() {
     selectedCount > 0 && selectedCount < printMessages.length;
 
   const handleTemplateChange = (templateId: string) => {
+    if (templateId === CUSTOM_TEMPLATE_ID && !customTemplate) {
+      const nextCustomTemplate = {
+        id: CUSTOM_TEMPLATE_ID,
+        name: "Custom",
+        html: templateHtmlValue,
+        css: templateCssValue,
+      };
+
+      setCustomTemplate(nextCustomTemplate);
+      setSelectedTemplateId(CUSTOM_TEMPLATE_ID);
+      templateFetcher.submit(
+        {
+          intent: "save-custom-template",
+          customHtml: templateHtmlValue,
+          customCss: templateCssValue,
+        },
+        { method: "POST" },
+      );
+      return;
+    }
+
     const nextTemplate =
       printTemplates.find((template) => template.id === templateId) ??
       printTemplates[0];
@@ -790,6 +983,17 @@ ${
     productOptions.find((option) => option.value === product)?.label ||
     (product === "__no_product" ? "No product" : "All products");
   const printedLabel = showPrinted ? "Printed included" : "Hiding printed";
+  const hasActiveFilters =
+    dateRange !== "today" ||
+    product !== "all" ||
+    query.trim().length > 0 ||
+    showPrinted;
+  const emptyStateTitle = hasActiveFilters
+    ? "No messages match these filters"
+    : "No gift messages yet";
+  const emptyStateCopy = hasActiveFilters
+    ? "Clear the current filters to check the rest of your stored gift notes."
+    : "Gift notes collected from the storefront will appear here ready to select and print.";
   const previewDocument = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${basePrintCss}
 ${templateCssValue}</style></head><body>${renderTemplate(
     templateHtmlValue,
@@ -829,6 +1033,25 @@ ${templateCssValue}</style></head><body>${renderTemplate(
               {dateRangeLabel} · {productLabel} · {printedLabel}
             </s-text>
           </div>
+          <button
+            type="button"
+            className={styles.templateLaunch}
+            style={getTemplateStyle(selectedTemplateId)}
+            onClick={() => setIsTemplateModalOpen(true)}
+          >
+            <span className={styles.templateLaunchIcon}>
+              <s-icon type="theme-template" />
+            </span>
+            <span className={styles.templateLaunchText}>
+              <span className={styles.templateLaunchLabel}>
+                Selected template
+              </span>
+              <span className={styles.templateLaunchName}>
+                {selectedTemplate.name}
+              </span>
+            </span>
+            <span className={styles.templateLaunchAction}>Edit template</span>
+          </button>
         </div>
 
         <s-stack direction="block" gap="base">
@@ -934,224 +1157,100 @@ ${templateCssValue}</style></head><body>${renderTemplate(
               </div>
             </div>
 
-            <s-table variant="auto">
-              <s-table-header-row>
-                <s-table-header>
-                  <s-checkbox
-                    accessibilityLabel="Select all messages"
-                    checked={allMessagesSelected}
-                    indeterminate={partiallySelected}
-                    onChange={(event) =>
-                      toggleAllMessages(
-                        Boolean(
-                          (event.currentTarget as unknown as HTMLInputElement)
-                            .checked,
-                        ),
-                      )
-                    }
-                  />
-                </s-table-header>
-                <s-table-header listSlot="primary">
-                  Order/cart ref
-                </s-table-header>
-                <s-table-header listSlot="secondary">Product</s-table-header>
-                <s-table-header>From</s-table-header>
-                <s-table-header>To</s-table-header>
-                <s-table-header>Message preview</s-table-header>
-                <s-table-header>Date</s-table-header>
-                <s-table-header>Printed</s-table-header>
-              </s-table-header-row>
-              <s-table-body>
-                {printMessages.map((msg) => (
-                  <s-table-row key={msg.id}>
-                    <s-table-cell>
-                      <s-checkbox
-                        accessibilityLabel={`Select message from ${
-                          msg.sender || "unknown sender"
-                        }`}
-                        checked={selectedMessageIds.has(msg.id)}
-                        onChange={(event) =>
-                          toggleMessage(
-                            msg.id,
-                            Boolean(
-                              (
-                                event.currentTarget as unknown as HTMLInputElement
-                              ).checked,
-                            ),
-                          )
-                        }
-                      />
-                    </s-table-cell>
-                    <s-table-cell>{msg.cartReference}</s-table-cell>
-                    <s-table-cell>{msg.productReference || "-"}</s-table-cell>
-                    <s-table-cell>{msg.sender || "-"}</s-table-cell>
-                    <s-table-cell>{msg.recipient || "-"}</s-table-cell>
-                    <s-table-cell>{truncateText(msg.message, 50)}</s-table-cell>
-                    <s-table-cell>{msg.date}</s-table-cell>
-                    <s-table-cell>
-                      {msg.printed ? (
-                        <s-icon type="check-circle-filled" tone="success" />
-                      ) : (
-                        <s-icon type="x-circle" color="subdued" />
-                      )}
-                    </s-table-cell>
-                  </s-table-row>
-                ))}
-              </s-table-body>
-            </s-table>
-          </div>
-
-          <aside className={styles.templatePane}>
-            <div className={styles.paneHeader}>
-              <div>
-                <s-heading>Template</s-heading>
-                <s-text color="subdued">{selectedTemplate.name}</s-text>
-              </div>
-              <s-badge>
-                {CUSTOM_TEMPLATE_ID === selectedTemplateId
-                  ? "Custom"
-                  : "Preset"}
-              </s-badge>
-            </div>
-
             <div
-              className={styles.templateGrid}
-              role="radiogroup"
-              aria-label="Print template"
+              className={`${styles.messagesTableArea} ${
+                printMessages.length === 0 ? styles.messagesTableAreaEmpty : ""
+              }`}
             >
-              {printTemplates.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  className={`${styles.templateCard} ${
-                    template.id === selectedTemplateId
-                      ? styles.templateCardSelected
-                      : ""
-                  }`}
-                  onClick={() => handleTemplateChange(template.id)}
-                  role="radio"
-                  aria-checked={template.id === selectedTemplateId}
-                >
-                  <span className={styles.templateRadio} aria-hidden="true">
-                    <span />
-                  </span>
-                  <span className={styles.templateChoiceText}>
-                    <span className={styles.templateName}>{template.name}</span>
-                  </span>
-                </button>
-              ))}
+              <s-table variant="auto">
+                <s-table-header-row>
+                  <s-table-header>
+                    <s-checkbox
+                      accessibilityLabel="Select all messages"
+                      checked={allMessagesSelected}
+                      indeterminate={partiallySelected}
+                      disabled={printMessages.length === 0}
+                      onChange={(event) =>
+                        toggleAllMessages(
+                          Boolean(
+                            (event.currentTarget as unknown as HTMLInputElement)
+                              .checked,
+                          ),
+                        )
+                      }
+                    />
+                  </s-table-header>
+                  <s-table-header listSlot="primary">
+                    Order/cart ref
+                  </s-table-header>
+                  <s-table-header listSlot="secondary">Product</s-table-header>
+                  <s-table-header>From</s-table-header>
+                  <s-table-header>To</s-table-header>
+                  <s-table-header>Message preview</s-table-header>
+                  <s-table-header>Date</s-table-header>
+                  <s-table-header>Printed</s-table-header>
+                </s-table-header-row>
+                <s-table-body>
+                  {printMessages.map((msg) => (
+                    <s-table-row key={msg.id}>
+                      <s-table-cell>
+                        <s-checkbox
+                          accessibilityLabel={`Select message from ${
+                            msg.sender || "unknown sender"
+                          }`}
+                          checked={selectedMessageIds.has(msg.id)}
+                          onChange={(event) =>
+                            toggleMessage(
+                              msg.id,
+                              Boolean(
+                                (
+                                  event.currentTarget as unknown as HTMLInputElement
+                                ).checked,
+                              ),
+                            )
+                          }
+                        />
+                      </s-table-cell>
+                      <s-table-cell>{msg.cartReference}</s-table-cell>
+                      <s-table-cell>{msg.productReference || "-"}</s-table-cell>
+                      <s-table-cell>{msg.sender || "-"}</s-table-cell>
+                      <s-table-cell>{msg.recipient || "-"}</s-table-cell>
+                      <s-table-cell>
+                        {truncateText(msg.message, 50)}
+                      </s-table-cell>
+                      <s-table-cell>{msg.date}</s-table-cell>
+                      <s-table-cell>
+                        {msg.printed ? (
+                          <s-icon type="check-circle-filled" tone="success" />
+                        ) : (
+                          <s-icon type="x-circle" color="subdued" />
+                        )}
+                      </s-table-cell>
+                    </s-table-row>
+                  ))}
+                </s-table-body>
+              </s-table>
+
+              {printMessages.length === 0 && (
+                <div className={styles.emptyMessagesState}>
+                  <div className={styles.emptyMessagesMark}>
+                    <s-icon type="gift-card" />
+                  </div>
+                  <div>
+                    <h3>{emptyStateTitle}</h3>
+                    <p>{emptyStateCopy}</p>
+                  </div>
+                  {hasActiveFilters ? (
+                    <s-button variant="tertiary" onClick={clearFilters}>
+                      Clear filters
+                    </s-button>
+                  ) : (
+                    <s-badge tone="info">Waiting for messages</s-badge>
+                  )}
+                </div>
+              )}
             </div>
-
-            <s-box
-              background="subdued"
-              borderColor="base"
-              borderRadius="base"
-              borderStyle="solid"
-              borderWidth="small"
-              padding="base"
-            >
-              <iframe
-                title="Template preview"
-                srcDoc={previewDocument}
-                className={styles.previewFrame}
-              />
-            </s-box>
-
-            <s-stack direction="block" gap="base">
-              <s-stack direction="block" gap="small-200">
-                <s-text color="subdued">Variables</s-text>
-                <s-stack direction="inline" gap="small-200">
-                  <s-badge>{"{{from}}"}</s-badge>
-                  <s-badge>{"{{to}}"}</s-badge>
-                  <s-badge>{"{{message}}"}</s-badge>
-                  <s-badge>{"{{date}}"}</s-badge>
-                  <s-badge>{"{{reference}}"}</s-badge>
-                  <s-badge>{"{{cart_token}}"}</s-badge>
-                </s-stack>
-              </s-stack>
-              <s-grid
-                gap="base"
-                gridTemplateColumns="repeat(auto-fit, minmax(160px, 1fr))"
-              >
-                <s-text-field
-                  label="From"
-                  value={previewMessage.sender}
-                  onInput={(event) =>
-                    updatePreviewField(
-                      "sender",
-                      String(
-                        (event.currentTarget as unknown as HTMLInputElement)
-                          .value,
-                      ),
-                    )
-                  }
-                />
-                <s-text-field
-                  label="To"
-                  value={previewMessage.recipient}
-                  onInput={(event) =>
-                    updatePreviewField(
-                      "recipient",
-                      String(
-                        (event.currentTarget as unknown as HTMLInputElement)
-                          .value,
-                      ),
-                    )
-                  }
-                />
-              </s-grid>
-              <s-text-area
-                label="Preview message"
-                rows={3}
-                value={previewMessage.message}
-                onInput={(event) =>
-                  updatePreviewField(
-                    "message",
-                    String(
-                      (event.currentTarget as unknown as HTMLTextAreaElement)
-                        .value,
-                    ),
-                  )
-                }
-              />
-              <s-text-area
-                label="HTML template"
-                rows={8}
-                value={templateHtmlValue}
-                onInput={(event) =>
-                  setTemplateHtmlValue(
-                    String(
-                      (event.currentTarget as unknown as HTMLTextAreaElement)
-                        .value,
-                    ),
-                  )
-                }
-              />
-              <s-text-area
-                label="CSS"
-                rows={8}
-                value={templateCssValue}
-                onInput={(event) =>
-                  setTemplateCssValue(
-                    String(
-                      (event.currentTarget as unknown as HTMLTextAreaElement)
-                        .value,
-                    ),
-                  )
-                }
-              />
-            </s-stack>
-
-            <div className={styles.templateActions}>
-              <s-button
-                variant={isTemplateDirty ? "primary" : "secondary"}
-                onClick={handleSaveCustomTemplate}
-                disabled={!isTemplateDirty || templateFetcher.state !== "idle"}
-              >
-                Save custom
-              </s-button>
-            </div>
-          </aside>
+          </div>
         </div>
 
         <div className={styles.printBar}>
@@ -1188,6 +1287,246 @@ ${templateCssValue}</style></head><body>${renderTemplate(
             </s-button>
           </div>
         </div>
+
+        {isTemplateModalOpen && (
+          <div
+            className={styles.templateModalOverlay}
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.currentTarget === event.target) {
+                setIsTemplateModalOpen(false);
+              }
+            }}
+          >
+            <div
+              className={styles.templateModal}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="template-modal-title"
+            >
+              <div className={styles.templateModalHeader}>
+                <div className={styles.templateModalTitle}>
+                  <span
+                    className={styles.templateModalIcon}
+                    style={getTemplateStyle(selectedTemplateId)}
+                  >
+                    <s-icon type="theme-template" />
+                  </span>
+                  <div>
+                    <h2 id="template-modal-title">Template editor</h2>
+                    <p>{selectedTemplate.name}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.printPreviewClose}
+                  onClick={() => setIsTemplateModalOpen(false)}
+                  aria-label="Close template editor"
+                >
+                  x
+                </button>
+              </div>
+
+              <div className={styles.templateModalBody}>
+                <section className={styles.templateSelectorPanel}>
+                  <div className={styles.templateSectionHeader}>
+                    <div>
+                      <h3>Choose a template</h3>
+                      <p>11 presets plus your custom design.</p>
+                    </div>
+                    <s-badge>
+                      {CUSTOM_TEMPLATE_ID === selectedTemplateId
+                        ? "Custom"
+                        : "Preset"}
+                    </s-badge>
+                  </div>
+
+                  <div
+                    className={styles.templateGrid}
+                    role="radiogroup"
+                    aria-label="Print template"
+                  >
+                    {printTemplates.map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        className={`${styles.templateCard} ${
+                          template.id === selectedTemplateId
+                            ? styles.templateCardSelected
+                            : ""
+                        } ${
+                          template.id === CUSTOM_TEMPLATE_ID
+                            ? styles.templateCardCustom
+                            : ""
+                        }`}
+                        style={getTemplateStyle(template.id)}
+                        onClick={() => handleTemplateChange(template.id)}
+                        role="radio"
+                        aria-checked={template.id === selectedTemplateId}
+                      >
+                        <span className={styles.templateCardTop}>
+                          <span className={styles.templateName}>
+                            {template.name}
+                          </span>
+                          <span className={styles.templateSelectedText}>
+                            Selected
+                          </span>
+                        </span>
+                        <span className={styles.templateSample}>
+                          Gift Message
+                        </span>
+                        <span className={styles.templateMeta}>
+                          {template.id === CUSTOM_TEMPLATE_ID && !customTemplate
+                            ? "Start from current"
+                            : "Ready to print"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className={styles.templatePreviewPanel}>
+                  <div className={styles.templateSectionHeader}>
+                    <div>
+                      <h3>Preview</h3>
+                      <p>Live card preview with sample data.</p>
+                    </div>
+                  </div>
+                  <div className={styles.templatePreviewShell}>
+                    <iframe
+                      title="Template preview"
+                      srcDoc={previewDocument}
+                      className={styles.previewFrame}
+                    />
+                  </div>
+                </section>
+
+                <section className={styles.templateEditPanel}>
+                  <div className={styles.templateSectionHeader}>
+                    <div>
+                      <h3>Edit content and code</h3>
+                      <p>Changes can be saved as your custom template.</p>
+                    </div>
+                  </div>
+                  <s-stack direction="block" gap="base">
+                    <s-stack direction="block" gap="small-200">
+                      <s-text color="subdued">Variables</s-text>
+                      <s-stack direction="inline" gap="small-200">
+                        <s-badge>{"{{from}}"}</s-badge>
+                        <s-badge>{"{{to}}"}</s-badge>
+                        <s-badge>{"{{message}}"}</s-badge>
+                        <s-badge>{"{{date}}"}</s-badge>
+                        <s-badge>{"{{reference}}"}</s-badge>
+                        <s-badge>{"{{cart_token}}"}</s-badge>
+                      </s-stack>
+                    </s-stack>
+                    <s-grid
+                      gap="base"
+                      gridTemplateColumns="repeat(auto-fit, minmax(160px, 1fr))"
+                    >
+                      <s-text-field
+                        label="From"
+                        value={previewMessage.sender}
+                        onInput={(event) =>
+                          updatePreviewField(
+                            "sender",
+                            String(
+                              (
+                                event.currentTarget as unknown as HTMLInputElement
+                              ).value,
+                            ),
+                          )
+                        }
+                      />
+                      <s-text-field
+                        label="To"
+                        value={previewMessage.recipient}
+                        onInput={(event) =>
+                          updatePreviewField(
+                            "recipient",
+                            String(
+                              (
+                                event.currentTarget as unknown as HTMLInputElement
+                              ).value,
+                            ),
+                          )
+                        }
+                      />
+                    </s-grid>
+                    <s-text-area
+                      label="Preview message"
+                      rows={3}
+                      value={previewMessage.message}
+                      onInput={(event) =>
+                        updatePreviewField(
+                          "message",
+                          String(
+                            (
+                              event.currentTarget as unknown as HTMLTextAreaElement
+                            ).value,
+                          ),
+                        )
+                      }
+                    />
+                    <s-text-area
+                      label="HTML template"
+                      rows={8}
+                      value={templateHtmlValue}
+                      onInput={(event) =>
+                        setTemplateHtmlValue(
+                          String(
+                            (
+                              event.currentTarget as unknown as HTMLTextAreaElement
+                            ).value,
+                          ),
+                        )
+                      }
+                    />
+                    <s-text-area
+                      label="CSS"
+                      rows={8}
+                      value={templateCssValue}
+                      onInput={(event) =>
+                        setTemplateCssValue(
+                          String(
+                            (
+                              event.currentTarget as unknown as HTMLTextAreaElement
+                            ).value,
+                          ),
+                        )
+                      }
+                    />
+                  </s-stack>
+                </section>
+              </div>
+
+              <div className={styles.templateModalFooter}>
+                <s-text color="subdued">
+                  {isTemplateDirty
+                    ? "Unsaved changes will become your custom template."
+                    : "Template settings are up to date."}
+                </s-text>
+                <div className={styles.templateActions}>
+                  <s-button
+                    variant="tertiary"
+                    onClick={() => setIsTemplateModalOpen(false)}
+                  >
+                    Close
+                  </s-button>
+                  <s-button
+                    variant={isTemplateDirty ? "primary" : "secondary"}
+                    onClick={handleSaveCustomTemplate}
+                    disabled={
+                      !isTemplateDirty || templateFetcher.state !== "idle"
+                    }
+                  >
+                    Save custom
+                  </s-button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {printPreviewHtml && (
           <div

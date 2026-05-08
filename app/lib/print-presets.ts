@@ -431,87 +431,6 @@ main { padding: 10mm; }
 .message { margin: 12mm 0; font-size: 16px; line-height: 1.7; text-align: center; }`,
   },
 
-  // 10 ── Round label (stampHtml — IMPROVED: From in kicker, To right-aligned after)
-  {
-    id: "round-label",
-    name: "Round label",
-    html: stampHtml,
-    css: `.gift-card {
-  width: 86mm;
-  min-height: 54mm;
-  margin: 0 auto 10mm;
-  padding: 10mm;
-  border: 1px solid #d8dbe0;
-  font-family: Arial, sans-serif;
-  color: #202223;
-  break-inside: avoid;
-}
-.stamp {
-  width: 22mm;
-  height: 22mm;
-  border-radius: 50%;
-  background: #805ad5;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  font-size: 10px;
-  float: right;
-  print-color-adjust: exact;
-}
-.kicker {
-  font-size: 9px;
-  color: #6d7175;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  margin: 0 0 4mm;
-}
-.message { margin: 6mm 0; font-size: 16px; line-height: 1.6; clear: both; }
-.foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-}
-.meta { font-size: 9px; color: #6d7175; }
-.to { font-size: 11px; font-weight: 700; }`,
-  },
-
-  {
-    id: "minimal-serif",
-    name: "Minimal serif",
-    html: noteHtml,
-    css: `.gift-card { width: 86mm; min-height: 54mm; margin: 0 auto 10mm; padding: 13mm; border: 1px solid #ece7df; font-family: Georgia, serif; color: #292524; break-inside: avoid; }
-.kicker { margin: 0 0 6mm; font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: #78716c; text-align: center; }
-.from { margin: 0 0 5mm; font-size: 10px; color: #78716c; }
-.message { margin: 0 0 6mm; font-size: 17px; line-height: 1.75; text-align: center; }
-.card-foot { display: flex; justify-content: space-between; font-size: 9px; color: #78716c; }
-.to { font-weight: 700; color: #292524; }`,
-  },
-
-  {
-    id: "pastel-corners",
-    name: "Pastel corners",
-    html: templateHtml,
-    css: `.gift-card { width: 86mm; min-height: 54mm; margin: 0 auto 10mm; padding: 11mm; background: linear-gradient(135deg, #dbeafe 0 10mm, transparent 10mm), linear-gradient(315deg, #fde68a 0 10mm, transparent 10mm), #fff; border: 1px solid #d8dbe0; font-family: Arial, sans-serif; color: #1f2937; print-color-adjust: exact; break-inside: avoid; }
-.card-top, .card-foot { display: flex; justify-content: space-between; font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: .08em; }
-.message { margin: 12mm 0; font-size: 15px; line-height: 1.65; text-align: center; }`,
-  },
-
-  {
-    id: "emerald-frame",
-    name: "Emerald frame",
-    html: splitHtml,
-    css: `.gift-card { width: 86mm; min-height: 54mm; margin: 0 auto 10mm; display: grid; grid-template-columns: 18mm 1fr; border: 2px solid #047857; font-family: Arial, sans-serif; color: #064e3b; break-inside: avoid; }
-.side { display: flex; align-items: center; justify-content: center; background: #d1fae5; color: #047857; text-transform: uppercase; letter-spacing: .14em; writing-mode: vertical-rl; print-color-adjust: exact; }
-main { padding: 10mm; }
-.kicker, .meta { font-size: 9px; color: #047857; text-transform: uppercase; letter-spacing: .08em; }
-.message { margin: 5mm 0; font-size: 16px; line-height: 1.6; }
-.foot { display: flex; justify-content: space-between; }
-.to { font-size: 11px; font-weight: 700; }`,
-  },
-
   {
     id: "polaroid",
     name: "Polaroid",
@@ -525,39 +444,6 @@ main { padding: 10mm; }
   },
 
   {
-    id: "midnight",
-    name: "Midnight",
-    html: stampHtml,
-    css: `.gift-card { width: 86mm; min-height: 54mm; margin: 0 auto 10mm; padding: 10mm; background: #0f172a; color: #f8fafc; font-family: Arial, sans-serif; print-color-adjust: exact; break-inside: avoid; }
-.stamp { float: right; border: 1px solid #38bdf8; color: #38bdf8; padding: 3mm 4mm; text-transform: uppercase; letter-spacing: .12em; font-size: 10px; }
-.kicker, .meta { font-size: 9px; color: #bae6fd; text-transform: uppercase; letter-spacing: .08em; }
-.message { clear: both; margin: 8mm 0; font-size: 16px; line-height: 1.65; }
-.foot { display: flex; justify-content: space-between; }
-.to { color: #38bdf8; font-weight: 700; }`,
-  },
-
-  {
-    id: "blush-note",
-    name: "Blush note",
-    html: noteHtml,
-    css: `.gift-card { width: 86mm; min-height: 54mm; margin: 0 auto 10mm; padding: 11mm; background: #fff1f2; border: 1px solid #fecdd3; font-family: Georgia, serif; color: #4c1d24; print-color-adjust: exact; break-inside: avoid; }
-.kicker { margin: 0 0 5mm; font-size: 10px; text-align: center; text-transform: uppercase; letter-spacing: .16em; color: #be123c; }
-.from { margin: 0 0 5mm; font-size: 10px; color: #9f1239; }
-.message { margin: 0 0 6mm; font-size: 17px; line-height: 1.7; text-align: center; }
-.card-foot { display: flex; justify-content: space-between; font-size: 9px; color: #9f1239; }
-.to { font-weight: 700; color: #4c1d24; }`,
-  },
-
-  {
-    id: "ledger",
-    name: "Ledger",
-    html: templateHtml,
-    css: `.gift-card { width: 86mm; min-height: 54mm; margin: 0 auto 10mm; padding: 10mm; background: repeating-linear-gradient(0deg, #fff 0 7mm, #f8fafc 7mm 7.3mm); border: 1px solid #cbd5e1; font-family: Arial, sans-serif; color: #1e293b; print-color-adjust: exact; break-inside: avoid; }
-.card-top, .card-foot { display: flex; justify-content: space-between; font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: .08em; }
-.message { margin: 12mm 0; font-size: 15px; line-height: 1.65; }`,
-  },
-
-  {
     id: "gold-seal",
     name: "Gold seal",
     html: stampHtml,
@@ -567,27 +453,5 @@ main { padding: 10mm; }
 .message { clear: both; margin: 8mm 0; font-size: 16px; line-height: 1.7; text-align: center; }
 .foot { display: flex; justify-content: space-between; }
 .to { font-weight: 700; }`,
-  },
-
-  {
-    id: "gallery",
-    name: "Gallery",
-    html: splitHtml,
-    css: `.gift-card { width: 86mm; min-height: 54mm; margin: 0 auto 10mm; display: grid; grid-template-columns: 24mm 1fr; border: 1px solid #111827; font-family: Arial, sans-serif; color: #111827; break-inside: avoid; }
-.side { display: flex; align-items: center; justify-content: center; background: #111827; color: #fff; text-transform: uppercase; letter-spacing: .2em; writing-mode: vertical-rl; print-color-adjust: exact; }
-main { padding: 10mm; }
-.kicker, .meta { font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: .08em; }
-.message { margin: 5mm 0; font-size: 17px; line-height: 1.5; }
-.foot { display: flex; justify-content: space-between; }
-.to { font-weight: 700; }`,
-  },
-
-  {
-    id: "playful-dots",
-    name: "Playful dots",
-    html: templateHtml,
-    css: `.gift-card { width: 86mm; min-height: 54mm; margin: 0 auto 10mm; padding: 11mm; background: radial-gradient(circle at 8mm 12mm, #60a5fa 0 1.2mm, transparent 1.4mm), radial-gradient(circle at 74mm 42mm, #f472b6 0 1.4mm, transparent 1.6mm), radial-gradient(circle at 64mm 12mm, #34d399 0 1.1mm, transparent 1.3mm), #ffffff; border: 1px solid #e5e7eb; font-family: Arial, sans-serif; color: #111827; print-color-adjust: exact; break-inside: avoid; }
-.card-top, .card-foot { display: flex; justify-content: space-between; font-size: 9px; color: #6b7280; text-transform: uppercase; letter-spacing: .08em; }
-.message { margin: 12mm 0; font-size: 16px; line-height: 1.6; text-align: center; }`,
   },
 ];
