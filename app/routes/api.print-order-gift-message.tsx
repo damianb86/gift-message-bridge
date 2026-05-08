@@ -92,7 +92,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     },
   });
 
-  const appUrl = process.env.SHOPIFY_APP_URL ?? process.env.APP_URL ?? "";
+  const appUrl = resolveAppUrl(request);
   const printUrl = `${appUrl}/print/${job.token}`;
   const html = buildPrintDocument(rendered, template.css, {
     autoPrint: false,
@@ -115,6 +115,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     { headers: CORS_HEADERS },
   );
 };
+
+function resolveAppUrl(request: Request): string {
+  const configuredUrl = process.env.SHOPIFY_APP_URL ?? process.env.APP_URL;
+  const requestOrigin = new URL(request.url).origin;
+
+  return (configuredUrl || requestOrigin).replace(/\/+$/, "");
+}
 
 async function resolveShopTemplate(shop: string, requestedTemplateId = "") {
   const settings = await db.printTemplateSettings.findUnique({

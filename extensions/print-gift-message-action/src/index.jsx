@@ -12,7 +12,8 @@
 
 import "@shopify/ui-extensions/preact";
 import { render } from "preact";
-import { useCallback, useEffect, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import { getPrintTemplateTheme } from "../../../app/lib/print-template-themes";
 
 const APP_URL =
   typeof __APP_URL__ !== "undefined" && __APP_URL__ ? __APP_URL__ : "";
@@ -52,11 +53,13 @@ function Extension() {
   const [messages, setMessages] = useState([]);
   const [printUrl, setPrintUrl] = useState(undefined);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [requestedTemplateId, setRequestedTemplateId] = useState("");
   const [templateOptions, setTemplateOptions] = useState([]);
   const [status, setStatus] = useState({
     type: "loading",
     count: 0,
   });
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -111,8 +114,9 @@ function Extension() {
       return;
     }
 
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     setStatus({ type: "loading", count: messages.length });
-    setPrintUrl(undefined);
 
     try {
       const token = await shopify.auth.idToken();
@@ -136,9 +140,13 @@ function Extension() {
           orderName: order.name,
           markPrinted,
           messages,
-          selectedTemplateId,
+          selectedTemplateId: requestedTemplateId,
         }),
       });
+
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
 
       if (!res.ok) {
         setStatus({ type: "template_error", count: messages.length });
@@ -146,6 +154,10 @@ function Extension() {
       }
 
       const json = await res.json();
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
       if (json.error || !json.found || !json.printUrl) {
         setStatus({ type: "template_error", count: messages.length });
         return;
@@ -155,39 +167,44 @@ function Extension() {
       if (Array.isArray(json.templates)) {
         setTemplateOptions(json.templates);
       }
-      if (!selectedTemplateId && json.selectedTemplateId) {
+      if (!requestedTemplateId && json.selectedTemplateId) {
         setSelectedTemplateId(json.selectedTemplateId);
       }
       setStatus({ type: "ready", count: json.count });
     } catch (_) {
-      setStatus({ type: "template_error", count: messages.length });
+      if (requestId === requestIdRef.current) {
+        setStatus({ type: "template_error", count: messages.length });
+      }
     }
-  }, [markPrinted, messages, order, selectedTemplateId]);
+  }, [markPrinted, messages, order, requestedTemplateId]);
 
   useEffect(() => {
     createPrintView();
   }, [createPrintView]);
 
+  const handleTemplateChange = useCallback((templateId) => {
+    setSelectedTemplateId(templateId);
+    setRequestedTemplateId(templateId);
+  }, []);
+
   const printActionContent = (
     <PrintActionContent
       markPrinted={markPrinted}
       onMarkPrintedChange={setMarkPrinted}
-      onTemplateChange={setSelectedTemplateId}
+      onTemplateChange={handleTemplateChange}
       selectedTemplateId={selectedTemplateId}
       status={status}
       templateOptions={templateOptions}
     />
   );
 
-  if (printUrl) {
-    return (
-      <s-admin-print-action src={printUrl}>
-        {printActionContent}
-      </s-admin-print-action>
-    );
-  }
+  const actionProps = printUrl ? { src: printUrl } : {};
 
-  return <s-admin-print-action>{printActionContent}</s-admin-print-action>;
+  return (
+    <s-admin-print-action key={printUrl || "pending"} {...actionProps}>
+      {printActionContent}
+    </s-admin-print-action>
+  );
 }
 
 function PrintActionContent({
@@ -200,19 +217,11 @@ function PrintActionContent({
 }) {
   const templateSelector =
     templateOptions.length > 0 ? (
-      <s-select
-        label="Print preset"
-        value={selectedTemplateId}
-        onChange={(event) =>
-          onTemplateChange(String(event.currentTarget.value || ""))
-        }
-      >
-        {templateOptions.map((template) => (
-          <s-option key={template.id} value={template.id}>
-            {template.name}
-          </s-option>
-        ))}
-      </s-select>
+      <TemplatePresetButtons
+        onTemplateChange={onTemplateChange}
+        selectedTemplateId={selectedTemplateId}
+        templateOptions={templateOptions}
+      />
     ) : null;
 
   if (status.type === "loading") {
@@ -272,6 +281,96 @@ function PrintActionContent({
           onMarkPrintedChange(Boolean(event.currentTarget.checked))
         }
       />
+    </s-stack>
+  );
+}
+
+function TemplatePresetButtons({
+  onTemplateChange,
+  selectedTemplateId,
+  templateOptions,
+}) {
+  return (
+    <s-stack gap="small">
+      <s-text type="strong">Print preset</s-text>
+      <div
+        role="radiogroup"
+        aria-label="Print preset"
+        style={{
+          display: "grid",
+          gap: "6px",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          maxHeight: "210px",
+          overflowY: "auto",
+          padding: "2px",
+        }}
+      >
+        {templateOptions.map((template) => {
+          const selected = template.id === selectedTemplateId;
+          const theme = getPrintTemplateTheme(template.id);
+
+          return (
+            <button
+              key={template.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => onTemplateChange(template.id)}
+              style={{
+                alignItems: "center",
+                background: theme.background,
+                border: `${selected ? 2 : 1.25}px solid ${
+                  selected ? theme.accent : theme.border
+                }`,
+                borderRadius: "999px",
+                boxShadow: selected
+                  ? `0 0 0 2px ${theme.accent}33, 0 6px 14px rgba(31, 33, 36, 0.12)`
+                  : "none",
+                color: theme.text,
+                cursor: "pointer",
+                display: "inline-flex",
+                fontFamily: theme.font,
+                fontSize: "12px",
+                fontWeight: "750",
+                justifyContent: "center",
+                lineHeight: "1.15",
+                minHeight: "34px",
+                minWidth: "0",
+                overflow: "hidden",
+                padding: "7px 10px 7px 15px",
+                position: "relative",
+                textAlign: "center",
+                width: "100%",
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  background: theme.accent,
+                  bottom: 0,
+                  left: 0,
+                  position: "absolute",
+                  top: 0,
+                  width: "6px",
+                }}
+              />
+              <span
+                style={{
+                  display: "block",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  position: "relative",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  zIndex: 1,
+                }}
+              >
+                {template.name}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </s-stack>
   );
 }
