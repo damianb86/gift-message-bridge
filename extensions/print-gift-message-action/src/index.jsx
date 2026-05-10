@@ -14,8 +14,12 @@ import "@shopify/ui-extensions/preact";
 import { render } from "preact";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 
+const DEFAULT_APP_URL = "https://qorve-2.duckdns.org";
+const LOG_PREFIX = "[GMB PrintAction]";
 const APP_URL =
-  typeof __APP_URL__ !== "undefined" && __APP_URL__ ? __APP_URL__ : "";
+  typeof __APP_URL__ !== "undefined" && __APP_URL__
+    ? normalizeUrl(__APP_URL__)
+    : DEFAULT_APP_URL;
 
 const GIFT_MESSAGE_PROPERTY = "Gift Message";
 const GIFT_MESSAGE_PROPERTY_NAME = "_Gift Message Property";
@@ -43,6 +47,12 @@ query GiftMessageOrder($id: ID!) {
 }`;
 
 export default async function extension() {
+  logInfo("entry", {
+    appUrl: APP_URL,
+    selectedCount: shopify.data?.selected?.length ?? 0,
+    target: shopify.extension?.target ?? "unknown",
+  });
+
   render(<Extension />, document.body);
 }
 
@@ -68,7 +78,16 @@ function Extension() {
       setPrintUrl(undefined);
 
       const orderId = shopify.data?.selected?.[0]?.id ?? "";
+      logInfo("loadOrder:start", {
+        appUrl: APP_URL,
+        hasOrderId: Boolean(orderId),
+        selectedCount: shopify.data?.selected?.length ?? 0,
+      });
+
       if (!orderId) {
+        logWarn("loadOrder:missing-order-id", {
+          selected: summarizeSelected(shopify.data?.selected),
+        });
         setStatus({ type: "order_access_error", count: 0 });
         return;
       }
@@ -81,20 +100,33 @@ function Extension() {
         if (!active) return;
 
         if (result.errors?.length || !result.data?.order) {
+          logWarn("loadOrder:query-error", {
+            errors: summarizeGraphQLErrors(result.errors),
+            hasOrder: Boolean(result.data?.order),
+          });
           setStatus({ type: "order_access_error", count: 0 });
           return;
         }
 
         const currentOrder = result.data.order;
         const currentMessages = collectGiftMessages(currentOrder);
+        logInfo("loadOrder:success", {
+          lineItems: currentOrder.lineItems?.nodes?.length ?? 0,
+          messages: currentMessages.length,
+          orderName: currentOrder.name,
+        });
 
         setOrder(currentOrder);
         setMessages(currentMessages);
 
         if (currentMessages.length === 0) {
+          logWarn("loadOrder:no-gift-messages", {
+            orderName: currentOrder.name,
+          });
           setStatus({ type: "not_found", count: 0 });
         }
-      } catch (_) {
+      } catch (error) {
+        logError("loadOrder:exception", error);
         if (active) {
           setStatus({ type: "order_access_error", count: 0 });
         }
@@ -110,26 +142,37 @@ function Extension() {
 
   const createPrintView = useCallback(async () => {
     if (!order || !messages.length) {
+      logInfo("createPrintView:skip", {
+        hasOrder: Boolean(order),
+        messages: messages.length,
+      });
       return;
     }
 
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     setStatus({ type: "loading", count: messages.length });
+    logInfo("createPrintView:start", {
+      endpoint: `${APP_URL}/api/print-order-gift-message`,
+      markPrinted,
+      messages: messages.length,
+      requestedTemplateId: requestedTemplateId || "(saved/default)",
+    });
 
     try {
       const token = await shopify.auth.idToken();
       const headers = {
         "Content-Type": "application/json",
       };
+      logInfo("createPrintView:id-token", {
+        hasToken: Boolean(token),
+      });
 
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
 
-      const endpoint = APP_URL
-        ? `${APP_URL}/api/print-order-gift-message`
-        : "/api/print-order-gift-message";
+      const endpoint = `${APP_URL}/api/print-order-gift-message`;
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -144,20 +187,33 @@ function Extension() {
       });
 
       if (requestId !== requestIdRef.current) {
+        logInfo("createPrintView:stale-response", { requestId });
         return;
       }
 
       if (!res.ok) {
+        logWarn("createPrintView:http-error", {
+          body: await readResponseText(res),
+          status: res.status,
+          statusText: res.statusText,
+          url: endpoint,
+        });
         setStatus({ type: "template_error", count: messages.length });
         return;
       }
 
       const json = await res.json();
       if (requestId !== requestIdRef.current) {
+        logInfo("createPrintView:stale-json", { requestId });
         return;
       }
 
       if (json.error || !json.found || !json.printUrl) {
+        logWarn("createPrintView:invalid-json", {
+          error: json.error || "",
+          found: Boolean(json.found),
+          hasPrintUrl: Boolean(json.printUrl),
+        });
         setStatus({ type: "template_error", count: messages.length });
         return;
       }
@@ -170,7 +226,14 @@ function Extension() {
         setSelectedTemplateId(json.selectedTemplateId);
       }
       setStatus({ type: "ready", count: json.count });
-    } catch (_) {
+      logInfo("createPrintView:success", {
+        count: json.count,
+        printUrl: json.printUrl,
+        selectedTemplateId: json.selectedTemplateId,
+        templates: Array.isArray(json.templates) ? json.templates.length : 0,
+      });
+    } catch (error) {
+      logError("createPrintView:exception", error);
       if (requestId === requestIdRef.current) {
         setStatus({ type: "template_error", count: messages.length });
       }
@@ -197,7 +260,10 @@ function Extension() {
     />
   );
 
-  const actionProps = printUrl ? { src: printUrl } : {};
+  const diagnosticUrl = `${APP_URL}/print/diagnostic?status=${encodeURIComponent(
+    status.type,
+  )}`;
+  const actionProps = { src: printUrl || diagnosticUrl };
 
   return (
     <s-admin-print-action {...actionProps}>
@@ -447,4 +513,56 @@ function normalizeKey(value) {
 function clean(value) {
   const text = String(value || "").trim();
   return text.length > 0 ? text : "";
+}
+
+function normalizeUrl(value) {
+  return String(value || "").replace(/\/+$/, "");
+}
+
+function summarizeSelected(selected) {
+  return Array.isArray(selected)
+    ? selected.map((item) => ({ id: item?.id || "" })).slice(0, 5)
+    : [];
+}
+
+function summarizeGraphQLErrors(errors) {
+  return Array.isArray(errors)
+    ? errors.map((error) => ({
+        message: error?.message || String(error || ""),
+      }))
+    : [];
+}
+
+async function readResponseText(response) {
+  try {
+    return (await response.text()).slice(0, 500);
+  } catch (error) {
+    return `Could not read response body: ${describeError(error).message}`;
+  }
+}
+
+function describeError(error) {
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      name: error.name,
+    };
+  }
+
+  return {
+    message: String(error || "Unknown error"),
+    name: "Unknown",
+  };
+}
+
+function logInfo(step, details = {}) {
+  console.info(LOG_PREFIX, step, details);
+}
+
+function logWarn(step, details = {}) {
+  console.warn(LOG_PREFIX, step, details);
+}
+
+function logError(step, error) {
+  console.error(LOG_PREFIX, step, describeError(error));
 }

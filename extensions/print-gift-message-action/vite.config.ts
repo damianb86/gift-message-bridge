@@ -1,10 +1,21 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+  const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
+  const env = {
+    ...loadEnv(mode, repoRoot, ""),
+    ...loadEnv(mode, process.cwd(), ""),
+  };
   // The Shopify CLI sets SHOPIFY_APP_URL (or APP_URL) when running
-  // `shopify app dev`; we expose it to the bundle as __APP_URL__.
-  const appUrl = env.SHOPIFY_APP_URL ?? env.APP_URL ?? env.VITE_APP_URL ?? "";
+  // `shopify app dev`; production builds fall back to shopify.app.toml.
+  const appUrl =
+    env.SHOPIFY_APP_URL ??
+    env.APP_URL ??
+    env.VITE_APP_URL ??
+    readApplicationUrl(repoRoot) ??
+    "";
 
   return {
     define: {
@@ -12,3 +23,12 @@ export default defineConfig(({ mode }) => {
     },
   };
 });
+
+function readApplicationUrl(repoRoot: string): string | undefined {
+  try {
+    const config = readFileSync(`${repoRoot}/shopify.app.toml`, "utf8");
+    return config.match(/^\s*application_url\s*=\s*"([^"]+)"/m)?.[1];
+  } catch {
+    return undefined;
+  }
+}
