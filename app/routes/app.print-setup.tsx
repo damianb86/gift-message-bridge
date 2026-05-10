@@ -439,7 +439,7 @@ const defaultPreviewMessage: PreviewMessage = {
   cartToken: "GO-2D6H8",
   productReference: "Signature Candle - Amber / Large | SKU: CND-AMB-L",
   sender: "Alex",
-  recipient: "Taylor",
+  recipient: "Tyler",
   message: "Happy birthday! Hope this gift brings a little extra joy today.",
   date: "Apr 28, 2026",
 };
@@ -498,6 +498,30 @@ function truncateText(value: string, maxLength: number): string {
 
 function getTemplateStyle(templateId: string): CSSProperties {
   return getPrintTemplateStyleVars(templateId) as CSSProperties;
+}
+
+function EmptyMessagesIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 96 96">
+      <rect
+        className={styles.emptyMessagesIconCard}
+        x="20"
+        y="18"
+        width="56"
+        height="64"
+        rx="10"
+      />
+      <path className={styles.emptyMessagesIconFold} d="M62 18v16h14" />
+      <path className={styles.emptyMessagesIconLine} d="M33 45h30" />
+      <path className={styles.emptyMessagesIconLine} d="M33 55h22" />
+      <path className={styles.emptyMessagesIconRibbon} d="M20 34h56" />
+      <path className={styles.emptyMessagesIconRibbon} d="M48 18v64" />
+      <path
+        className={styles.emptyMessagesIconHeart}
+        d="M48 70s-11-6.6-11-14a6.1 6.1 0 0 1 10.6-4.1L48 52l.4-.1A6.1 6.1 0 0 1 59 56c0 7.4-11 14-11 14Z"
+      />
+    </svg>
+  );
 }
 
 export default function PrintSetup() {
@@ -1115,7 +1139,7 @@ body > .gift-card {
               {printMessages.length === 0 && (
                 <div className={styles.emptyMessagesState}>
                   <div className={styles.emptyMessagesMark}>
-                    <s-icon type="gift-card" />
+                    <EmptyMessagesIcon />
                   </div>
                   <div>
                     <h3>{emptyStateTitle}</h3>
@@ -1291,39 +1315,6 @@ body > .gift-card {
                         <s-badge>{"{{cart_token}}"}</s-badge>
                       </s-stack>
                     </s-stack>
-                    <s-grid
-                      gap="base"
-                      gridTemplateColumns="repeat(auto-fit, minmax(160px, 1fr))"
-                    >
-                      <s-text-field
-                        label="From"
-                        value={previewMessage.sender}
-                        onInput={(event) =>
-                          updatePreviewField(
-                            "sender",
-                            String(
-                              (
-                                event.currentTarget as unknown as HTMLInputElement
-                              ).value,
-                            ),
-                          )
-                        }
-                      />
-                      <s-text-field
-                        label="To"
-                        value={previewMessage.recipient}
-                        onInput={(event) =>
-                          updatePreviewField(
-                            "recipient",
-                            String(
-                              (
-                                event.currentTarget as unknown as HTMLInputElement
-                              ).value,
-                            ),
-                          )
-                        }
-                      />
-                    </s-grid>
                     <s-text-area
                       label="Preview message"
                       rows={3}

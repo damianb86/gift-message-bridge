@@ -17,6 +17,10 @@
   assign prop_name = block.settings.property_name | default: 'Gift Message'
   assign preset    = block.settings.preset      | default: 'default'
   assign custom_css = block.settings.custom_css | default: ''
+  assign write_line_item_properties = true
+  if block.settings.write_line_item_properties == false
+    assign write_line_item_properties = false
+  endif
 
   if mode == 'order'
     assign existing = cart.attributes.gift_message | default: ''
@@ -42,6 +46,7 @@
   data-mode="{{ mode }}"
   data-cart-token="{{ cart.token }}"
   data-property-name="{{ prop_name | escape }}"
+  data-line-item-properties="{{ write_line_item_properties | json }}"
   data-product-id="{% if mode == 'product' %}{{ product.id }}{% endif %}"
   data-product-title="{% if mode == 'product' %}{{ product.title | escape }}{% endif %}"
   data-product-handle="{% if mode == 'product' %}{{ product.handle | escape }}{% endif %}"
@@ -71,7 +76,7 @@
   >
     {%- if mode == 'product' -%}
       {%- comment -%}
-        Product page: JS mirrors these fields into the add-to-cart form as
+        Product page: JS can mirror these fields into the add-to-cart form as
         line item properties, even when this app section is outside the form.
       {%- endcomment -%}
       <div class="gmb-row">
@@ -272,8 +277,15 @@
       "type": "text",
       "id": "property_name",
       "label": "Line item property name",
-      "info": "The key shown on the order line item. Only applies on product pages.",
+      "info": "The key shown on the order line item when line item properties are enabled. Only applies on product pages.",
       "default": "Gift Message"
+    },
+    {
+      "type": "checkbox",
+      "id": "write_line_item_properties",
+      "label": "Add gift message to order line item properties",
+      "info": "Strongly recommended. Adds the gift message to the order so it can be printed from the order page. If disabled, messages must be printed from the app, and orders cannot be reliably matched to their message.",
+      "default": true
     },
     {
       "type": "select",

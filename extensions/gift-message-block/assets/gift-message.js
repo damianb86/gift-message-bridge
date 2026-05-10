@@ -28,6 +28,8 @@
     var mode = block.dataset.mode;
     var cartToken = block.dataset.cartToken || "";
     var propertyName = block.dataset.propertyName || "Gift Message";
+    var lineItemPropertiesEnabled =
+      block.dataset.lineItemProperties !== "false";
     var productId = block.dataset.productId || "";
     var productTitle = block.dataset.productTitle || "";
     var productHandle = block.dataset.productHandle || "";
@@ -291,6 +293,7 @@
 
       removeProductProperties(form);
 
+      if (!lineItemPropertiesEnabled) return false;
       if (!hasContent) return false;
 
       var messageId = ensureMessageId();
@@ -324,7 +327,7 @@
         cartReference: ensureCartReference(),
         messageId: messageId,
         mode: "product",
-        propertyName: propertyName,
+        propertyName: lineItemPropertiesEnabled ? propertyName : "",
         productId: productId,
         productTitle: productTitle,
         productVariantTitle: getVariantTitle(variant),
