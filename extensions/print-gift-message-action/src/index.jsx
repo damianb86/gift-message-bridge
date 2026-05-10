@@ -8,12 +8,11 @@
  */
 
 /* global __APP_URL__ */
-/* eslint-disable react/prop-types */
+/* eslint-disable react/prop-types, react/jsx-key */
 
 import "@shopify/ui-extensions/preact";
 import { render } from "preact";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
-import { getPrintTemplateTheme } from "../../../app/lib/print-template-themes";
 
 const APP_URL =
   typeof __APP_URL__ !== "undefined" && __APP_URL__ ? __APP_URL__ : "";
@@ -201,7 +200,7 @@ function Extension() {
   const actionProps = printUrl ? { src: printUrl } : {};
 
   return (
-    <s-admin-print-action key={printUrl || "pending"} {...actionProps}>
+    <s-admin-print-action {...actionProps}>
       {printActionContent}
     </s-admin-print-action>
   );
@@ -293,84 +292,21 @@ function TemplatePresetButtons({
   return (
     <s-stack gap="small">
       <s-text type="strong">Print preset</s-text>
-      <div
-        role="radiogroup"
-        aria-label="Print preset"
-        style={{
-          display: "grid",
-          gap: "6px",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          maxHeight: "210px",
-          overflowY: "auto",
-          padding: "2px",
-        }}
-      >
+      <s-grid grid-template-columns="repeat(2, minmax(0, 1fr))" gap="small">
         {templateOptions.map((template) => {
           const selected = template.id === selectedTemplateId;
-          const theme = getPrintTemplateTheme(template.id);
 
           return (
-            <button
-              key={template.id}
-              type="button"
-              role="radio"
-              aria-checked={selected}
+            <s-button
+              variant={selected ? "primary" : "secondary"}
               onClick={() => onTemplateChange(template.id)}
-              style={{
-                alignItems: "center",
-                background: theme.background,
-                border: `${selected ? 2 : 1.25}px solid ${
-                  selected ? theme.accent : theme.border
-                }`,
-                borderRadius: "999px",
-                boxShadow: selected
-                  ? `0 0 0 2px ${theme.accent}33, 0 6px 14px rgba(51, 65, 85, 0.12)`
-                  : "none",
-                color: theme.text,
-                cursor: "pointer",
-                display: "inline-flex",
-                fontFamily: theme.font,
-                fontSize: "12px",
-                fontWeight: "750",
-                justifyContent: "center",
-                lineHeight: "1.15",
-                minHeight: "34px",
-                minWidth: "0",
-                overflow: "hidden",
-                padding: "7px 10px 7px 15px",
-                position: "relative",
-                textAlign: "center",
-                width: "100%",
-              }}
+              inline-size="fill"
             >
-              <span
-                aria-hidden="true"
-                style={{
-                  background: theme.accent,
-                  bottom: 0,
-                  left: 0,
-                  position: "absolute",
-                  top: 0,
-                  width: "6px",
-                }}
-              />
-              <span
-                style={{
-                  display: "block",
-                  minWidth: 0,
-                  overflow: "hidden",
-                  position: "relative",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  zIndex: 1,
-                }}
-              >
-                {template.name}
-              </span>
-            </button>
+              {template.name}
+            </s-button>
           );
         })}
-      </div>
+      </s-grid>
     </s-stack>
   );
 }
