@@ -14,7 +14,6 @@
   assign lbl       = block.settings.label       | default: 'Add a gift message'
   assign ph        = block.settings.placeholder | default: 'Write a birthday, thank you, wedding love, etc.'
   assign max_chars = block.settings.char_limit  | default: 250
-  assign prop_name = block.settings.property_name | default: 'Gift Message'
   assign preset    = block.settings.preset      | default: 'default'
   assign custom_css = block.settings.custom_css | default: ''
   assign write_line_item_properties = true
@@ -45,7 +44,6 @@
   data-gmb-block
   data-mode="{{ mode }}"
   data-cart-token="{{ cart.token }}"
-  data-property-name="{{ prop_name | escape }}"
   data-line-item-properties="{{ write_line_item_properties | json }}"
   data-product-id="{% if mode == 'product' %}{{ product.id }}{% endif %}"
   data-product-title="{% if mode == 'product' %}{{ product.title | escape }}{% endif %}"
@@ -106,12 +104,6 @@
         type="hidden"
         class="gmb-message-id"
         value=""
-        disabled
-      >
-      <input
-        type="hidden"
-        class="gmb-property-name"
-        value="{{ prop_name | escape }}"
         disabled
       >
       <script type="application/json" class="gmb-variants-json">
@@ -272,13 +264,6 @@
       "step": 10,
       "unit": "ch",
       "default": 250
-    },
-    {
-      "type": "text",
-      "id": "property_name",
-      "label": "Line item property name",
-      "info": "The key shown on the order line item when line item properties are enabled. Only applies on product pages.",
-      "default": "Gift Message"
     },
     {
       "type": "checkbox",

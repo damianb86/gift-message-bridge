@@ -32,7 +32,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     cart_reference?: string;
     message_id?: string;
     mode?: string;
-    property_name?: string;
     product_id?: string;
     product_title?: string;
     product_variant_title?: string;
@@ -55,7 +54,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const cartReference = String(body?.cart_reference ?? "").trim() || null;
   const messageId = String(body?.message_id ?? "").trim();
   const mode = String(body?.mode ?? "order");
-  const propertyName = String(body?.property_name ?? "").trim() || null;
   const productId = String(body?.product_id ?? "").trim() || null;
   const productTitle =
     String(body?.product_title ?? "")
@@ -99,7 +97,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       sender,
       recipient,
       mode,
-      propertyName,
       productId,
       productTitle,
       productVariantTitle,
@@ -113,7 +110,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       sender,
       recipient,
       mode,
-      propertyName,
       productId,
       productTitle,
       productVariantTitle,

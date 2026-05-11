@@ -3,6 +3,7 @@
 
   var WARN_THRESHOLD = 20;
   var PROXY_PATH = "/apps/gift-message";
+  var MESSAGE_PROPERTY = "Gift Message";
   var MESSAGE_REFERENCE_PROPERTY = "Gift Message Ref";
   var REFERENCE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   var REFERENCE_LENGTH = 5;
@@ -17,7 +18,6 @@
     var senderInput = block.querySelector(".gmb-from");
     var recipientInput = block.querySelector(".gmb-to");
     var messageIdInput = block.querySelector(".gmb-message-id");
-    var propertyNameInput = block.querySelector(".gmb-property-name");
     var remaining = block.querySelector(".gmb-count-left");
     var saving = block.querySelector(".gmb-status");
 
@@ -27,7 +27,6 @@
 
     var mode = block.dataset.mode;
     var cartToken = block.dataset.cartToken || "";
-    var propertyName = block.dataset.propertyName || "Gift Message";
     var lineItemPropertiesEnabled =
       block.dataset.lineItemProperties !== "false";
     var productId = block.dataset.productId || "";
@@ -66,7 +65,6 @@
         if (senderInput) senderInput.disabled = !open;
         if (recipientInput) recipientInput.disabled = !open;
         if (messageIdInput) messageIdInput.disabled = !open;
-        if (propertyNameInput) propertyNameInput.disabled = !open;
       }
     }
 
@@ -110,7 +108,6 @@
       if (senderInput) senderInput.disabled = true;
       if (recipientInput) recipientInput.disabled = true;
       if (messageIdInput) messageIdInput.disabled = true;
-      if (propertyNameInput) propertyNameInput.disabled = true;
     }
 
     if (mode === "product") {
@@ -300,11 +297,10 @@
 
       addProductProperty(
         form,
-        propertyName,
+        MESSAGE_PROPERTY,
         formatLineItemGiftMessage(sender, recipient, value),
       );
       addProductProperty(form, MESSAGE_REFERENCE_PROPERTY, messageId);
-      addProductProperty(form, "_Gift Message Property", propertyName);
 
       return true;
     }
@@ -327,7 +323,6 @@
         cartReference: ensureCartReference(),
         messageId: messageId,
         mode: "product",
-        propertyName: lineItemPropertiesEnabled ? propertyName : "",
         productId: productId,
         productTitle: productTitle,
         productVariantTitle: getVariantTitle(variant),
@@ -436,7 +431,6 @@
           cart_reference: options.cartReference || ensureCartReference(),
           message_id: options.messageId || "",
           mode: options.mode || mode,
-          property_name: options.propertyName || "",
           product_id: options.productId || "",
           product_title: options.productTitle || "",
           product_variant_title: options.productVariantTitle || "",

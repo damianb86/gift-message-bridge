@@ -17,7 +17,6 @@ const LOG_PREFIX = "[GMB PrintAction]";
 const PRINT_ORDER_ENDPOINT = "/api/print-order-gift-message";
 
 const GIFT_MESSAGE_PROPERTY = "Gift Message";
-const GIFT_MESSAGE_PROPERTY_NAME = "_Gift Message Property";
 const GIFT_MESSAGE_REF_PROPERTY = "Gift Message Ref";
 
 const ORDER_QUERY = `#graphql
@@ -404,12 +403,7 @@ function collectGiftMessages(order) {
 }
 
 function findGiftMessage(attributes) {
-  const configuredName =
-    findAttributeValue(attributes, GIFT_MESSAGE_PROPERTY_NAME) ||
-    GIFT_MESSAGE_PROPERTY;
-
   return (
-    findAttributeValue(attributes, configuredName) ||
     findAttributeValue(attributes, GIFT_MESSAGE_PROPERTY) ||
     findLooseAttributeValue(attributes, "gift message") ||
     findLooseAttributeValue(attributes, "gift_message")
