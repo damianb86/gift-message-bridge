@@ -54,7 +54,6 @@ export default async function extension() {
 }
 
 function Extension() {
-  const [markPrinted, setMarkPrinted] = useState(true);
   const [order, setOrder] = useState(null);
   const [messages, setMessages] = useState([]);
   const [printUrl, setPrintUrl] = useState(undefined);
@@ -152,7 +151,7 @@ function Extension() {
     setStatus({ type: "loading", count: messages.length });
     logInfo("createPrintView:start", {
       endpoint: PRINT_ORDER_ENDPOINT,
-      markPrinted,
+      markPrinted: false,
       messages: messages.length,
       requestedTemplateId: requestedTemplateId || "(saved/default)",
     });
@@ -175,7 +174,7 @@ function Extension() {
         body: JSON.stringify({
           orderId: order.id,
           orderName: order.name,
-          markPrinted,
+          markPrinted: false,
           messages,
           selectedTemplateId: requestedTemplateId,
         }),
@@ -233,7 +232,7 @@ function Extension() {
         setStatus({ type: "template_error", count: messages.length });
       }
     }
-  }, [markPrinted, messages, order, requestedTemplateId]);
+  }, [messages, order, requestedTemplateId]);
 
   useEffect(() => {
     createPrintView();
@@ -246,8 +245,6 @@ function Extension() {
 
   const printActionContent = (
     <PrintActionContent
-      markPrinted={markPrinted}
-      onMarkPrintedChange={setMarkPrinted}
       onTemplateChange={handleTemplateChange}
       selectedTemplateId={selectedTemplateId}
       status={status}
@@ -265,8 +262,6 @@ function Extension() {
 }
 
 function PrintActionContent({
-  markPrinted,
-  onMarkPrintedChange,
   onTemplateChange,
   selectedTemplateId,
   status,
@@ -283,12 +278,15 @@ function PrintActionContent({
 
   if (status.type === "loading") {
     return (
-      <s-stack gap="small">
+      <s-stack gap="base">
         {templateSelector}
-        <s-text>Preparing gift messages...</s-text>
-        <s-text>
-          Reading this order and applying the saved print template.
-        </s-text>
+        <s-stack direction="inline" gap="small" alignItems="center">
+          <s-spinner
+            accessibilityLabel="Loading gift message print preview"
+            size="base"
+          />
+          <s-text>Building print preview</s-text>
+        </s-stack>
       </s-stack>
     );
   }
@@ -322,20 +320,14 @@ function PrintActionContent({
   }
 
   return (
-    <s-stack gap="small">
+    <s-stack gap="base">
       {templateSelector}
-      <s-text>
-        {status.count} gift message{status.count === 1 ? "" : "s"} ready to
-        print.
-      </s-text>
-      <s-text>
-        Use the print preview above to print this order&apos;s messages.
-      </s-text>
-      <s-checkbox
-        checked={markPrinted}
-        label="Mark messages as printed after printing"
-        onChange={(event) => onMarkPrintedChange(getCheckedFromEvent(event))}
-      />
+      <s-stack direction="inline" gap="small" alignItems="center">
+        <s-badge tone="success" size="large">
+          Ready
+        </s-badge>
+        <s-text>{formatReadyMessage(status.count)}</s-text>
+      </s-stack>
     </s-stack>
   );
 }
@@ -350,7 +342,8 @@ function TemplatePresetSelect({
   return (
     <s-stack gap="small">
       <s-select
-        label="Print preset"
+        label="Gift note preset"
+        details="Choose the design for this print preview."
         value={selectedValue}
         onChange={(event) => onTemplateChange(getValueFromEvent(event))}
       >
@@ -366,12 +359,8 @@ function getValueFromEvent(event) {
   return clean(event?.currentTarget?.value ?? event?.target?.value);
 }
 
-function getCheckedFromEvent(event) {
-  if (typeof event === "boolean") {
-    return event;
-  }
-
-  return Boolean(event?.currentTarget?.checked ?? event?.target?.checked);
+function formatReadyMessage(count) {
+  return `${count} gift message${count === 1 ? "" : "s"} ready to print`;
 }
 
 function collectGiftMessages(order) {
