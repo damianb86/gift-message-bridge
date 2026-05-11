@@ -8,10 +8,28 @@ import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prism
 import prisma from "./db.server";
 
 function normalizeAppUrl(value?: string) {
-  if (!value) return "";
-  return value.startsWith("http://") || value.startsWith("https://")
-    ? value
-    : `https://${value}`;
+  const rawUrl = value?.trim();
+  if (!rawUrl) return "";
+
+  if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+    return `https://${rawUrl}`.replace(/\/+$/, "");
+  }
+
+  const url = new URL(rawUrl);
+  if (url.protocol === "http:" && !isLocalHost(url.hostname)) {
+    url.protocol = "https:";
+  }
+
+  return url.toString().replace(/\/+$/, "");
+}
+
+function isLocalHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname.endsWith(".localhost")
+  );
 }
 
 const appEnv = process.env.APP_ENV || process.env.NODE_ENV || "development";

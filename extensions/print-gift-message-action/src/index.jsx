@@ -148,6 +148,7 @@ function Extension() {
 
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
+    setPrintUrl(undefined);
     setStatus({ type: "loading", count: messages.length });
     logInfo("createPrintView:start", {
       endpoint: PRINT_ORDER_ENDPOINT,
@@ -273,7 +274,7 @@ function PrintActionContent({
 }) {
   const templateSelector =
     templateOptions.length > 0 ? (
-      <TemplatePresetButtons
+      <TemplatePresetSelect
         onTemplateChange={onTemplateChange}
         selectedTemplateId={selectedTemplateId}
         templateOptions={templateOptions}
@@ -333,37 +334,44 @@ function PrintActionContent({
       <s-checkbox
         checked={markPrinted}
         label="Mark messages as printed after printing"
-        onChange={(checked) => onMarkPrintedChange(Boolean(checked))}
+        onChange={(event) => onMarkPrintedChange(getCheckedFromEvent(event))}
       />
     </s-stack>
   );
 }
 
-function TemplatePresetButtons({
+function TemplatePresetSelect({
   onTemplateChange,
   selectedTemplateId,
   templateOptions,
 }) {
+  const selectedValue = selectedTemplateId || templateOptions[0]?.id || "";
+
   return (
     <s-stack gap="small">
-      <s-text type="strong">Print preset</s-text>
-      <s-grid grid-template-columns="repeat(2, minmax(0, 1fr))" gap="small">
-        {templateOptions.map((template) => {
-          const selected = template.id === selectedTemplateId;
-
-          return (
-            <s-button
-              variant={selected ? "primary" : "secondary"}
-              onClick={() => onTemplateChange(template.id)}
-              inline-size="fill"
-            >
-              {template.name}
-            </s-button>
-          );
-        })}
-      </s-grid>
+      <s-select
+        label="Print preset"
+        value={selectedValue}
+        onChange={(event) => onTemplateChange(getValueFromEvent(event))}
+      >
+        {templateOptions.map((template) => (
+          <s-option value={template.id}>{template.name}</s-option>
+        ))}
+      </s-select>
     </s-stack>
   );
+}
+
+function getValueFromEvent(event) {
+  return clean(event?.currentTarget?.value ?? event?.target?.value);
+}
+
+function getCheckedFromEvent(event) {
+  if (typeof event === "boolean") {
+    return event;
+  }
+
+  return Boolean(event?.currentTarget?.checked ?? event?.target?.checked);
 }
 
 function collectGiftMessages(order) {
