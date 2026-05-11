@@ -1,3 +1,5 @@
+/** @jsxImportSource preact */
+
 /**
  * Admin UI Extension - "Print Gift Message"
  * Target: admin.order-details.print-action.render
@@ -43,6 +45,7 @@ query GiftMessageOrder($id: ID!) {
 export default async function extension() {
   logInfo("entry", {
     endpoint: PRINT_ORDER_ENDPOINT,
+    jsxRuntime: "preact",
     selectedCount: shopify.data?.selected?.length ?? 0,
     target: shopify.extension?.target ?? "unknown",
   });
@@ -330,9 +333,7 @@ function PrintActionContent({
       <s-checkbox
         checked={markPrinted}
         label="Mark messages as printed after printing"
-        onChange={(event) =>
-          onMarkPrintedChange(Boolean(event.currentTarget.checked))
-        }
+        onChange={(checked) => onMarkPrintedChange(Boolean(checked))}
       />
     </s-stack>
   );
