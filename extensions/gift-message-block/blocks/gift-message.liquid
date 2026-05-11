@@ -52,25 +52,26 @@
   {{ block.shopify_attributes }}
 >
   {%- comment -%} ── Toggle ──────────────────────────────────────────────── {%- endcomment -%}
-  <div class="gmb-toggle">
-    <input
-      type="checkbox"
-      id="gmb-chk-{{ block.id }}"
-      class="gmb-check"
-      aria-controls="gmb-field-{{ block.id }}"
-      aria-expanded="{{ has_msg | json }}"
-      {%- if has_msg %} checked{%- endif -%}
-    >
-    <label for="gmb-chk-{{ block.id }}" class="gmb-label">
+  <input
+    type="checkbox"
+    id="gmb-chk-{{ block.id }}"
+    class="gmb-check"
+    aria-controls="gmb-field-{{ block.id }}"
+    aria-expanded="{{ has_msg | json }}"
+    {%- if has_msg %} checked{%- endif -%}
+  >
+  <label for="gmb-chk-{{ block.id }}" class="gmb-toggle">
+    <span class="gmb-check-ui" aria-hidden="true"></span>
+    <span class="gmb-label">
       {{- lbl -}}
-    </label>
-  </div>
+    </span>
+  </label>
 
   {%- comment -%} ── Collapsible field ────────────────────────────────────── {%- endcomment -%}
   <div
     id="gmb-field-{{ block.id }}"
     class="gmb-panel"
-    {%- unless has_msg %} hidden{%- endunless -%}
+    {%- if has_msg %} data-gmb-open="true"{%- endif -%}
   >
     {%- if mode == 'product' -%}
       {%- comment -%}
@@ -82,13 +83,11 @@
           class="gmb-input gmb-from"
           placeholder="From"
           aria-label="Gift message from"
-          {%- unless has_msg %} disabled{%- endunless -%}
         >
         <input
           class="gmb-input gmb-to"
           placeholder="To"
           aria-label="Gift message to"
-          {%- unless has_msg %} disabled{%- endunless -%}
         >
       </div>
       <textarea
@@ -98,7 +97,6 @@
         maxlength="{{ max_chars }}"
         rows="3"
         aria-label="{{ lbl | escape }}"
-        {%- unless has_msg %} disabled{%- endunless -%}
       ></textarea>
       <input
         type="hidden"
@@ -205,7 +203,8 @@
   {%- when 'dark' -%}
   /* Dark — inverted, for dark-background sections */
   #gmb-{{ block.id }}{background:#334155;border-radius:.5rem;color:#eef8f4;padding:1.125rem 1.25rem;}
-  #gmb-{{ block.id }} .gmb-check{accent-color:#fff;}
+  #gmb-{{ block.id }} .gmb-check-ui{border-color:rgba(255,255,255,.72);}
+  #gmb-{{ block.id }} .gmb-check:checked + .gmb-toggle .gmb-check-ui{background:#eef8f4;border-color:#eef8f4;}
   #gmb-{{ block.id }} .gmb-input,
   #gmb-{{ block.id }} .gmb-message{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#f5f5f5;}
   #gmb-{{ block.id }} .gmb-input::placeholder,
@@ -294,7 +293,7 @@
       "type": "textarea",
       "id": "custom_css",
       "label": "Custom CSS (applied on top of preset)",
-      "info": "Available classes: .gmb-box, .gmb-label, .gmb-check, .gmb-panel, .gmb-row, .gmb-input, .gmb-message, .gmb-note."
+      "info": "Available classes: .gmb-box, .gmb-label, .gmb-check, .gmb-check-ui, .gmb-panel, .gmb-row, .gmb-input, .gmb-message, .gmb-note."
     }
   ]
 }

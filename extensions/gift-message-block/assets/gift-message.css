@@ -17,18 +17,60 @@
 /* Toggle row */
 .gmb-toggle {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.55em;
   cursor: pointer;
 }
 
 .gmb-check {
-  width: 1.05em;
-  height: 1.05em;
-  margin-top: 0.15em;
-  flex-shrink: 0;
-  cursor: pointer;
-  accent-color: var(--gmb-block-primary);
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  opacity: 0;
+}
+
+.gmb-check-ui {
+  position: relative;
+  display: inline-flex;
+  width: 1.12em;
+  height: 1.12em;
+  flex: 0 0 1.12em;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid rgba(51, 65, 85, 0.28);
+  border-radius: 0.28em;
+  background: rgba(255, 255, 255, 0.72);
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.gmb-check-ui::after {
+  width: 0.3em;
+  height: 0.56em;
+  border: solid #fff;
+  border-width: 0 0.13em 0.13em 0;
+  content: "";
+  opacity: 0;
+  transform: rotate(45deg) translate(-0.02em, -0.04em);
+}
+
+.gmb-check:focus-visible + .gmb-toggle .gmb-check-ui {
+  box-shadow: 0 0 0 3px rgba(79, 175, 143, 0.22);
+}
+
+.gmb-check:checked + .gmb-toggle .gmb-check-ui {
+  border-color: var(--gmb-block-primary);
+  background: var(--gmb-block-primary);
+}
+
+.gmb-check:checked + .gmb-toggle .gmb-check-ui::after {
+  opacity: 1;
 }
 
 .gmb-label {
@@ -39,6 +81,7 @@
 
 /* Collapsible field */
 .gmb-panel {
+  display: none;
   background: var(--gmb-block-mint);
   border: 1px solid rgba(134, 197, 174, 0.36);
   border-radius: var(--inputs-radius, var(--buttons-radius, 8px));
@@ -55,7 +98,7 @@
   display: block;
 }
 
-.gmb-toggle:has(.gmb-check:checked) + .gmb-panel {
+.gmb-check:checked ~ .gmb-panel {
   display: block;
 }
 
