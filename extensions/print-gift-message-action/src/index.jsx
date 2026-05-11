@@ -7,19 +7,14 @@
  * for the configured print template and a short-lived print URL.
  */
 
-/* global __APP_URL__ */
 /* eslint-disable react/prop-types, react/jsx-key */
 
 import "@shopify/ui-extensions/preact";
 import { render } from "preact";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 
-const DEFAULT_APP_URL = "https://qorve-2.duckdns.org";
 const LOG_PREFIX = "[GMB PrintAction]";
-const APP_URL =
-  typeof __APP_URL__ !== "undefined" && __APP_URL__
-    ? normalizeUrl(__APP_URL__)
-    : DEFAULT_APP_URL;
+const PRINT_ORDER_ENDPOINT = "/api/print-order-gift-message";
 
 const GIFT_MESSAGE_PROPERTY = "Gift Message";
 const GIFT_MESSAGE_PROPERTY_NAME = "_Gift Message Property";
@@ -48,7 +43,7 @@ query GiftMessageOrder($id: ID!) {
 
 export default async function extension() {
   logInfo("entry", {
-    appUrl: APP_URL,
+    endpoint: PRINT_ORDER_ENDPOINT,
     selectedCount: shopify.data?.selected?.length ?? 0,
     target: shopify.extension?.target ?? "unknown",
   });
@@ -79,7 +74,7 @@ function Extension() {
 
       const orderId = shopify.data?.selected?.[0]?.id ?? "";
       logInfo("loadOrder:start", {
-        appUrl: APP_URL,
+        endpoint: PRINT_ORDER_ENDPOINT,
         hasOrderId: Boolean(orderId),
         selectedCount: shopify.data?.selected?.length ?? 0,
       });
@@ -153,7 +148,7 @@ function Extension() {
     requestIdRef.current = requestId;
     setStatus({ type: "loading", count: messages.length });
     logInfo("createPrintView:start", {
-      endpoint: `${APP_URL}/api/print-order-gift-message`,
+      endpoint: PRINT_ORDER_ENDPOINT,
       markPrinted,
       messages: messages.length,
       requestedTemplateId: requestedTemplateId || "(saved/default)",
@@ -171,10 +166,7 @@ function Extension() {
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
-
-      const endpoint = `${APP_URL}/api/print-order-gift-message`;
-
-      const res = await fetch(endpoint, {
+      const res = await fetch(PRINT_ORDER_ENDPOINT, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -196,7 +188,7 @@ function Extension() {
           body: await readResponseText(res),
           status: res.status,
           statusText: res.statusText,
-          url: endpoint,
+          url: PRINT_ORDER_ENDPOINT,
         });
         setStatus({ type: "template_error", count: messages.length });
         return;
@@ -260,10 +252,7 @@ function Extension() {
     />
   );
 
-  const diagnosticUrl = `${APP_URL}/print/diagnostic?status=${encodeURIComponent(
-    status.type,
-  )}`;
-  const actionProps = { src: printUrl || diagnosticUrl };
+  const actionProps = printUrl ? { src: printUrl } : {};
 
   return (
     <s-admin-print-action {...actionProps}>
@@ -513,10 +502,6 @@ function normalizeKey(value) {
 function clean(value) {
   const text = String(value || "").trim();
   return text.length > 0 ? text : "";
-}
-
-function normalizeUrl(value) {
-  return String(value || "").replace(/\/+$/, "");
 }
 
 function summarizeSelected(selected) {

@@ -2,27 +2,46 @@ import { reactRouter } from "@react-router/dev/vite";
 import { defineConfig, type UserConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
+const appEnv = process.env.APP_ENV || "development";
+
+function normalizeUrl(value: string | undefined, fallback: string) {
+  const url = value || fallback;
+  return url.startsWith("http://") || url.startsWith("https://")
+    ? url
+    : `https://${url}`;
+}
+
 // Related: https://github.com/remix-run/remix/issues/2835#issuecomment-1144102176
 // Replace the HOST env var with SHOPIFY_APP_URL so that it doesn't break the Vite server.
 // The CLI will eventually stop passing in HOST,
 // so we can remove this workaround after the next major release.
-if (
-  process.env.HOST &&
-  (!process.env.SHOPIFY_APP_URL ||
-    process.env.SHOPIFY_APP_URL === process.env.HOST)
-) {
+if (appEnv !== "production" && process.env.HOST) {
   process.env.SHOPIFY_APP_URL = process.env.HOST;
   delete process.env.HOST;
 }
 
-const host = new URL(process.env.SHOPIFY_APP_URL || "http://localhost")
-  .hostname;
+const appUrl =
+  appEnv === "production"
+    ? normalizeUrl(
+        process.env.PROD_SHOPIFY_APP_URL ||
+          process.env.SHOPIFY_APP_URL ||
+          process.env.APP_URL,
+        "http://localhost",
+      )
+    : normalizeUrl(
+        process.env.SHOPIFY_APP_URL ||
+          process.env.DEV_SHOPIFY_APP_URL ||
+          process.env.APP_URL,
+        "http://localhost",
+      );
+
+const host = new URL(appUrl).hostname;
 
 let hmrConfig;
-if (host === "localhost") {
+if (host === "localhost" || host === "127.0.0.1") {
   hmrConfig = {
     protocol: "ws",
-    host: "localhost",
+    host,
     port: 64999,
     clientPort: 64999,
   };
@@ -48,10 +67,7 @@ export default defineConfig({
       allow: ["app", "node_modules"],
     },
   },
-  plugins: [
-    reactRouter(),
-    tsconfigPaths(),
-  ],
+  plugins: [reactRouter(), tsconfigPaths()],
   build: {
     assetsInlineLimit: 0,
   },

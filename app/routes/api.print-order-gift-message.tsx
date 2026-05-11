@@ -117,10 +117,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 function resolveAppUrl(request: Request): string {
-  const configuredUrl = process.env.SHOPIFY_APP_URL ?? process.env.APP_URL;
+  const appEnv = process.env.APP_ENV || process.env.NODE_ENV || "development";
   const requestOrigin = new URL(request.url).origin;
+  const configuredUrl =
+    appEnv === "production"
+      ? process.env.PROD_SHOPIFY_APP_URL ||
+        process.env.SHOPIFY_APP_URL ||
+        process.env.APP_URL ||
+        requestOrigin
+      : process.env.HOST || process.env.DEV_SHOPIFY_APP_URL || requestOrigin;
 
-  return (configuredUrl || requestOrigin).replace(/\/+$/, "");
+  return normalizeAppUrl(configuredUrl || requestOrigin);
+}
+
+function normalizeAppUrl(value: string): string {
+  const url =
+    value.startsWith("http://") || value.startsWith("https://")
+      ? value
+      : `https://${value}`;
+
+  return url.replace(/\/+$/, "");
 }
 
 async function resolveShopTemplate(shop: string, requestedTemplateId = "") {

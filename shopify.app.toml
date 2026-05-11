@@ -6,7 +6,8 @@ application_url = "https://qorve-2.duckdns.org"
 embedded = true
 
 [build]
-automatically_update_urls_on_dev = false
+automatically_update_urls_on_dev = true
+dev_store_url = "qorve-dev.myshopify.com"
 
 [webhooks]
 api_version = "2026-04"
