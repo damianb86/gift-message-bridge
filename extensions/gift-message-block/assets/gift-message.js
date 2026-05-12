@@ -20,6 +20,12 @@
     var messageIdInput = block.querySelector(".gmb-message-id");
     var remaining = block.querySelector(".gmb-count-left");
     var saving = block.querySelector(".gmb-status");
+    var saveButton = block.querySelector(".gmb-save-button");
+    var savedSummary = block.querySelector("[data-gmb-saved-summary]");
+    var editButton = block.querySelector(".gmb-edit-button");
+    var removeButtons = block.querySelectorAll(
+      ".gmb-remove-button, .gmb-summary-remove-button",
+    );
 
     if (!toggle || !field || !textarea) {
       return;
@@ -27,6 +33,9 @@
 
     var mode = block.dataset.mode;
     var cartToken = block.dataset.cartToken || "";
+    var manualSave = block.dataset.manualSave === "true";
+    var hasSavedMessage = block.dataset.hasSavedMessage === "true";
+    var isDirty = false;
     var lineItemPropertiesEnabled =
       block.dataset.lineItemProperties !== "false";
     var productId = block.dataset.productId || "";
@@ -72,6 +81,14 @@
       var checked = toggle.checked;
       setPanelOpen(checked);
 
+      if (manualSave) {
+        if (checked) {
+          textarea.focus();
+        }
+        updateManualUi();
+        return;
+      }
+
       if (mode === "product") {
         if (!checked) {
           textarea.value = "";
@@ -113,17 +130,19 @@
     if (mode === "product") {
       loadCartToken(syncProductPropertiesFromCurrentForm);
       textarea.addEventListener("focus", loadCartToken);
-      textarea.addEventListener("input", syncProductPropertiesFromCurrentForm);
-      if (senderInput)
-        senderInput.addEventListener(
-          "input",
-          syncProductPropertiesFromCurrentForm,
-        );
-      if (recipientInput)
-        recipientInput.addEventListener(
-          "input",
-          syncProductPropertiesFromCurrentForm,
-        );
+      if (!manualSave) {
+        textarea.addEventListener("input", syncProductPropertiesFromCurrentForm);
+        if (senderInput)
+          senderInput.addEventListener(
+            "input",
+            syncProductPropertiesFromCurrentForm,
+          );
+        if (recipientInput)
+          recipientInput.addEventListener(
+            "input",
+            syncProductPropertiesFromCurrentForm,
+          );
+      }
       syncProductProperties();
       document.addEventListener("submit", handleProductSubmit, true);
       document.addEventListener(
@@ -139,8 +158,29 @@
       document.addEventListener("click", handleProductCheckoutIntent, true);
     }
 
+    if (manualSave) {
+      textarea.addEventListener("input", markDirty);
+      if (senderInput) senderInput.addEventListener("input", markDirty);
+      if (recipientInput) recipientInput.addEventListener("input", markDirty);
+      if (saveButton) {
+        saveButton.addEventListener("click", saveCurrentMessage);
+      }
+      if (editButton) {
+        editButton.addEventListener("click", function () {
+          toggle.checked = true;
+          setPanelOpen(true);
+          textarea.focus();
+          updateManualUi();
+        });
+      }
+      removeButtons.forEach(function (button) {
+        button.addEventListener("click", removeSavedMessage);
+      });
+      updateManualUi();
+    }
+
     // ── Order mode: save through the App Proxy ───────────────────────────
-    if (mode === "order") {
+    if (mode === "order" && !manualSave) {
       var saveTimer = null;
 
       var scheduleSave = function () {
@@ -207,6 +247,195 @@
       if (saving) saving.textContent = text;
     }
 
+    function markDirty() {
+      if (!manualSave) return;
+
+      isDirty = true;
+      hasSavedMessage = false;
+      block.dataset.hasSavedMessage = "false";
+      setSaving(hasAnyContent() ? "Unsaved" : "");
+
+      if (mode === "product") {
+        removeProductProperties(findProductForm());
+      }
+
+      updateManualUi();
+    }
+
+    function saveCurrentMessage() {
+      if (!manualSave) return;
+
+      var value = getMessageValue();
+      var sender = getSenderValue();
+      var recipient = getRecipientValue();
+
+      if (!hasAnyContent()) {
+        removeSavedMessage();
+        return;
+      }
+
+      setManualButtonsBusy(true);
+      setSaving("Saving...");
+
+      if (mode === "product") {
+        hasSavedMessage = true;
+        isDirty = false;
+        block.dataset.hasSavedMessage = "true";
+        syncProductProperties();
+        persistProductMessage(
+          function () {
+            finishManualSave();
+          },
+          function () {
+            hasSavedMessage = false;
+            isDirty = true;
+            block.dataset.hasSavedMessage = "false";
+            removeProductProperties(findProductForm());
+            failManualSave();
+          },
+        );
+        return;
+      }
+
+      loadCartToken(function () {
+        saveOrderMessage(
+          value,
+          sender,
+          recipient,
+          function () {
+            finishManualSave();
+          },
+          function () {
+            failManualSave();
+          },
+        );
+      });
+    }
+
+    function finishManualSave() {
+      hasSavedMessage = true;
+      isDirty = false;
+      block.dataset.hasSavedMessage = "true";
+      setSaving("Saved");
+      setManualButtonsBusy(false);
+      toggle.checked = false;
+      setPanelOpen(false);
+      updateManualUi();
+      setTimeout(function () {
+        if (!isDirty) setSaving("");
+      }, 1800);
+    }
+
+    function failManualSave() {
+      setManualButtonsBusy(false);
+      setSaving("Could not save. Try again.");
+      updateManualUi();
+    }
+
+    function removeSavedMessage() {
+      if (!manualSave) return;
+
+      setManualButtonsBusy(true);
+      setSaving("Removing...");
+
+      var currentMessageId = messageIdInput ? messageIdInput.value : "";
+      textarea.value = "";
+      if (senderInput) senderInput.value = "";
+      if (recipientInput) recipientInput.value = "";
+      updateCounter();
+
+      if (mode === "product") {
+        removeProductProperties(findProductForm());
+        if (currentMessageId) {
+          persistMessage(
+            "",
+            "",
+            "",
+            {
+              cartToken: cartToken,
+              cartReference: ensureCartReference(),
+              messageId: currentMessageId,
+              mode: "product",
+              productId: productId,
+              productTitle: productTitle,
+              productHandle: productHandle,
+              keepalive: true,
+            },
+            function () {
+              finishRemoveSavedMessage();
+            },
+            function () {
+              failManualSave();
+            },
+          );
+        } else {
+          finishRemoveSavedMessage();
+        }
+        return;
+      }
+
+      loadCartToken(function () {
+        saveOrderMessage(
+          "",
+          "",
+          "",
+          function () {
+            finishRemoveSavedMessage();
+          },
+          function () {
+            failManualSave();
+          },
+        );
+      });
+    }
+
+    function finishRemoveSavedMessage() {
+      if (messageIdInput) messageIdInput.value = "";
+      hasSavedMessage = false;
+      isDirty = false;
+      block.dataset.hasSavedMessage = "false";
+      setSaving("Removed");
+      setManualButtonsBusy(false);
+      toggle.checked = false;
+      setPanelOpen(false);
+      updateManualUi();
+      setTimeout(function () {
+        if (!isDirty && !hasSavedMessage) setSaving("");
+      }, 1600);
+    }
+
+    function updateManualUi() {
+      if (!manualSave) return;
+
+      var hasContent = hasAnyContent();
+      var showSavedSummary = hasSavedMessage && !isDirty && !toggle.checked;
+
+      if (savedSummary) savedSummary.hidden = !showSavedSummary;
+
+      removeButtons.forEach(function (button) {
+        button.hidden = !(hasSavedMessage || hasContent);
+      });
+
+      if (saveButton) {
+        saveButton.disabled = !hasContent || (hasSavedMessage && !isDirty);
+      }
+    }
+
+    function setManualButtonsBusy(busy) {
+      if (saveButton) saveButton.disabled = busy;
+      removeButtons.forEach(function (button) {
+        button.disabled = busy;
+      });
+    }
+
+    function hasAnyContent() {
+      return Boolean(
+        getMessageValue().trim() ||
+          getSenderValue().trim() ||
+          getRecipientValue().trim(),
+      );
+    }
+
     /**
      * Send the message to the App Proxy (/apps/gift-message).
      * Shopify proxies the request to the app backend, which verifies the HMAC,
@@ -215,10 +444,10 @@
      * After the proxy confirms the save we also call /cart/update.js so the
      * cart attribute is updated for immediate display in the storefront.
      */
-    function saveOrderMessage(value, sender, recipient, onSuccess) {
+    function saveOrderMessage(value, sender, recipient, onSuccess, onError) {
       if (!cartToken) {
         // Fallback: update the cart attribute directly if we have no token.
-        updateCartAttributes(value, sender, recipient, onSuccess);
+        updateCartAttributes(value, sender, recipient, onSuccess, onError);
         return;
       }
 
@@ -233,7 +462,7 @@
         },
         function () {
           // Keep the Shopify cart attribute in sync for native cart display.
-          updateCartAttributes(value, sender, recipient, onSuccess);
+          updateCartAttributes(value, sender, recipient, onSuccess, onError);
         },
         function (err) {
           console.warn(
@@ -241,7 +470,7 @@
             err,
           );
           // Graceful degradation: still update the cart attribute.
-          updateCartAttributes(value, sender, recipient, onSuccess);
+          updateCartAttributes(value, sender, recipient, onSuccess, onError);
         },
       );
     }
@@ -285,13 +514,14 @@
       var sender = getSenderValue();
       var recipient = getRecipientValue();
       var hasContent =
-        toggle.checked &&
+        shouldIncludeMessageInProductForm() &&
         Boolean(value.trim() || sender.trim() || recipient.trim());
 
       removeProductProperties(form);
 
       if (!lineItemPropertiesEnabled) return false;
       if (!hasContent) return false;
+      if (manualSave && (!hasSavedMessage || isDirty)) return false;
 
       var messageId = ensureMessageId();
 
@@ -305,15 +535,16 @@
       return true;
     }
 
-    function persistProductMessage() {
+    function persistProductMessage(onSuccess, onError) {
       var value = getMessageValue();
       var sender = getSenderValue();
       var recipient = getRecipientValue();
       var hasContent =
-        toggle.checked &&
+        shouldIncludeMessageInProductForm() &&
         Boolean(value.trim() || sender.trim() || recipient.trim());
 
       if (!hasContent) return;
+      if (manualSave && (!hasSavedMessage || isDirty)) return;
 
       var messageId = ensureMessageId();
       var variant = getSelectedVariant(findProductForm());
@@ -329,7 +560,7 @@
         productSku: variant && variant.sku ? String(variant.sku) : "",
         productHandle: productHandle,
         keepalive: true,
-      });
+      }, onSuccess, onError);
     }
 
     function isDynamicCheckoutTarget(target) {
@@ -404,9 +635,15 @@
     }
 
     function removeProductProperties(form) {
+      if (!form) return;
       form.querySelectorAll("[data-gmb-property]").forEach(function (input) {
         input.remove();
       });
+    }
+
+    function shouldIncludeMessageInProductForm() {
+      if (!manualSave) return toggle.checked;
+      return hasSavedMessage && !isDirty;
     }
 
     function persistMessage(
@@ -454,8 +691,7 @@
         });
     }
 
-    function updateCartAttributes(value, sender, recipient, onSuccess) {
-      var orderReference = ensureCartReference();
+    function updateCartAttributes(value, sender, recipient, onSuccess, onError) {
       var root =
         (window.Shopify &&
           window.Shopify.routes &&
@@ -466,10 +702,16 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           attributes: {
-            gift_message: value,
-            gift_message_from: sender,
-            gift_message_to: recipient,
-            gift_order_reference: orderReference,
+            "Gift Message": value || sender || recipient
+              ? formatLineItemGiftMessage(sender, recipient, value)
+              : "",
+            "Gift Message From": "",
+            "Gift Message To": "",
+            "Gift Message Ref": "",
+            gift_message: "",
+            gift_message_from: "",
+            gift_message_to: "",
+            gift_order_reference: "",
           },
         }),
       })
@@ -480,6 +722,7 @@
         .catch(function (err) {
           console.warn("[GiftMessage]", err);
           setSaving("");
+          if (typeof onError === "function") onError(err);
         });
     }
 

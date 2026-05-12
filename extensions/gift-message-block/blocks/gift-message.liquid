@@ -16,15 +16,39 @@
   assign max_chars = block.settings.char_limit  | default: 250
   assign preset    = block.settings.preset      | default: 'default'
   assign custom_css = block.settings.custom_css | default: ''
+  assign save_button_label = block.settings.save_button_label | default: 'Save gift message'
   assign write_line_item_properties = true
   if block.settings.write_line_item_properties == false
     assign write_line_item_properties = false
   endif
+  assign manual_save = false
+  if mode == 'order' or block.settings.enable_save_button
+    assign manual_save = true
+  endif
+  assign width_unit = block.settings.width_unit | default: 'percent'
+  assign width_value = block.settings.width_percent | default: 100 | append: '%'
+  if width_unit == 'px'
+    assign width_value = block.settings.width_px | default: 520 | append: 'px'
+  endif
 
   if mode == 'order'
-    assign existing = cart.attributes.gift_message | default: ''
-    assign existing_sender = cart.attributes.gift_message_from | default: ''
-    assign existing_recipient = cart.attributes.gift_message_to | default: ''
+    assign raw_existing = cart.attributes['Gift Message'] | default: cart.attributes.gift_message | default: ''
+    assign existing = raw_existing
+    assign existing_sender = cart.attributes['Gift Message From'] | default: cart.attributes.gift_message_from | default: ''
+    assign existing_recipient = cart.attributes['Gift Message To'] | default: cart.attributes.gift_message_to | default: ''
+    if raw_existing contains 'From:' or raw_existing contains 'To:' or raw_existing contains 'Message:'
+      if raw_existing contains 'From:'
+        assign sender_tail = raw_existing | split: 'From:' | last
+        assign existing_sender = sender_tail | split: 'To:' | first | split: 'Message:' | first | strip
+      endif
+      if raw_existing contains 'To:'
+        assign recipient_tail = raw_existing | split: 'To:' | last
+        assign existing_recipient = recipient_tail | split: 'Message:' | first | strip
+      endif
+      if raw_existing contains 'Message:'
+        assign existing = raw_existing | split: 'Message:' | last | strip
+      endif
+    endif
     assign has_msg  = false
     if existing != blank or existing_sender != blank or existing_recipient != blank
       assign has_msg = true
@@ -34,6 +58,11 @@
     assign existing = ''
     assign existing_sender = ''
     assign existing_recipient = ''
+  endif
+
+  assign starts_open = has_msg
+  if manual_save and has_msg
+    assign starts_open = false
   endif
 -%}
 
@@ -45,10 +74,13 @@
   data-mode="{{ mode }}"
   data-cart-token="{{ cart.token }}"
   data-line-item-properties="{{ write_line_item_properties | json }}"
+  data-manual-save="{{ manual_save | json }}"
+  data-has-saved-message="{{ has_msg | json }}"
   data-product-id="{% if mode == 'product' %}{{ product.id }}{% endif %}"
   data-product-title="{% if mode == 'product' %}{{ product.title | escape }}{% endif %}"
   data-product-handle="{% if mode == 'product' %}{{ product.handle | escape }}{% endif %}"
   id="gmb-{{ block.id }}"
+  style="--gmb-block-width: {{ width_value }};"
   {{ block.shopify_attributes }}
 >
   {%- comment -%} ── Toggle ──────────────────────────────────────────────── {%- endcomment -%}
@@ -57,8 +89,8 @@
     id="gmb-chk-{{ block.id }}"
     class="gmb-check"
     aria-controls="gmb-field-{{ block.id }}"
-    aria-expanded="{{ has_msg | json }}"
-    {%- if has_msg %} checked{%- endif -%}
+    aria-expanded="{{ starts_open | json }}"
+    {%- if starts_open %} checked{%- endif -%}
   >
   <label for="gmb-chk-{{ block.id }}" class="gmb-toggle">
     <span class="gmb-check-ui" aria-hidden="true"></span>
@@ -71,7 +103,7 @@
   <div
     id="gmb-field-{{ block.id }}"
     class="gmb-panel"
-    {%- if has_msg %} data-gmb-open="true"{%- endif -%}
+    {%- if starts_open %} data-gmb-open="true"{%- endif -%}
   >
     {%- if mode == 'product' -%}
       {%- comment -%}
@@ -148,7 +180,35 @@
         <span class="gmb-count-total"> / {{ max_chars }}</span>
       </span>
     </div>
+
+    {%- if manual_save -%}
+      <div class="gmb-actions">
+        <button type="button" class="gmb-save-button">
+          {{- save_button_label -}}
+        </button>
+        <button
+          type="button"
+          class="gmb-remove-button"
+          {%- unless has_msg %} hidden{%- endunless -%}
+        >
+          Remove
+        </button>
+      </div>
+    {%- endif -%}
   </div>
+
+  {%- if manual_save -%}
+    <div
+      class="gmb-saved-summary"
+      data-gmb-saved-summary
+      {%- unless has_msg %} hidden{%- endunless -%}
+    >
+      <span class="gmb-saved-dot" aria-hidden="true"></span>
+      <span class="gmb-saved-text">Gift message saved</span>
+      <button type="button" class="gmb-edit-button">Edit</button>
+      <button type="button" class="gmb-summary-remove-button">Remove</button>
+    </div>
+  {%- endif -%}
 </div>
 
 {%- comment -%} ── Style preset ────────────────────────────────────────── {%- endcomment -%}
@@ -271,9 +331,54 @@
     {
       "type": "checkbox",
       "id": "write_line_item_properties",
-      "label": "Add gift message to order line item properties",
-      "info": "Strongly recommended. Adds the gift message to the order so it can be printed from the order page. If disabled, messages must be printed from the app, and orders cannot be reliably matched to their message.",
+      "label": "Add product gift message to line item properties",
+      "info": "Strongly recommended for product pages. Cart pages always save one order-level cart attribute named Gift Message, containing From, To, and Message in one text field.",
       "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_save_button",
+      "label": "Show save button on product pages",
+      "info": "Cart pages always use a save button. Enable this to require the button on product pages too; the message is not saved until the customer clicks it.",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "save_button_label",
+      "label": "Save button label",
+      "default": "Save gift message"
+    },
+    {
+      "type": "select",
+      "id": "width_unit",
+      "label": "Width unit",
+      "options": [
+        { "value": "percent", "label": "Percent" },
+        { "value": "px", "label": "Pixels" }
+      ],
+      "default": "percent"
+    },
+    {
+      "type": "range",
+      "id": "width_percent",
+      "label": "Width percent",
+      "info": "Used when Width unit is Percent. 100% means full available width.",
+      "min": 20,
+      "max": 100,
+      "step": 5,
+      "unit": "%",
+      "default": 100
+    },
+    {
+      "type": "range",
+      "id": "width_px",
+      "label": "Width pixels",
+      "info": "Used when Width unit is Pixels. The block still never exceeds the available container width.",
+      "min": 240,
+      "max": 1200,
+      "step": 20,
+      "unit": "px",
+      "default": 520
     },
     {
       "type": "select",
@@ -297,7 +402,7 @@
       "type": "textarea",
       "id": "custom_css",
       "label": "Custom CSS (applied on top of preset)",
-      "info": "Available classes: .gmb-box, .gmb-label, .gmb-check, .gmb-check-ui, .gmb-panel, .gmb-row, .gmb-input, .gmb-message, .gmb-note."
+      "info": "Available classes: .gmb-box, .gmb-label, .gmb-check, .gmb-check-ui, .gmb-panel, .gmb-row, .gmb-input, .gmb-message, .gmb-note, .gmb-actions, .gmb-save-button, .gmb-remove-button."
     }
   ]
 }

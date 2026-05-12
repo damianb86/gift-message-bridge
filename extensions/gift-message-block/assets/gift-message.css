@@ -19,6 +19,8 @@
   --gmb-block-placeholder: #7b8794;
   --gmb-block-note: #64748b;
   --gmb-block-focus: rgba(79, 175, 143, 0.18);
+  width: min(100%, var(--gmb-block-width, 100%));
+  max-width: 100%;
   margin: 1.25rem 0;
   font-size: 1rem;
 }
@@ -192,4 +194,104 @@
   color: #d24f62;
   opacity: 1;
   font-weight: 600;
+}
+
+.gmb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 0.75rem;
+}
+
+.gmb-save-button,
+.gmb-remove-button,
+.gmb-edit-button,
+.gmb-summary-remove-button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: var(--buttons-radius, 6px);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.84em;
+  font-weight: 650;
+  line-height: 1.2;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    opacity 0.15s;
+}
+
+.gmb-save-button {
+  padding: 0.65rem 0.95rem;
+  background: var(--gmb-block-primary);
+  color: #fff;
+}
+
+.gmb-save-button:hover,
+.gmb-save-button:focus-visible {
+  opacity: 0.92;
+}
+
+.gmb-remove-button,
+.gmb-edit-button,
+.gmb-summary-remove-button {
+  padding: 0.55rem 0.75rem;
+  background: transparent;
+  border-color: var(--gmb-block-panel-border);
+  color: var(--gmb-block-label-color);
+}
+
+.gmb-remove-button:hover,
+.gmb-remove-button:focus-visible,
+.gmb-edit-button:hover,
+.gmb-edit-button:focus-visible,
+.gmb-summary-remove-button:hover,
+.gmb-summary-remove-button:focus-visible {
+  border-color: var(--gmb-block-primary);
+  color: var(--gmb-block-primary);
+}
+
+.gmb-save-button[disabled] {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.gmb-saved-summary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  margin-top: 0.7rem;
+  padding: 0.5rem 0.55rem 0.5rem 0.65rem;
+  border: 1px solid var(--gmb-block-panel-border);
+  border-radius: var(--buttons-radius, 6px);
+  background: var(--gmb-block-panel-bg);
+  color: var(--gmb-block-label-color);
+}
+
+.gmb-saved-summary[hidden] {
+  display: none;
+}
+
+.gmb-saved-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  flex: 0 0 0.55rem;
+  border-radius: 999px;
+  background: var(--gmb-block-primary);
+  box-shadow: 0 0 0 3px var(--gmb-block-focus);
+}
+
+.gmb-saved-text {
+  font-size: 0.82em;
+  font-weight: 650;
+}
+
+.gmb-edit-button,
+.gmb-summary-remove-button {
+  padding: 0.35rem 0.55rem;
+  font-size: 0.76em;
 }

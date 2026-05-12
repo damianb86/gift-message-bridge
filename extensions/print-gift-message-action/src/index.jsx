@@ -4,9 +4,9 @@
  * Admin UI Extension - "Print Gift Message"
  * Target: admin.order-details.print-action.render
  *
- * The order is the source of truth. We read the current order line item
- * properties, extract the combined "Gift Message" value, and ask the app only
- * for the configured print template and a short-lived print URL.
+ * The order is the source of truth. We read order custom attributes and line
+ * item properties, extract gift message values, and ask the app only for the
+ * configured print template and a short-lived print URL.
  */
 
 /* eslint-disable react/prop-types, react/jsx-key */
@@ -20,6 +20,8 @@ const PRINT_ORDER_ENDPOINT = "/api/print-order-gift-message";
 
 const GIFT_MESSAGE_PROPERTY = "Gift Message";
 const GIFT_MESSAGE_REF_PROPERTY = "Gift Message Ref";
+const GIFT_MESSAGE_FROM_ATTRIBUTE = "Gift Message From";
+const GIFT_MESSAGE_TO_ATTRIBUTE = "Gift Message To";
 
 const ORDER_QUERY = `#graphql
 query GiftMessageOrder($id: ID!) {
@@ -28,6 +30,10 @@ query GiftMessageOrder($id: ID!) {
     name
     processedAt
     createdAt
+    customAttributes {
+      key
+      value
+    }
     lineItems(first: 100) {
       nodes {
         title
@@ -294,7 +300,8 @@ function PrintActionContent({
   if (status.type === "not_found") {
     return (
       <s-banner tone="info" heading="No gift messages in this order">
-        This order does not have a Gift Message line item property.
+        This order does not have a Gift Message order attribute or line item
+        property.
       </s-banner>
     );
   }
@@ -303,7 +310,7 @@ function PrintActionContent({
     return (
       <s-banner tone="critical" heading="Could not read the order">
         The app needs permission to read orders so it can print the Gift Message
-        line item properties.
+        order attributes and line item properties.
       </s-banner>
     );
   }
@@ -367,37 +374,84 @@ function collectGiftMessages(order) {
   const lines = order?.lineItems?.nodes || [];
   const orderReference = clean(order?.name) || clean(order?.id);
   const orderDate = formatDate(order?.processedAt || order?.createdAt);
+  const orderMessages = collectOrderGiftMessages(
+    order?.customAttributes || [],
+    orderReference,
+    orderDate,
+  );
+  const lineMessages = lines.flatMap((line, index) =>
+    collectLineGiftMessages(line, index, orderReference, orderDate),
+  );
 
-  return lines.flatMap((line, index) => {
-    const attributes = line.customAttributes || [];
-    const giftMessageValue = findGiftMessage(attributes);
+  return [...orderMessages, ...lineMessages];
+}
 
-    if (!giftMessageValue) {
-      return [];
-    }
+function collectOrderGiftMessages(attributes, orderReference, orderDate) {
+  const giftMessageValue = findGiftMessage(attributes);
 
-    const parsed = parseGiftMessageProperty(giftMessageValue);
-    const message = clean(parsed.message || giftMessageValue);
+  if (!giftMessageValue) {
+    return [];
+  }
 
-    if (!message) {
-      return [];
-    }
+  const parsed = parseGiftMessageProperty(giftMessageValue);
+  const message = clean(parsed.message || giftMessageValue);
 
-    return [
-      {
-        reference:
-          findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY) ||
-          `${orderReference || "Order"}-${index + 1}`,
-        cartReference: orderReference,
-        cartToken: orderReference,
-        productReference: buildProductReference(line),
-        sender: parsed.sender,
-        recipient: parsed.recipient,
-        message,
-        date: orderDate,
-      },
-    ];
-  });
+  if (!message) {
+    return [];
+  }
+
+  return [
+    {
+      reference:
+        findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY) ||
+        findLooseAttributeValue(attributes, "gift_order_reference") ||
+        orderReference,
+      cartReference: orderReference,
+      cartToken: orderReference,
+      productReference: "Cart gift message",
+      sender:
+        findAttributeValue(attributes, GIFT_MESSAGE_FROM_ATTRIBUTE) ||
+        findLooseAttributeValue(attributes, "gift_message_from") ||
+        parsed.sender,
+      recipient:
+        findAttributeValue(attributes, GIFT_MESSAGE_TO_ATTRIBUTE) ||
+        findLooseAttributeValue(attributes, "gift_message_to") ||
+        parsed.recipient,
+      message,
+      date: orderDate,
+    },
+  ];
+}
+
+function collectLineGiftMessages(line, index, orderReference, orderDate) {
+  const attributes = line.customAttributes || [];
+  const giftMessageValue = findGiftMessage(attributes);
+
+  if (!giftMessageValue) {
+    return [];
+  }
+
+  const parsed = parseGiftMessageProperty(giftMessageValue);
+  const message = clean(parsed.message || giftMessageValue);
+
+  if (!message) {
+    return [];
+  }
+
+  return [
+    {
+      reference:
+        findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY) ||
+        `${orderReference || "Order"}-${index + 1}`,
+      cartReference: orderReference,
+      cartToken: orderReference,
+      productReference: buildProductReference(line),
+      sender: parsed.sender,
+      recipient: parsed.recipient,
+      message,
+      date: orderDate,
+    },
+  ];
 }
 
 function findGiftMessage(attributes) {
