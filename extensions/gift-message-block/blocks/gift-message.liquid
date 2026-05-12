@@ -17,6 +17,7 @@
   assign preset    = block.settings.preset      | default: 'default'
   assign custom_css = block.settings.custom_css | default: ''
   assign save_button_label = block.settings.save_button_label | default: 'Save gift message'
+  assign accent_color = block.settings.accent_color | default: '#4FAF8F'
   assign write_line_item_properties = true
   if block.settings.write_line_item_properties == false
     assign write_line_item_properties = false
@@ -80,7 +81,7 @@
   data-product-title="{% if mode == 'product' %}{{ product.title | escape }}{% endif %}"
   data-product-handle="{% if mode == 'product' %}{{ product.handle | escape }}{% endif %}"
   id="gmb-{{ block.id }}"
-  style="--gmb-block-width: {{ width_value }};"
+  style="--gmb-block-width: {{ width_value }}; --gmb-block-accent: {{ accent_color }};"
   {{ block.shopify_attributes }}
 >
   {%- comment -%} ── Toggle ──────────────────────────────────────────────── {%- endcomment -%}
@@ -218,7 +219,7 @@
 
   {%- when 'rounded' -%}
   /* Rounded — pill inputs, soft container */
-  #gmb-{{ block.id }}{--gmb-block-label-color:#334155;--gmb-block-panel-bg:#fff;--gmb-block-panel-border:rgba(134,197,174,.34);--gmb-block-field-bg:#fff;--gmb-block-field-border:rgba(134,197,174,.46);--gmb-block-field-text:#263848;--gmb-block-placeholder:#7b8794;border:1px solid rgba(134,197,174,.44);border-radius:1.25rem;padding:1rem 1.125rem;}
+  #gmb-{{ block.id }}{--gmb-block-label-color:#334155;--gmb-block-panel-bg:#fff;--gmb-block-panel-border:color-mix(in srgb,var(--gmb-block-primary) 34%,transparent);--gmb-block-field-bg:#fff;--gmb-block-field-border:color-mix(in srgb,var(--gmb-block-primary) 46%,transparent);--gmb-block-field-text:#263848;--gmb-block-placeholder:#7b8794;border:1px solid color-mix(in srgb,var(--gmb-block-primary) 44%,transparent);border-radius:1.25rem;padding:1rem 1.125rem;}
   #gmb-{{ block.id }} .gmb-panel{border-radius:1rem;}
   #gmb-{{ block.id }} .gmb-input,
   #gmb-{{ block.id }} .gmb-message{border-radius:.8rem;}
@@ -240,11 +241,11 @@
   #gmb-{{ block.id }} .gmb-input,
   #gmb-{{ block.id }} .gmb-message{border-radius:.5rem;}
   #gmb-{{ block.id }} .gmb-input:focus,
-  #gmb-{{ block.id }} .gmb-message:focus{background:#fff;border-color:#4faf8f;}
+  #gmb-{{ block.id }} .gmb-message:focus{background:#fff;border-color:var(--gmb-block-primary);}
 
   {%- when 'accent' -%}
   /* Accent — bold left border, square inputs */
-  #gmb-{{ block.id }}{--gmb-block-label-color:#263848;--gmb-block-panel-bg:transparent;--gmb-block-panel-border:rgba(79,175,143,.28);--gmb-block-field-bg:#fff;--gmb-block-field-border:rgba(79,175,143,.42);--gmb-block-field-text:#243447;--gmb-block-placeholder:#718096;border-left:3px solid #4faf8f;padding-left:1rem;}
+  #gmb-{{ block.id }}{--gmb-block-label-color:#263848;--gmb-block-panel-bg:transparent;--gmb-block-panel-border:color-mix(in srgb,var(--gmb-block-primary) 32%,transparent);--gmb-block-field-bg:#fff;--gmb-block-field-border:color-mix(in srgb,var(--gmb-block-primary) 46%,transparent);--gmb-block-field-text:#243447;--gmb-block-placeholder:#718096;border-left:3px solid var(--gmb-block-primary);padding-left:1rem;}
   #gmb-{{ block.id }} .gmb-label{font-weight:700;}
   #gmb-{{ block.id }} .gmb-panel{border-left:none;border-right:none;border-radius:0;padding-left:0;padding-right:0;}
   #gmb-{{ block.id }} .gmb-input,
@@ -252,15 +253,15 @@
 
   {%- when 'soft' -%}
   /* Soft — filled inputs, no visible border */
-  #gmb-{{ block.id }}{--gmb-block-label-color:#294538;--gmb-block-panel-bg:rgba(255,255,255,.72);--gmb-block-panel-border:rgba(134,197,174,.26);--gmb-block-field-bg:#fff;--gmb-block-field-border:rgba(134,197,174,.32);--gmb-block-field-text:#263848;--gmb-block-placeholder:#718096;background:#eef8f4;border:1px solid rgba(134,197,174,.34);border-radius:.75rem;padding:1.05rem 1.125rem;}
+  #gmb-{{ block.id }}{--gmb-block-label-color:#263848;--gmb-block-panel-bg:rgba(255,255,255,.72);--gmb-block-panel-border:color-mix(in srgb,var(--gmb-block-primary) 26%,transparent);--gmb-block-field-bg:#fff;--gmb-block-field-border:color-mix(in srgb,var(--gmb-block-primary) 32%,transparent);--gmb-block-field-text:#263848;--gmb-block-placeholder:#718096;background:color-mix(in srgb,var(--gmb-block-primary) 10%,#fff);border:1px solid color-mix(in srgb,var(--gmb-block-primary) 34%,transparent);border-radius:.75rem;padding:1.05rem 1.125rem;}
   #gmb-{{ block.id }} .gmb-input,
   #gmb-{{ block.id }} .gmb-message{border-radius:.5rem;}
   #gmb-{{ block.id }} .gmb-input:focus,
-  #gmb-{{ block.id }} .gmb-message:focus{background:#fff;box-shadow:0 0 0 3px rgba(79,175,143,.18);opacity:1;}
+  #gmb-{{ block.id }} .gmb-message:focus{background:#fff;box-shadow:0 0 0 3px var(--gmb-block-focus);opacity:1;}
 
   {%- when 'warm' -%}
   /* Warm — blush background for the block */
-  #gmb-{{ block.id }}{--gmb-block-primary:#d66a78;--gmb-block-label-color:#5a2e36;--gmb-block-panel-bg:rgba(255,255,255,.72);--gmb-block-panel-border:rgba(214,106,120,.18);--gmb-block-field-bg:#fff;--gmb-block-field-border:rgba(214,106,120,.22);--gmb-block-field-text:#342f34;--gmb-block-placeholder:#8c6f75;--gmb-block-note:#7f5f66;--gmb-block-focus:rgba(214,106,120,.18);background:#f9e7e7;border:1px solid rgba(211,95,110,.18);border-radius:.625rem;padding:1.05rem 1.125rem;}
+  #gmb-{{ block.id }}{--gmb-block-label-color:#5a2e36;--gmb-block-panel-bg:rgba(255,255,255,.72);--gmb-block-panel-border:rgba(214,106,120,.18);--gmb-block-field-bg:#fff;--gmb-block-field-border:rgba(214,106,120,.22);--gmb-block-field-text:#342f34;--gmb-block-placeholder:#8c6f75;--gmb-block-note:#7f5f66;background:#f9e7e7;border:1px solid rgba(211,95,110,.18);border-radius:.625rem;padding:1.05rem 1.125rem;}
   #gmb-{{ block.id }} .gmb-input,
   #gmb-{{ block.id }} .gmb-message{border-radius:.45rem;}
   #gmb-{{ block.id }} .gmb-input:focus,
@@ -268,12 +269,10 @@
 
   {%- when 'dark' -%}
   /* Dark — inverted, for dark-background sections */
-  #gmb-{{ block.id }}{--gmb-block-primary:#86c5ae;--gmb-block-label-color:#eef8f4;--gmb-block-panel-bg:rgba(255,255,255,.07);--gmb-block-panel-border:rgba(255,255,255,.14);--gmb-block-field-bg:rgba(255,255,255,.1);--gmb-block-field-border:rgba(255,255,255,.22);--gmb-block-field-text:#f8fafc;--gmb-block-placeholder:rgba(248,250,252,.58);--gmb-block-note:rgba(238,248,244,.72);--gmb-block-focus:rgba(134,197,174,.22);background:#334155;border-radius:.625rem;color:#eef8f4;padding:1.05rem 1.125rem;}
+  #gmb-{{ block.id }}{--gmb-block-label-color:#eef8f4;--gmb-block-panel-bg:rgba(255,255,255,.07);--gmb-block-panel-border:rgba(255,255,255,.14);--gmb-block-field-bg:rgba(255,255,255,.1);--gmb-block-field-border:rgba(255,255,255,.22);--gmb-block-field-text:#f8fafc;--gmb-block-placeholder:rgba(248,250,252,.58);--gmb-block-note:rgba(238,248,244,.72);background:#334155;border-radius:.625rem;color:#eef8f4;padding:1.05rem 1.125rem;}
   #gmb-{{ block.id }} .gmb-check-ui{border-color:rgba(255,255,255,.72);}
-  #gmb-{{ block.id }} .gmb-check:checked + .gmb-toggle .gmb-check-ui{background:#eef8f4;border-color:#eef8f4;}
-  #gmb-{{ block.id }} .gmb-check:checked + .gmb-toggle .gmb-check-ui::after{border-color:#334155;}
   #gmb-{{ block.id }} .gmb-input:focus,
-  #gmb-{{ block.id }} .gmb-message:focus{border-color:#86c5ae;box-shadow:0 0 0 3px rgba(134,197,174,.18);}
+  #gmb-{{ block.id }} .gmb-message:focus{border-color:var(--gmb-block-primary);box-shadow:0 0 0 3px var(--gmb-block-focus);}
 
   {%- when 'glass' -%}
   /* Glass — frosted-glass, works over images/gradients */
@@ -283,13 +282,13 @@
 
   {%- when 'outlined' -%}
   /* Outlined — strong frame, editorial feel */
-  #gmb-{{ block.id }}{--gmb-block-label-color:#263848;--gmb-block-panel-bg:transparent;--gmb-block-panel-border:rgba(51,65,85,.18);--gmb-block-field-bg:#fff;--gmb-block-field-border:rgba(51,65,85,.28);--gmb-block-field-text:#1f2937;--gmb-block-placeholder:#7b8794;border:2px solid #334155;border-radius:.25rem;padding:1.05rem 1.125rem;}
+  #gmb-{{ block.id }}{--gmb-block-label-color:#263848;--gmb-block-panel-bg:transparent;--gmb-block-panel-border:rgba(51,65,85,.18);--gmb-block-field-bg:#fff;--gmb-block-field-border:rgba(51,65,85,.28);--gmb-block-field-text:#1f2937;--gmb-block-placeholder:#7b8794;border:2px solid var(--gmb-block-primary);border-radius:.25rem;padding:1.05rem 1.125rem;}
   #gmb-{{ block.id }} .gmb-label{font-size:1.02em;font-weight:650;}
   #gmb-{{ block.id }} .gmb-panel{border-left:none;border-right:none;border-radius:0;padding-left:0;padding-right:0;}
   #gmb-{{ block.id }} .gmb-input,
   #gmb-{{ block.id }} .gmb-message{border-radius:.2rem;}
   #gmb-{{ block.id }} .gmb-input:focus,
-  #gmb-{{ block.id }} .gmb-message:focus{border-color:#334155;}
+  #gmb-{{ block.id }} .gmb-message:focus{border-color:var(--gmb-block-primary);}
 
 {%- endcase -%}
 </style>
@@ -327,6 +326,13 @@
       "step": 10,
       "unit": "ch",
       "default": 250
+    },
+    {
+      "type": "color",
+      "id": "accent_color",
+      "label": "Accent color",
+      "info": "Used for the checkbox, save button, focus ring, selected states, and accent-driven presets.",
+      "default": "#4FAF8F"
     },
     {
       "type": "checkbox",
