@@ -9,13 +9,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const editorBase = `https://${session.shop}/admin/themes/current/editor`;
 
   return {
+    customDataUrl: `https://${session.shop}/admin/settings/custom_data`,
     editorProductUrl: `${editorBase}?template=product`,
     editorCartUrl: `${editorBase}?template=cart`,
+    productsUrl: `https://${session.shop}/admin/products`,
   };
 };
 
 export default function GiftMessageSetup() {
-  const { editorCartUrl, editorProductUrl } = useLoaderData<typeof loader>();
+  const { customDataUrl, editorCartUrl, editorProductUrl, productsUrl } =
+    useLoaderData<typeof loader>();
 
   return (
     <s-page heading="Block Setup" inlineSize="large">
@@ -83,6 +86,73 @@ export default function GiftMessageSetup() {
       </s-section>
 
       <s-section>
+        <div
+          className={styles.metafieldGuide}
+          id="product-metafield-visibility"
+        >
+          <div className={styles.metafieldGuideHeader}>
+            <div>
+              <span className={styles.actionLabel}>Optional visibility rule</span>
+              <h2 className={styles.metafieldGuideTitle}>
+                Show the block only on selected products
+              </h2>
+              <p className={styles.blockText}>
+                Create one product metafield, set it to true on products that
+                should offer gift messages, and point the theme block to that
+                metafield.
+              </p>
+            </div>
+            <div className={styles.metafieldName}>
+              <span>Recommended metafield</span>
+              <code>custom.show_gift_message</code>
+            </div>
+          </div>
+
+          <div className={styles.metafieldSteps}>
+            <GuideStep
+              number="1"
+              title="Create the definition"
+              description="In Shopify admin, open Settings > Custom data > Products, then add a definition named Show gift message block."
+            />
+            <GuideStep
+              number="2"
+              title="Use a boolean value"
+              description="Set Namespace and key to custom.show_gift_message and choose the True or false metafield type."
+            />
+            <GuideStep
+              number="3"
+              title="Set product values"
+              description="Open each product and set Show gift message block to true when the Gift Message block should appear."
+            />
+            <GuideStep
+              number="4"
+              title="Connect the block"
+              description="In the theme editor, enable the visibility setting and keep custom.show_gift_message, or enter another boolean product metafield."
+            />
+          </div>
+
+          <div className={styles.metafieldActions}>
+            <a
+              className={styles.metafieldAction}
+              href={customDataUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open custom data
+            </a>
+            <a
+              className={styles.metafieldActionSecondary}
+              href={productsUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open products
+            </a>
+          </div>
+        </div>
+      </s-section>
+
+      <s-section>
         <div className={styles.howItWorks}>
           <s-heading>How it works</s-heading>
           <div className={styles.flowBand}>
@@ -113,6 +183,26 @@ export default function GiftMessageSetup() {
         </div>
       </s-section>
     </s-page>
+  );
+}
+
+function GuideStep({
+  description,
+  number,
+  title,
+}: {
+  description: string;
+  number: string;
+  title: string;
+}) {
+  return (
+    <div className={styles.metafieldStep}>
+      <span className={styles.metafieldStepNumber}>{number}</span>
+      <div>
+        <h3>{title}</h3>
+        <p>{description}</p>
+      </div>
+    </div>
   );
 }
 

@@ -11,6 +11,25 @@
     assign mode = 'order'
   endif
 
+  assign render_block = true
+  if mode == 'product' and block.settings.enable_product_metafield_visibility
+    assign render_block = false
+    assign visibility_metafield_reference = block.settings.product_visibility_metafield | default: 'custom.show_gift_message' | strip
+
+    if visibility_metafield_reference contains '.'
+      assign visibility_metafield_namespace = visibility_metafield_reference | split: '.' | first | strip
+      assign visibility_metafield_key = visibility_metafield_reference | split: '.' | last | strip
+
+      if visibility_metafield_namespace != blank and visibility_metafield_key != blank
+        assign visibility_metafield_value = product.metafields[visibility_metafield_namespace][visibility_metafield_key].value
+
+        if visibility_metafield_value == true or visibility_metafield_value == 'true'
+          assign render_block = true
+        endif
+      endif
+    endif
+  endif
+
   assign lbl       = block.settings.label       | default: 'Add a gift message'
   assign ph        = block.settings.placeholder | default: 'Write a birthday, thank you, wedding love, etc.'
   assign max_chars = block.settings.char_limit  | default: 250
@@ -67,6 +86,7 @@
   endif
 -%}
 
+{%- if render_block -%}
 <link rel="stylesheet" href="{{ 'gift-message.css' | asset_url }}">
 
 <div
@@ -299,6 +319,7 @@
 {%- endif -%}
 
 <script src="{{ 'gift-message.js' | asset_url }}" defer></script>
+{%- endif -%}
 
 {% schema %}
 {
@@ -347,6 +368,25 @@
       "label": "Show save button on product pages",
       "info": "Cart pages always use a save button. Enable this to require the button on product pages too; the message is not saved until the customer clicks it.",
       "default": false
+    },
+    {
+      "type": "header",
+      "content": "Product metafield visibility",
+      "info": "Use a Product metafield with type True or false to show this block only on selected products. [Open Block setup](https://qorve-2.duckdns.org/app#product-metafield-visibility)"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_product_metafield_visibility",
+      "label": "Only show block when a product metafield is true",
+      "info": "Applies on product pages. When enabled, products with the selected boolean metafield set to true show the block; false or empty values hide it.",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "product_visibility_metafield",
+      "label": "Product metafield namespace and key",
+      "info": "Enter namespace.key, for example custom.show_gift_message. Create it as a Product metafield with type True or false. [Setup guide](https://qorve-2.duckdns.org/app#product-metafield-visibility)",
+      "default": "custom.show_gift_message"
     },
     {
       "type": "text",

@@ -210,6 +210,146 @@
   line-height: 1.35;
 }
 
+.metafieldGuide {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(247, 250, 255, 0.9)),
+    var(--gmb-surface);
+  border: 1px solid var(--gmb-border);
+  border-radius: 8px;
+  display: grid;
+  gap: 1.125rem;
+  padding: 1.25rem;
+  scroll-margin-block-start: 1rem;
+}
+
+.metafieldGuideHeader {
+  align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.metafieldGuideTitle {
+  color: var(--gmb-charcoal);
+  font-size: 1.25rem;
+  font-weight: 760;
+  letter-spacing: 0;
+  line-height: 1.2;
+  margin: 0.35rem 0 0;
+}
+
+.metafieldName {
+  align-content: center;
+  background: #ffffff;
+  border: 1px solid rgba(88, 122, 164, 0.22);
+  border-radius: 8px;
+  display: grid;
+  gap: 0.375rem;
+  min-width: 270px;
+  padding: 0.875rem;
+}
+
+.metafieldName span {
+  color: var(--gmb-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.metafieldName code {
+  background: var(--gmb-mint);
+  border: 1px solid rgba(134, 197, 174, 0.48);
+  border-radius: 6px;
+  color: var(--gmb-charcoal);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  padding: 0.375rem 0.5rem;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.metafieldSteps {
+  display: grid;
+  gap: 0.875rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metafieldStep {
+  align-items: start;
+  background: #ffffff;
+  border: 1px solid rgba(51, 65, 85, 0.12);
+  border-radius: 8px;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 0.875rem;
+}
+
+.metafieldStepNumber {
+  align-items: center;
+  background: var(--gmb-selected);
+  border: 1px solid rgba(88, 122, 164, 0.24);
+  border-radius: 999px;
+  color: var(--gmb-selected-strong);
+  display: inline-flex;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  height: 28px;
+  justify-content: center;
+  line-height: 1;
+  width: 28px;
+}
+
+.metafieldStep h3 {
+  color: var(--gmb-charcoal);
+  font-size: 0.875rem;
+  font-weight: 750;
+  letter-spacing: 0;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.metafieldStep p {
+  color: var(--gmb-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  margin: 0.25rem 0 0;
+}
+
+.metafieldActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+.metafieldAction,
+.metafieldActionSecondary {
+  align-items: center;
+  border-radius: 8px;
+  display: inline-flex;
+  font-size: 0.8125rem;
+  font-weight: 750;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0.5rem 0.75rem;
+  text-decoration: none;
+}
+
+.metafieldAction {
+  background: var(--gmb-primary);
+  border: 1px solid var(--gmb-primary);
+  color: #ffffff;
+}
+
+.metafieldActionSecondary {
+  background: #ffffff;
+  border: 1px solid rgba(51, 65, 85, 0.16);
+  color: var(--gmb-charcoal);
+}
+
 .howItWorks {
   background: var(--gmb-surface);
   border: 1px solid var(--gmb-border);
@@ -289,6 +429,18 @@
     min-width: 0;
   }
 
+  .metafieldGuideHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .metafieldName {
+    min-width: 0;
+  }
+
+  .metafieldSteps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .flowBand {
     align-items: stretch;
     grid-template-columns: 1fr;
@@ -329,5 +481,14 @@
 
   .blockAction {
     min-height: 0;
+  }
+
+  .metafieldSteps {
+    grid-template-columns: 1fr;
+  }
+
+  .metafieldAction,
+  .metafieldActionSecondary {
+    width: 100%;
   }
 }
