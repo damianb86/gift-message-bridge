@@ -26,6 +26,7 @@ services:
     expose:
       - "3000"
     environment:
+      APP_ENV: production
       NODE_ENV: production
       NODE_OPTIONS: ${NODE_OPTIONS}
       PORT: 3000

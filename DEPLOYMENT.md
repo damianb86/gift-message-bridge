@@ -36,6 +36,32 @@ The deploy script reads both env files:
 - `../../shared-docker/.env` for shared PostgreSQL admin access.
 - `./.env` for this app's Shopify, SMTP, domain, and database settings.
 
+## Deploy Production From Local Build
+
+To avoid running the React Router/Vite build on the production server, build the
+bundle locally and upload only the runtime files:
+
+```sh
+PEM_FILE=/path/to/ssh.pem ./deploy-production.local.sh
+```
+
+The local deploy script:
+
+- loads `.env.production`, `.production`, or `.env` for the local build;
+- runs `npm run build:production`;
+- uploads `build/`, `prisma/`, `scripts/`, `docker/`, `Dockerfile`,
+  `docker-compose.yml`, `deploy.sh`, and package files to the server;
+- runs `APP_ENV_FILE=.env BUILD_APP_BUNDLE=0 ./deploy.sh` remotely.
+
+Override defaults when needed:
+
+```sh
+REMOTE_HOST=1.2.3.4 \
+REMOTE_APP_DIR=/opt/apps/gift-message-bridge-lite \
+PEM_FILE=/path/to/ssh.pem \
+./deploy-production.local.sh
+```
+
 ## Add Another App
 
 For each new app:

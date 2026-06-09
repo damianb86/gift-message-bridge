@@ -4,7 +4,6 @@
 .shopify.lock
 .env
 .env.*
-build
 node_modules
 npm-debug.log*
 Dockerfile
