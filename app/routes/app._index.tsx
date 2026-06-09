@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
@@ -111,9 +111,8 @@ export default function GiftMessageSetup() {
   const shopify = useAppBridge();
   const metafieldFetcher = useFetcher<typeof action>();
   const revalidator = useRevalidator();
-  const [hasGrantedProductScope, setHasGrantedProductScope] = useState(
-    hasProductWriteScope,
-  );
+  const [hasGrantedProductScope, setHasGrantedProductScope] =
+    useState(hasProductWriteScope);
   const [definitionReady, setDefinitionReady] = useState(
     Boolean(visibilityMetafieldDefinition),
   );
@@ -188,64 +187,127 @@ export default function GiftMessageSetup() {
   return (
     <s-page heading="Block Setup" inlineSize="large">
       <s-section>
-        <div className={styles.blockIntro}>
-          <div className={styles.blockIntroCopy}>
-            <div className={styles.blockBadgeRow}>
-              <span className={styles.blockIcon}>
-                <BlockIcon />
-              </span>
-              <span className={styles.blockBadge}>Theme app block</span>
+        <div className={styles.setupShowcase}>
+          <div className={styles.heroGrid}>
+            <div className={styles.heroCopy}>
+              <div className={styles.blockBadgeRow}>
+                <span className={styles.blockIcon}>
+                  <BlockIcon />
+                </span>
+                <span className={styles.blockBadge}>Theme app block</span>
+              </div>
+
+              <div>
+                <h1 className={styles.blockTitle}>Gift Message block</h1>
+                <p className={styles.blockText}>
+                  Add a gift message form to your storefront, collect meaningful
+                  notes from your customers, keep them attached to the order,
+                  and print beautiful messages for packing.
+                </p>
+              </div>
+
+              <div className={styles.featureRow}>
+                <FeatureItem
+                  icon="bolt"
+                  title="Set up in minutes"
+                  description="No coding required"
+                />
+                <FeatureItem
+                  icon="layout"
+                  title="Flexible placement"
+                  description="Works on product and cart pages"
+                />
+                <FeatureItem
+                  icon="shield"
+                  title="Reliable & secure"
+                  description="Data stays with your orders"
+                />
+              </div>
             </div>
-            <div>
-              <h1 className={styles.blockTitle}>Gift Message block</h1>
-              <p className={styles.blockText}>
-                Add the same block to product pages, the cart page, or both. It
-                collects the gift note and keeps it attached to the order data
-                used by Messages & Print.
-              </p>
+
+            <div className={styles.heroMedia} aria-hidden="true">
+              <img src="/block-setup-gift-hero.png" alt="" loading="eager" />
+            </div>
+
+            <div className={styles.editorPanel}>
+              <div className={styles.editorPanelHeader}>
+                <span className={styles.editorHeaderIcon}>
+                  <SparkleIcon />
+                </span>
+                <div>
+                  <h2>Open theme editor</h2>
+                  <p>
+                    Use the same block in either storefront context. Choose the
+                    place you want to edit.
+                  </p>
+                </div>
+              </div>
+
+              <div className={styles.editorChoices}>
+                <EditorDestination
+                  active
+                  description="Collect the note before add to cart"
+                  href={editorProductUrl}
+                  icon={<ProductPageIcon />}
+                  preview="product"
+                  title="Product page"
+                />
+                <EditorDestination
+                  description="Let shoppers add or edit the note later"
+                  href={editorCartUrl}
+                  icon={<CartPageIcon />}
+                  preview="cart"
+                  title="Cart page"
+                />
+              </div>
             </div>
           </div>
 
-          <div className={styles.blockActionPanel}>
-            <div className={styles.blockActionPanelHeader}>
-              <span className={styles.actionLabel}>
-                Open Shopify theme editor
+          <div className={styles.workflowPanel}>
+            <div className={styles.workflowHeader}>
+              <h2>How it works</h2>
+              <span>
+                <SparkleIcon />
+                From note to heartfelt delivery
               </span>
-              <p>
-                Use the same block in either storefront context. Choose the
-                place you want to edit.
-              </p>
             </div>
-            <div className={styles.blockActions}>
-              <a
-                className={`${styles.blockAction} ${styles.blockActionProduct}`}
-                href={editorProductUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span className={styles.blockActionIcon}>
-                  <ProductPageIcon />
-                </span>
-                <span className={styles.blockActionText}>
-                  <strong>Product page</strong>
-                  <small>Collect the note before add to cart</small>
-                </span>
-              </a>
-              <a
-                className={`${styles.blockAction} ${styles.blockActionCart}`}
-                href={editorCartUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span className={styles.blockActionIcon}>
-                  <CartPageIcon />
-                </span>
-                <span className={styles.blockActionText}>
-                  <strong>Cart page</strong>
-                  <small>Let shoppers add or edit the note later</small>
-                </span>
-              </a>
+
+            <div className={styles.flowBand}>
+              <FlowStep
+                icon="write"
+                number="1"
+                title="Customer writes a message"
+                description="They add who it's from, who it's for, and the message."
+              />
+              <FlowConnector />
+              <FlowStep
+                icon="data"
+                number="2"
+                title="App stores the data"
+                description="We save the sender, recipient, message, and product with the order."
+              />
+              <FlowConnector />
+              <FlowStep
+                icon="print"
+                number="3"
+                title="Merchant prints messages"
+                description="Choose messages and print beautiful gift cards."
+              />
+              <FlowConnector />
+              <FlowStep
+                icon="gift"
+                number="4"
+                title="Gift card goes with the order"
+                description="The printed message is packed with the product."
+              />
             </div>
+          </div>
+
+          <div className={styles.trustStrip}>
+            <TrustBadge icon="shield" label="Keeps notes attached to orders" />
+            <TrustBadge icon="lock" label="Private & secure" />
+            <TrustBadge icon="tag" label="Works with any theme" />
+            <TrustBadge icon="star" label="Loved by merchants" />
           </div>
         </div>
       </s-section>
@@ -257,14 +319,17 @@ export default function GiftMessageSetup() {
         >
           <div className={styles.metafieldGuideHeader}>
             <div>
-              <span className={styles.actionLabel}>Optional visibility rule</span>
+              <span className={styles.actionLabel}>
+                Optional visibility rule
+              </span>
               <h2 className={styles.metafieldGuideTitle}>
                 Show the block only on selected products
               </h2>
-              <p className={styles.blockText}>
-                Use one product metafield to decide which product pages show
-                the Gift Message block. Gift Pulse can create the definition for
-                you, or you can create it manually in Shopify admin.
+              <p className={styles.metafieldGuideText}>
+                Use one boolean product metafield to decide which product pages
+                show the Gift Message block. Gift Pulse can create the
+                definition for you, or you can create it manually in Shopify
+                admin.
               </p>
             </div>
             <div className={styles.metafieldName}>
@@ -360,37 +425,6 @@ export default function GiftMessageSetup() {
             >
               Open products
             </a>
-          </div>
-        </div>
-      </s-section>
-
-      <s-section>
-        <div className={styles.howItWorks}>
-          <s-heading>How it works</s-heading>
-          <div className={styles.flowBand}>
-            <FlowStep
-              icon="write"
-              title="1. Customer writes a message"
-              description="They add who it's from, who it's for, and the message."
-            />
-            <FlowConnector />
-            <FlowStep
-              icon="data"
-              title="2. App stores the data"
-              description="We save the sender, recipient, message, and product with the order."
-            />
-            <FlowConnector />
-            <FlowStep
-              icon="print"
-              title="3. Merchant prints selected messages"
-              description="Choose messages and print beautiful gift cards."
-            />
-            <FlowConnector />
-            <FlowStep
-              icon="gift"
-              title="4. Gift card goes with the order"
-              description="The printed message is packed with the product."
-            />
           </div>
         </div>
       </s-section>
@@ -534,6 +568,104 @@ function GuideStep({
   );
 }
 
+function FeatureItem({
+  description,
+  icon,
+  title,
+}: {
+  description: string;
+  icon: "bolt" | "layout" | "shield";
+  title: string;
+}) {
+  return (
+    <div className={styles.featureItem}>
+      <span className={styles.featureIcon}>
+        <FeatureIcon type={icon} />
+      </span>
+      <span>
+        <strong>{title}</strong>
+        <small>{description}</small>
+      </span>
+    </div>
+  );
+}
+
+function EditorDestination({
+  active = false,
+  description,
+  href,
+  icon,
+  preview,
+  title,
+}: {
+  active?: boolean;
+  description: string;
+  href: string;
+  icon: ReactNode;
+  preview: "cart" | "product";
+  title: string;
+}) {
+  return (
+    <a
+      className={`${styles.editorChoice} ${
+        active ? styles.editorChoiceActive : ""
+      }`}
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+    >
+      <span className={styles.editorChoiceStatus}>
+        {active ? <CheckIcon /> : null}
+      </span>
+      <span className={styles.editorChoiceIcon}>{icon}</span>
+      <span className={styles.editorChoiceCopy}>
+        <strong>{title}</strong>
+        <small>{description}</small>
+      </span>
+      <SetupPreview type={preview} />
+    </a>
+  );
+}
+
+function SetupPreview({ type }: { type: "cart" | "product" }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`${styles.setupPreview} ${
+        type === "cart" ? styles.setupPreviewCart : ""
+      }`}
+    >
+      <span className={styles.previewImage} />
+      <span className={styles.previewLines}>
+        <span />
+        <span />
+        <span />
+      </span>
+      <span className={styles.previewInput} />
+      <span className={styles.previewGift}>
+        <GiftMiniIcon />
+      </span>
+    </span>
+  );
+}
+
+function TrustBadge({
+  icon,
+  label,
+}: {
+  icon: "lock" | "shield" | "star" | "tag";
+  label: string;
+}) {
+  return (
+    <span className={styles.trustBadge}>
+      <span className={styles.trustIcon}>
+        <TrustIcon type={icon} />
+      </span>
+      {label}
+    </span>
+  );
+}
+
 function BlockIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -541,6 +673,99 @@ function BlockIcon() {
       <path d="M8 9h8" />
       <path d="M8 13h5" />
       <path d="m15 16 1.5-1.5L18 16l-1.5 1.5Z" />
+    </svg>
+  );
+}
+
+function SparkleIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M12 3l1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9L12 3Z" />
+      <path d="M19 4v3" />
+      <path d="M20.5 5.5h-3" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="m6 12 4 4 8-9" />
+    </svg>
+  );
+}
+
+function GiftMiniIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M20 12v9H4v-9" />
+      <path d="M2 7h20v5H2z" />
+      <path d="M12 7v14" />
+      <path d="M12 7H8.5A2.5 2.5 0 1 1 11 4.5V7Z" />
+      <path d="M12 7h3.5A2.5 2.5 0 1 0 13 4.5V7Z" />
+    </svg>
+  );
+}
+
+function FeatureIcon({ type }: { type: "bolt" | "layout" | "shield" }) {
+  if (type === "layout") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path d="M4 5h16v11H4z" />
+        <path d="M8 20h8" />
+        <path d="M12 16v4" />
+        <path d="M15 9h4v4h-4z" />
+      </svg>
+    );
+  }
+
+  if (type === "shield") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path d="M12 3 19 6v5c0 4.5-2.8 7.7-7 10-4.2-2.3-7-5.5-7-10V6l7-3Z" />
+        <path d="m9 12 2 2 4-5" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="m13 2-9 13h7l-1 7 9-13h-7l1-7Z" />
+    </svg>
+  );
+}
+
+function TrustIcon({ type }: { type: "lock" | "shield" | "star" | "tag" }) {
+  if (type === "lock") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path d="M7 11V8a5 5 0 0 1 10 0v3" />
+        <path d="M5 11h14v10H5z" />
+      </svg>
+    );
+  }
+
+  if (type === "tag") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path d="M20 13 13 20 4 11V4h7l9 9Z" />
+        <path d="M8 8h.01" />
+      </svg>
+    );
+  }
+
+  if (type === "star") {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24">
+        <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2 7.5 14 3 9.6l6.2-.9L12 3Z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M12 3 19 6v5c0 4.5-2.8 7.7-7 10-4.2-2.3-7-5.5-7-10V6l7-3Z" />
+      <path d="m9 12 2 2 4-5" />
     </svg>
   );
 }
@@ -570,20 +795,25 @@ function CartPageIcon() {
 function FlowStep({
   description,
   icon,
+  number,
   title,
 }: {
   description: string;
   icon: "write" | "data" | "print" | "gift";
+  number: string;
   title: string;
 }) {
   return (
     <div className={styles.flowStep}>
-      <span className={styles.flowIcon}>
-        <FlowIcon type={icon} />
-      </span>
-      <div>
-        <s-text type="strong">{title}</s-text>
-        <s-text color="subdued">{description}</s-text>
+      <div className={styles.flowIconWrap}>
+        <span className={styles.flowNumber}>{number}</span>
+        <span className={styles.flowIcon}>
+          <FlowIcon type={icon} />
+        </span>
+      </div>
+      <div className={styles.flowStepCopy}>
+        <h3>{title}</h3>
+        <p>{description}</p>
       </div>
     </div>
   );
