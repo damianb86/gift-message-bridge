@@ -271,6 +271,97 @@
   word-break: break-word;
 }
 
+.metafieldAutomation {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid rgba(79, 175, 143, 0.24);
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 1rem;
+}
+
+.metafieldAutomation h3 {
+  color: var(--gmb-charcoal);
+  font-size: 0.95rem;
+  font-weight: 760;
+  letter-spacing: 0;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.metafieldAutomation p {
+  color: var(--gmb-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  margin: 0.3rem 0 0;
+  max-width: 720px;
+}
+
+.metafieldStatusRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.metafieldStatusPending,
+.metafieldStatusReady {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.75rem;
+  font-weight: 750;
+  line-height: 1.2;
+  min-height: 28px;
+  padding: 0.25rem 0.625rem;
+}
+
+.metafieldStatusPending {
+  background: var(--gmb-neutral);
+  border: 1px solid rgba(51, 65, 85, 0.14);
+  color: var(--gmb-muted);
+}
+
+.metafieldStatusReady {
+  background: var(--gmb-success);
+  border: 1px solid rgba(79, 175, 143, 0.28);
+  color: var(--gmb-charcoal);
+}
+
+.metafieldButton {
+  align-items: center;
+  background: var(--gmb-primary);
+  border: 1px solid var(--gmb-primary);
+  border-radius: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 750;
+  justify-content: center;
+  min-height: 40px;
+  min-width: 132px;
+  padding: 0.5rem 0.875rem;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.metafieldButton:hover,
+.metafieldButton:focus-visible {
+  background: var(--gmb-primary-hover);
+  border-color: var(--gmb-primary-hover);
+}
+
+.metafieldButton:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
 .metafieldSteps {
   display: grid;
   gap: 0.875rem;
@@ -437,6 +528,15 @@
     min-width: 0;
   }
 
+  .metafieldAutomation {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .metafieldButton {
+    justify-self: start;
+  }
+
   .metafieldSteps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -488,7 +588,8 @@
   }
 
   .metafieldAction,
-  .metafieldActionSecondary {
+  .metafieldActionSecondary,
+  .metafieldButton {
     width: 100%;
   }
 }

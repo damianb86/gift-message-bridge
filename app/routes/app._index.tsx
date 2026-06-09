@@ -1,24 +1,189 @@
-import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { useEffect, useState } from "react";
+import type {
+  ActionFunctionArgs,
+  HeadersFunction,
+  LoaderFunctionArgs,
+} from "react-router";
+import { useFetcher, useLoaderData, useRevalidator } from "react-router";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import styles from "../styles/block-setup.module.css";
 
+const PRODUCT_VISIBILITY_SCOPE = "write_products";
+const VISIBILITY_METAFIELD_NAMESPACE = "custom";
+const VISIBILITY_METAFIELD_KEY = "show_gift_message";
+const VISIBILITY_METAFIELD_REFERENCE = `${VISIBILITY_METAFIELD_NAMESPACE}.${VISIBILITY_METAFIELD_KEY}`;
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, scopes, session } = await authenticate.admin(request);
   const editorBase = `https://${session.shop}/admin/themes/current/editor`;
+  const scopeDetails = await scopes.query();
+  const hasProductWriteScope = scopeDetails.granted.includes(
+    PRODUCT_VISIBILITY_SCOPE,
+  );
+  const canRequestProductWriteScope = scopeDetails.optional.includes(
+    PRODUCT_VISIBILITY_SCOPE,
+  );
+  const visibilityMetafieldDefinition = hasProductWriteScope
+    ? await getVisibilityMetafieldDefinition(admin)
+    : null;
 
   return {
+    canRequestProductWriteScope,
     customDataUrl: `https://${session.shop}/admin/settings/custom_data`,
     editorProductUrl: `${editorBase}?template=product`,
     editorCartUrl: `${editorBase}?template=cart`,
+    hasProductWriteScope,
     productsUrl: `https://${session.shop}/admin/products`,
+    visibilityMetafieldDefinition,
   };
 };
 
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { admin, scopes } = await authenticate.admin(request);
+  const formData = await request.formData();
+  const intent = String(formData.get("intent") ?? "");
+
+  if (intent !== "create-product-visibility-metafield") {
+    return {
+      ok: false,
+      intent,
+      message: "Unknown action.",
+    };
+  }
+
+  const scopeDetails = await scopes.query();
+  if (!scopeDetails.granted.includes(PRODUCT_VISIBILITY_SCOPE)) {
+    return {
+      ok: false,
+      intent,
+      needsScope: true,
+      message:
+        "Gift Pulse needs product write permission before it can create the product metafield.",
+    };
+  }
+
+  try {
+    const existingDefinition = await getVisibilityMetafieldDefinition(admin);
+    if (existingDefinition) {
+      return {
+        ok: true,
+        intent,
+        alreadyExisted: true,
+        definition: existingDefinition,
+        message: "The product metafield already exists and is ready to use.",
+      };
+    }
+
+    const createdDefinition = await createVisibilityMetafieldDefinition(admin);
+
+    return {
+      ok: true,
+      intent,
+      alreadyExisted: false,
+      definition: createdDefinition,
+      message: "Product metafield created successfully.",
+    };
+  } catch (error) {
+    console.error("[block-setup:create-product-metafield]", error);
+    return {
+      ok: false,
+      intent,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Product metafield could not be created.",
+    };
+  }
+};
+
 export default function GiftMessageSetup() {
-  const { customDataUrl, editorCartUrl, editorProductUrl, productsUrl } =
-    useLoaderData<typeof loader>();
+  const {
+    canRequestProductWriteScope,
+    customDataUrl,
+    editorCartUrl,
+    editorProductUrl,
+    hasProductWriteScope,
+    productsUrl,
+    visibilityMetafieldDefinition,
+  } = useLoaderData<typeof loader>();
+  const shopify = useAppBridge();
+  const metafieldFetcher = useFetcher<typeof action>();
+  const revalidator = useRevalidator();
+  const [hasGrantedProductScope, setHasGrantedProductScope] = useState(
+    hasProductWriteScope,
+  );
+  const [definitionReady, setDefinitionReady] = useState(
+    Boolean(visibilityMetafieldDefinition),
+  );
+  const isCreatingMetafield = metafieldFetcher.state !== "idle";
+
+  useEffect(() => {
+    setHasGrantedProductScope(hasProductWriteScope);
+    setDefinitionReady(Boolean(visibilityMetafieldDefinition));
+  }, [hasProductWriteScope, visibilityMetafieldDefinition]);
+
+  useEffect(() => {
+    if (metafieldFetcher.state !== "idle" || !metafieldFetcher.data) return;
+
+    const data = metafieldFetcher.data;
+    if (data.ok) {
+      setDefinitionReady(true);
+      shopify.toast.show(data.message);
+      revalidator.revalidate();
+      return;
+    }
+
+    shopify.toast.show(data.message, { isError: true });
+  }, [
+    metafieldFetcher.data,
+    metafieldFetcher.state,
+    revalidator,
+    shopify.toast,
+  ]);
+
+  const createMetafieldWithApp = async () => {
+    if (!hasGrantedProductScope) {
+      if (!canRequestProductWriteScope) {
+        shopify.toast.show(
+          "The optional product permission is not available yet. Deploy the updated app configuration first.",
+          { isError: true },
+        );
+        return;
+      }
+
+      try {
+        const scopeResult = await shopify.scopes.request([
+          PRODUCT_VISIBILITY_SCOPE,
+        ]);
+
+        if (
+          scopeResult.result !== "granted-all" ||
+          !scopeResult.detail.granted.includes(PRODUCT_VISIBILITY_SCOPE)
+        ) {
+          shopify.toast.show(
+            "Product permission was not granted, so the metafield was not created.",
+            { isError: true },
+          );
+          return;
+        }
+
+        setHasGrantedProductScope(true);
+      } catch (error) {
+        console.error("[block-setup:scope-request]", error);
+        shopify.toast.show("Product permission could not be requested.", {
+          isError: true,
+        });
+        return;
+      }
+    }
+
+    metafieldFetcher.submit(
+      { intent: "create-product-visibility-metafield" },
+      { method: "post" },
+    );
+  };
 
   return (
     <s-page heading="Block Setup" inlineSize="large">
@@ -97,21 +262,68 @@ export default function GiftMessageSetup() {
                 Show the block only on selected products
               </h2>
               <p className={styles.blockText}>
-                Create one product metafield, set it to true on products that
-                should offer gift messages, and point the theme block to that
-                metafield.
+                Use one product metafield to decide which product pages show
+                the Gift Message block. Gift Pulse can create the definition for
+                you, or you can create it manually in Shopify admin.
               </p>
             </div>
             <div className={styles.metafieldName}>
               <span>Recommended metafield</span>
-              <code>custom.show_gift_message</code>
+              <code>{VISIBILITY_METAFIELD_REFERENCE}</code>
             </div>
+          </div>
+
+          <div className={styles.metafieldAutomation}>
+            <div>
+              <h3>Create it with Gift Pulse</h3>
+              <p>
+                This asks for optional product permission only when you use this
+                setup tool. After approval, Gift Pulse creates the boolean
+                product metafield definition for you.
+              </p>
+              <div className={styles.metafieldStatusRow}>
+                <span
+                  className={
+                    hasGrantedProductScope
+                      ? styles.metafieldStatusReady
+                      : styles.metafieldStatusPending
+                  }
+                >
+                  {hasGrantedProductScope
+                    ? "Product permission granted"
+                    : "Product permission not granted"}
+                </span>
+                <span
+                  className={
+                    definitionReady
+                      ? styles.metafieldStatusReady
+                      : styles.metafieldStatusPending
+                  }
+                >
+                  {definitionReady
+                    ? "Metafield definition ready"
+                    : "Metafield definition not created"}
+                </span>
+              </div>
+            </div>
+            <button
+              className={styles.metafieldButton}
+              type="button"
+              onClick={createMetafieldWithApp}
+              disabled={isCreatingMetafield || definitionReady}
+            >
+              {definitionReady
+                ? "Metafield ready"
+                : isCreatingMetafield
+                  ? "Creating..."
+                  : "Create with app"}
+            </button>
           </div>
 
           <div className={styles.metafieldSteps}>
             <GuideStep
               number="1"
-              title="Create the definition"
+              title="Create it manually"
               description="In Shopify admin, open Settings > Custom data > Products, then add a definition named Show gift message block."
             />
             <GuideStep
@@ -184,6 +396,122 @@ export default function GiftMessageSetup() {
       </s-section>
     </s-page>
   );
+}
+
+type AdminClient = {
+  graphql: (
+    query: string,
+    options?: { variables?: Record<string, unknown> },
+  ) => Promise<Response>;
+};
+
+type VisibilityMetafieldDefinition = {
+  id: string;
+  key: string;
+  name: string;
+  namespace: string;
+  type?: {
+    name: string;
+  };
+};
+
+async function getVisibilityMetafieldDefinition(
+  admin: AdminClient,
+): Promise<VisibilityMetafieldDefinition | null> {
+  const response = await admin.graphql(
+    `#graphql
+    query ProductVisibilityMetafieldDefinition(
+      $namespace: String!
+      $key: String!
+    ) {
+      metafieldDefinitions(
+        first: 1
+        ownerType: PRODUCT
+        namespace: $namespace
+        key: $key
+      ) {
+        nodes {
+          id
+          key
+          name
+          namespace
+          type {
+            name
+          }
+        }
+      }
+    }`,
+    {
+      variables: {
+        namespace: VISIBILITY_METAFIELD_NAMESPACE,
+        key: VISIBILITY_METAFIELD_KEY,
+      },
+    },
+  );
+  const json = await response.json();
+  const errors = json.errors as { message?: string }[] | undefined;
+  if (errors?.length) {
+    throw new Error(errors.map((error) => error.message).join("; "));
+  }
+
+  return json.data.metafieldDefinitions.nodes[0] ?? null;
+}
+
+async function createVisibilityMetafieldDefinition(
+  admin: AdminClient,
+): Promise<VisibilityMetafieldDefinition> {
+  const response = await admin.graphql(
+    `#graphql
+    mutation CreateProductVisibilityMetafieldDefinition(
+      $definition: MetafieldDefinitionInput!
+    ) {
+      metafieldDefinitionCreate(definition: $definition) {
+        createdDefinition {
+          id
+          key
+          name
+          namespace
+          type {
+            name
+          }
+        }
+        userErrors {
+          field
+          message
+          code
+        }
+      }
+    }`,
+    {
+      variables: {
+        definition: {
+          name: "Show gift message block",
+          namespace: VISIBILITY_METAFIELD_NAMESPACE,
+          key: VISIBILITY_METAFIELD_KEY,
+          description:
+            "Set to true on products where the Gift Message storefront block should be shown.",
+          type: "boolean",
+          ownerType: "PRODUCT",
+        },
+      },
+    },
+  );
+  const json = await response.json();
+  const errors = json.errors as { message?: string }[] | undefined;
+  if (errors?.length) {
+    throw new Error(errors.map((error) => error.message).join("; "));
+  }
+
+  const result = json.data.metafieldDefinitionCreate;
+  if (result.userErrors.length > 0) {
+    throw new Error(
+      result.userErrors
+        .map((error: { message: string }) => error.message)
+        .join("; "),
+    );
+  }
+
+  return result.createdDefinition;
 }
 
 function GuideStep({
