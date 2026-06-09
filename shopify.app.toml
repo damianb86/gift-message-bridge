@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "5648b993ebb2c0c32aebf341a158f812"
-name = "Gift Message Bridge Lite"
+name = "Gift Pulse: Gift Messages"
 application_url = "https://qorve-2.duckdns.org"
 embedded = true
 

@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 
-const APP_NAME = "Gift Message Bridge Lite";
+const APP_NAME = "Gift Pulse";
 
 function getSmtpConfig() {
   const port = Number(process.env.EMAIL_PORT ?? 587);

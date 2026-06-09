@@ -906,7 +906,7 @@ body > .gift-card {
   )}</body></html>`;
 
   return (
-    <s-page heading="Gift Message Console" inlineSize="large">
+    <s-page heading="Gift Pulse Console" inlineSize="large">
       <s-button
         slot="primary-action"
         onClick={handlePrint}

@@ -1,6 +1,6 @@
 # Local PostgreSQL
 
-Gift Message Bridge Lite uses Prisma with PostgreSQL. For local Shopify CLI development, keep the app pointed at the Homebrew PostgreSQL service on `127.0.0.1:5432`.
+Gift Pulse uses Prisma with PostgreSQL. For local Shopify CLI development, keep the app pointed at the Homebrew PostgreSQL service on `127.0.0.1:5432`.
 
 Required local values:
 

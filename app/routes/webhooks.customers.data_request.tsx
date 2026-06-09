@@ -16,7 +16,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         `Shop: ${shop}`,
         "",
         "Shopify sent a customers/data_request privacy webhook.",
-        "Gift Message Bridge Lite does not store Shopify customer account records or customer IDs.",
+        "Gift Pulse does not store Shopify customer account records or customer IDs.",
         "Review any free-text gift message content for the requested orders if required.",
         "",
         JSON.stringify(payload, null, 2),

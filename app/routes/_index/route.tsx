@@ -19,7 +19,7 @@ export default function App() {
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
           <span className={styles.badge}>Gift message operations</span>
-          <h1 className={styles.heading}>Gift Message Bridge Lite</h1>
+          <h1 className={styles.heading}>Gift Pulse: Gift Messages</h1>
           <p className={styles.text}>
             Collect gift notes from your storefront, keep them tied to the right
             cart or product, and print clear cards for the packing table.
@@ -66,8 +66,8 @@ export default function App() {
           <div>
             <h2>Open the embedded app</h2>
             <p>
-              Install or open Gift Message Bridge Lite from Shopify admin or
-              the Shopify App Store.
+              Install or open Gift Pulse from Shopify admin or the Shopify App
+              Store.
             </p>
           </div>
         </div>

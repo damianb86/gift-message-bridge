@@ -3,7 +3,7 @@ set -eu
 
 APP_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 APP_ENV_FILE=${APP_ENV_FILE:-"$APP_DIR/.env"}
-APP_DISPLAY_NAME=${APP_DISPLAY_NAME:-"Gift Message Bridge Lite"}
+APP_DISPLAY_NAME=${APP_DISPLAY_NAME:-"Gift Pulse: Gift Messages"}
 VERIFY_ENV_VARS=${VERIFY_ENV_VARS:-}
 
 resolve_file() {

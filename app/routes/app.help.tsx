@@ -166,7 +166,7 @@ const requestCards = [
   {
     icon: "wrench" as const,
     title: "Request setup help",
-    text: "Ask our app support team for guidance on fitting Gift Message Bridge Lite to your gifting workflow.",
+    text: "Ask our app support team for guidance on fitting Gift Pulse to your gifting workflow.",
     action: "Request help",
     modal: "customization" as const,
     tone: "primary",
@@ -316,7 +316,7 @@ export default function Help() {
               </div>
               <div>
                 <h1 className={styles.heroTitle}>
-                  Make Gift Message Bridge Lite fit your store.
+                  Make Gift Pulse fit your store.
                 </h1>
                 <p className={styles.heroText}>
                   Get guidance for using the app with your catalog, team
@@ -448,7 +448,7 @@ export default function Help() {
             <div>
               <s-heading>Data & privacy</s-heading>
               <s-text color="subdued">
-                What Gift Message Bridge Lite stores about your shop.
+                What Gift Pulse stores about your shop.
               </s-text>
             </div>
           </div>
