@@ -11,39 +11,31 @@
     assign mode = 'order'
   endif
 
+  assign enable_app_visibility_rule = true
+  if block.settings.enable_app_visibility_rule == false
+    assign enable_app_visibility_rule = false
+  endif
+
   assign render_block = true
-  if mode == 'product' and block.settings.enable_product_metafield_visibility
+  if mode == 'product' and enable_app_visibility_rule
     assign render_block = false
-    assign visibility_metafield_reference = block.settings.product_visibility_metafield | default: 'custom.show_gift_message' | strip
-    assign collection_visibility_metafield_reference = block.settings.collection_visibility_metafield | default: visibility_metafield_reference | strip
+    assign app_visibility_metafield_namespace = 'custom'
+    assign app_visibility_metafield_key = 'show_gift_message'
+    assign app_visibility_metafield_value = product.metafields[app_visibility_metafield_namespace][app_visibility_metafield_key].value
 
-    if visibility_metafield_reference contains '.'
-      assign visibility_metafield_namespace = visibility_metafield_reference | split: '.' | first | strip
-      assign visibility_metafield_key = visibility_metafield_reference | split: '.' | last | strip
-
-      if visibility_metafield_namespace != blank and visibility_metafield_key != blank
-        assign visibility_metafield_value = product.metafields[visibility_metafield_namespace][visibility_metafield_key].value
-
-        if visibility_metafield_value == true or visibility_metafield_value == 'true'
-          assign render_block = true
-        endif
-      endif
+    if app_visibility_metafield_value == true or app_visibility_metafield_value == 'true'
+      assign render_block = true
     endif
 
-    if render_block == false and collection_visibility_metafield_reference contains '.'
-      assign collection_visibility_metafield_namespace = collection_visibility_metafield_reference | split: '.' | first | strip
-      assign collection_visibility_metafield_key = collection_visibility_metafield_reference | split: '.' | last | strip
+    if render_block == false
+      for collection in product.collections
+        assign collection_visibility_metafield_value = collection.metafields[app_visibility_metafield_namespace][app_visibility_metafield_key].value
 
-      if collection_visibility_metafield_namespace != blank and collection_visibility_metafield_key != blank
-        for collection in product.collections
-          assign collection_visibility_metafield_value = collection.metafields[collection_visibility_metafield_namespace][collection_visibility_metafield_key].value
-
-          if collection_visibility_metafield_value == true or collection_visibility_metafield_value == 'true'
-            assign render_block = true
-            break
-          endif
-        endfor
-      endif
+        if collection_visibility_metafield_value == true or collection_visibility_metafield_value == 'true'
+          assign render_block = true
+          break
+        endif
+      endfor
     endif
   endif
 
@@ -419,29 +411,15 @@
     },
     {
       "type": "header",
-      "content": "Product and collection visibility",
-      "info": "Use Product and Collection metafields with type True or false to show this block only on selected products or products in selected collections. [Open Block setup](https://qorve-2.duckdns.org/app#product-metafield-visibility)"
+      "content": "App visibility rule",
+      "info": "When enabled, Gift Pulse uses the app-managed custom.show_gift_message metafield. Only products marked true, or products in collections marked true, show this block. Manage selected products and collections in [Block setup](https://qorve-2.duckdns.org/app#product-metafield-visibility)."
     },
     {
       "type": "checkbox",
-      "id": "enable_product_metafield_visibility",
-      "label": "Only show block when a product or collection metafield is true",
-      "info": "Applies on product pages. When enabled, the block appears if the product metafield is true or if any collection containing the product has the collection metafield set to true.",
-      "default": false
-    },
-    {
-      "type": "text",
-      "id": "product_visibility_metafield",
-      "label": "Product metafield namespace and key",
-      "info": "Enter namespace.key, for example custom.show_gift_message. Create it as a Product metafield with type True or false. [Setup guide](https://qorve-2.duckdns.org/app#product-metafield-visibility)",
-      "default": "custom.show_gift_message"
-    },
-    {
-      "type": "text",
-      "id": "collection_visibility_metafield",
-      "label": "Collection metafield namespace and key",
-      "info": "Enter namespace.key, for example custom.show_gift_message. Create it as a Collection metafield with type True or false. Use the same key as the product metafield for the default Gift Pulse setup.",
-      "default": "custom.show_gift_message"
+      "id": "enable_app_visibility_rule",
+      "label": "Use Gift Pulse visibility rule",
+      "info": "Default on. Disable it only if this block should appear on every product page regardless of the app-managed product or collection selection.",
+      "default": true
     },
     {
       "type": "text",
