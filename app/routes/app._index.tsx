@@ -16,6 +16,7 @@ const VISIBILITY_METAFIELD_KEY = "show_gift_message";
 const VISIBILITY_METAFIELD_REFERENCE = `${VISIBILITY_METAFIELD_NAMESPACE}.${VISIBILITY_METAFIELD_KEY}`;
 const VISIBILITY_OWNER_TYPES = ["PRODUCT", "COLLECTION"] as const;
 const METAFIELDS_SET_CHUNK_SIZE = 25;
+const VISIBILITY_METAFIELDS_PAGE_SIZE = 250;
 
 type VisibilityOwnerType = (typeof VISIBILITY_OWNER_TYPES)[number];
 type VisibilityResourceType = "product" | "collection";
@@ -67,6 +68,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const visibilityMetafieldDefinitions = hasProductWriteScope
     ? await getVisibilityMetafieldDefinitions(admin)
     : { product: null, collection: null };
+  const visibilityResourceSelections = hasProductWriteScope
+    ? await getVisibilityResourceSelections(admin)
+    : { product: [], collection: [] };
 
   return {
     canRequestProductWriteScope,
@@ -77,6 +81,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     hasProductWriteScope,
     productsUrl: `https://${session.shop}/admin/products`,
     visibilityMetafieldDefinitions,
+    visibilityResourceSelections,
   };
 };
 
@@ -110,8 +115,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (intent === "set-visibility-metafields") {
     const resourceType = String(formData.get("resourceType") ?? "");
-    const resourceIds = parseVisibilityResourceIds(
+    const selectedResourceIds = parseVisibilityResourceIds(
       String(formData.get("resourceIds") ?? ""),
+    );
+    const previousResourceIds = parseVisibilityResourceIds(
+      String(formData.get("previousResourceIds") ?? ""),
     );
 
     if (!isVisibilityResourceType(resourceType)) {
@@ -123,16 +131,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     const resourceLabels = VISIBILITY_RESOURCE_LABELS[resourceType];
+    const resourceIds = Array.from(
+      new Set([...selectedResourceIds, ...previousResourceIds]),
+    );
     const invalidResourceId = resourceIds.find(
       (resourceId) => !resourceId.startsWith(resourceLabels.gidPrefix),
     );
 
     if (resourceIds.length === 0) {
       return {
-        ok: false,
+        ok: true,
         intent,
         resourceType,
-        message: `Select at least one ${resourceLabels.singularLabel}.`,
+        selectedCount: 0,
+        unselectedCount: 0,
+        updatedCount: 0,
+        message: `No ${resourceLabels.pluralLabel} selected.`,
       };
     }
 
@@ -150,14 +164,31 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         admin,
         resourceLabels.ownerType,
       );
-      const updatedCount = await setVisibilityMetafields(admin, resourceIds);
+      const selectedResourceIdSet = new Set(selectedResourceIds);
+      const unselectedResourceIds = previousResourceIds.filter(
+        (resourceId) => !selectedResourceIdSet.has(resourceId),
+      );
+      const selectedCount =
+        selectedResourceIds.length > 0
+          ? await setVisibilityMetafields(admin, selectedResourceIds, "true")
+          : 0;
+      const unselectedCount =
+        unselectedResourceIds.length > 0
+          ? await setVisibilityMetafields(admin, unselectedResourceIds, "false")
+          : 0;
+      const updatedCount = selectedCount + unselectedCount;
 
       return {
         ok: true,
         intent,
         resourceType,
+        selectedCount,
+        unselectedCount,
         updatedCount,
-        message: `${updatedCount} ${updatedCount === 1 ? resourceLabels.singularLabel : resourceLabels.pluralLabel} updated successfully.`,
+        message:
+          updatedCount === 0
+            ? `No ${resourceLabels.pluralLabel} changed.`
+            : `${selectedCount} ${selectedCount === 1 ? resourceLabels.singularLabel : resourceLabels.pluralLabel} set to visible and ${unselectedCount} set to hidden.`,
       };
     } catch (error) {
       console.error("[block-setup:set-visibility-metafields]", error);
@@ -206,6 +237,7 @@ export default function GiftMessageSetup() {
     hasProductWriteScope,
     productsUrl,
     visibilityMetafieldDefinitions,
+    visibilityResourceSelections,
   } = useLoaderData<typeof loader>();
   const shopify = useAppBridge();
   const metafieldFetcher = useFetcher<typeof action>();
@@ -217,15 +249,18 @@ export default function GiftMessageSetup() {
     collection: Boolean(visibilityMetafieldDefinitions.collection),
     product: Boolean(visibilityMetafieldDefinitions.product),
   });
+  const [visibleResources, setVisibleResources] =
+    useState<VisibilityResourceSelections>(visibilityResourceSelections);
   const [lastAppliedSelection, setLastAppliedSelection] = useState<{
-    count: number;
     resourceType: VisibilityResourceType;
+    selectedCount: number;
     titles: string[];
+    unselectedCount: number;
   } | null>(null);
   const pendingVisibilitySelectionRef = useRef<{
-    count: number;
     resourceType: VisibilityResourceType;
-    titles: string[];
+    selectedResources: VisibilityResourceSelection[];
+    unselectedCount: number;
   } | null>(null);
   const isCreatingMetafield = metafieldFetcher.state !== "idle";
   const isApplyingVisibility = visibilityApplyFetcher.state !== "idle";
@@ -238,7 +273,12 @@ export default function GiftMessageSetup() {
       collection: Boolean(visibilityMetafieldDefinitions.collection),
       product: Boolean(visibilityMetafieldDefinitions.product),
     });
-  }, [hasProductWriteScope, visibilityMetafieldDefinitions]);
+    setVisibleResources(visibilityResourceSelections);
+  }, [
+    hasProductWriteScope,
+    visibilityMetafieldDefinitions,
+    visibilityResourceSelections,
+  ]);
 
   useEffect(() => {
     if (metafieldFetcher.state !== "idle" || !metafieldFetcher.data) return;
@@ -285,12 +325,27 @@ export default function GiftMessageSetup() {
         data.intent === "set-visibility-metafields" &&
         pendingVisibilitySelection
       ) {
+        const selectedCount =
+          "selectedCount" in data && typeof data.selectedCount === "number"
+            ? data.selectedCount
+            : pendingVisibilitySelection.selectedResources.length;
+        const unselectedCount =
+          "unselectedCount" in data && typeof data.unselectedCount === "number"
+            ? data.unselectedCount
+            : pendingVisibilitySelection.unselectedCount;
+
+        setVisibleResources((currentVisibleResources) => ({
+          ...currentVisibleResources,
+          [pendingVisibilitySelection.resourceType]:
+            pendingVisibilitySelection.selectedResources,
+        }));
         setLastAppliedSelection({
-          ...pendingVisibilitySelection,
-          count:
-            "updatedCount" in data && typeof data.updatedCount === "number"
-              ? data.updatedCount
-              : pendingVisibilitySelection.count,
+          resourceType: pendingVisibilitySelection.resourceType,
+          selectedCount,
+          titles: pendingVisibilitySelection.selectedResources
+            .slice(0, 3)
+            .map((resource) => resource.title),
+          unselectedCount,
         });
         pendingVisibilitySelectionRef.current = null;
       }
@@ -365,29 +420,41 @@ export default function GiftMessageSetup() {
     }
 
     try {
+      const previousResources = visibleResources[resourceType];
+      const previousResourceIds = previousResources.map(
+        (resource) => resource.id,
+      );
       const selection = await shopify.resourcePicker({
         action: "select",
         filter: resourceType === "product" ? { variants: false } : undefined,
         multiple: true,
+        selectionIds: previousResourceIds.map((id) => ({ id })),
         type: resourceType,
       });
-      const selectedResources = normalizePickerSelection(selection);
 
-      if (selectedResources.length === 0) return;
+      if (selection === undefined || selection === null) return;
+
+      const selectedResources = normalizePickerSelection(selection);
+      const selectedResourceIds = selectedResources.map(
+        (resource) => resource.id,
+      );
+      const selectedResourceIdSet = new Set(selectedResourceIds);
 
       pendingVisibilitySelectionRef.current = {
-        count: selectedResources.length,
         resourceType,
-        titles: selectedResources
-          .slice(0, 3)
-          .map((resource) => resource.title ?? resource.id),
+        selectedResources: selectedResources.map((resource) => ({
+          id: resource.id,
+          title: resource.title ?? resource.id,
+        })),
+        unselectedCount: previousResourceIds.filter(
+          (resourceId) => !selectedResourceIdSet.has(resourceId),
+        ).length,
       };
       visibilityApplyFetcher.submit(
         {
           intent: "set-visibility-metafields",
-          resourceIds: JSON.stringify(
-            selectedResources.map((resource) => resource.id),
-          ),
+          previousResourceIds: JSON.stringify(previousResourceIds),
+          resourceIds: JSON.stringify(selectedResourceIds),
           resourceType,
         },
         { method: "post" },
@@ -622,6 +689,8 @@ export default function GiftMessageSetup() {
                   Open the native Shopify selector, choose the products or
                   collections where the block should appear, and Gift Pulse will
                   set <code>{VISIBILITY_METAFIELD_REFERENCE}</code> to true.
+                  Items already set to true open checked; remove a checkmark and
+                  confirm to set that item back to false.
                 </p>
               </div>
             </div>
@@ -636,6 +705,7 @@ export default function GiftMessageSetup() {
                 isBusy={isApplyingVisibility}
                 onClick={() => openVisibilityPicker("product")}
                 resourceType="product"
+                selectedCount={visibleResources.product.length}
               />
               <VisibilityTargetCard
                 disabled={
@@ -646,6 +716,7 @@ export default function GiftMessageSetup() {
                 isBusy={isApplyingVisibility}
                 onClick={() => openVisibilityPicker("collection")}
                 resourceType="collection"
+                selectedCount={visibleResources.collection.length}
               />
             </div>
 
@@ -662,18 +733,18 @@ export default function GiftMessageSetup() {
                   <CheckIcon />
                 </span>
                 <span>
-                  Last applied to {lastAppliedSelection.count}{" "}
-                  {lastAppliedSelection.count === 1
-                    ? VISIBILITY_RESOURCE_LABELS[
-                        lastAppliedSelection.resourceType
-                      ].singularLabel
-                    : VISIBILITY_RESOURCE_LABELS[
-                        lastAppliedSelection.resourceType
-                      ].pluralLabel}
+                  Saved {lastAppliedSelection.selectedCount} visible{" "}
+                  {
+                    VISIBILITY_RESOURCE_LABELS[lastAppliedSelection.resourceType]
+                      .pluralLabel
+                  }
+                  {lastAppliedSelection.unselectedCount > 0
+                    ? ` and turned off ${lastAppliedSelection.unselectedCount}`
+                    : ""}
                   {lastAppliedSelection.titles.length > 0
                     ? `: ${lastAppliedSelection.titles.join(", ")}`
                     : ""}
-                  {lastAppliedSelection.count >
+                  {lastAppliedSelection.selectedCount >
                   lastAppliedSelection.titles.length
                     ? "..."
                     : ""}
@@ -696,7 +767,7 @@ export default function GiftMessageSetup() {
             <GuideStep
               number="3"
               title="Enable selected resources"
-              description="Use the selectors above to set the metafield to true on products or collections where the block should appear."
+              description="Use the selectors above to set the metafield to true on checked products or collections, and false when a previously checked item is removed."
             />
             <GuideStep
               number="4"
@@ -759,6 +830,16 @@ type VisibilityMetafieldDefinitions = Record<
   VisibilityMetafieldDefinition | null
 >;
 
+type VisibilityResourceSelection = {
+  id: string;
+  title: string;
+};
+
+type VisibilityResourceSelections = Record<
+  VisibilityResourceType,
+  VisibilityResourceSelection[]
+>;
+
 type PickerResource = {
   id: string;
   title?: string;
@@ -818,6 +899,10 @@ function parseVisibilityResourceIds(value: string): string[] {
   }
 }
 
+function isTrueMetafieldValue(value: unknown) {
+  return value === true || value === "true";
+}
+
 async function getVisibilityMetafieldDefinitions(
   admin: AdminClient,
 ): Promise<VisibilityMetafieldDefinitions> {
@@ -827,6 +912,119 @@ async function getVisibilityMetafieldDefinitions(
   ]);
 
   return { collection, product };
+}
+
+async function getVisibilityResourceSelections(
+  admin: AdminClient,
+): Promise<VisibilityResourceSelections> {
+  const [product, collection] = await Promise.all([
+    getVisibilityResourcesForType(admin, "product"),
+    getVisibilityResourcesForType(admin, "collection"),
+  ]);
+
+  return { collection, product };
+}
+
+async function getVisibilityResourcesForType(
+  admin: AdminClient,
+  resourceType: VisibilityResourceType,
+): Promise<VisibilityResourceSelection[]> {
+  const resourceLabels = VISIBILITY_RESOURCE_LABELS[resourceType];
+  const resources = new Map<string, VisibilityResourceSelection>();
+  let after: string | null = null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const response = await admin.graphql(
+      `#graphql
+      query VisibilityMetafieldSelections(
+        $after: String
+        $first: Int!
+        $key: String!
+        $namespace: String!
+        $ownerType: MetafieldOwnerType!
+      ) {
+        metafieldDefinitions(
+          first: 1
+          ownerType: $ownerType
+          namespace: $namespace
+          key: $key
+        ) {
+          nodes {
+            metafields(first: $first, after: $after) {
+              nodes {
+                value
+                owner {
+                  ... on Product {
+                    id
+                    title
+                  }
+                  ... on Collection {
+                    id
+                    title
+                  }
+                }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      }`,
+      {
+        variables: {
+          after,
+          first: VISIBILITY_METAFIELDS_PAGE_SIZE,
+          namespace: VISIBILITY_METAFIELD_NAMESPACE,
+          key: VISIBILITY_METAFIELD_KEY,
+          ownerType: resourceLabels.ownerType,
+        },
+      },
+    );
+    const json = await response.json();
+    const errors = json.errors as { message?: string }[] | undefined;
+    if (errors?.length) {
+      throw new Error(errors.map((error) => error.message).join("; "));
+    }
+
+    const definition = json.data?.metafieldDefinitions?.nodes?.[0];
+    const metafields = definition?.metafields;
+    if (!metafields) break;
+
+    const nodes = Array.isArray(metafields.nodes) ? metafields.nodes : [];
+    for (const node of nodes) {
+      if (!isTrueMetafieldValue((node as { value?: unknown }).value)) {
+        continue;
+      }
+
+      const owner = (node as { owner?: unknown }).owner;
+      const ownerId =
+        typeof (owner as { id?: unknown } | null)?.id === "string"
+          ? (owner as { id: string }).id
+          : "";
+      if (!ownerId.startsWith(resourceLabels.gidPrefix)) continue;
+
+      const ownerTitleValue = (owner as { title?: unknown } | null)?.title;
+      const ownerTitle =
+        typeof ownerTitleValue === "string" && ownerTitleValue.trim() !== ""
+          ? ownerTitleValue
+          : ownerId;
+      resources.set(ownerId, {
+        id: ownerId,
+        title: ownerTitle,
+      });
+    }
+
+    const pageInfo = metafields.pageInfo;
+    hasNextPage = Boolean(pageInfo?.hasNextPage);
+    after =
+      typeof pageInfo?.endCursor === "string" ? pageInfo.endCursor : null;
+    if (hasNextPage && !after) break;
+  }
+
+  return Array.from(resources.values());
 }
 
 async function ensureVisibilityMetafieldDefinitions(
@@ -960,6 +1158,7 @@ async function createVisibilityMetafieldDefinition(
 async function setVisibilityMetafields(
   admin: AdminClient,
   resourceIds: string[],
+  value: "true" | "false",
 ): Promise<number> {
   let updatedCount = 0;
 
@@ -992,7 +1191,7 @@ async function setVisibilityMetafields(
             namespace: VISIBILITY_METAFIELD_NAMESPACE,
             ownerId: resourceId,
             type: "boolean",
-            value: "true",
+            value,
           })),
         },
       },
@@ -1141,11 +1340,13 @@ function VisibilityTargetCard({
   isBusy,
   onClick,
   resourceType,
+  selectedCount,
 }: {
   disabled: boolean;
   isBusy: boolean;
   onClick: () => void;
   resourceType: VisibilityResourceType;
+  selectedCount: number;
 }) {
   const labels = VISIBILITY_RESOURCE_LABELS[resourceType];
 
@@ -1157,6 +1358,9 @@ function VisibilityTargetCard({
       <div>
         <h4>{labels.title}</h4>
         <p>{labels.description}</p>
+        <span className={styles.visibilityTargetCount}>
+          {selectedCount} currently visible
+        </span>
       </div>
       <button
         className={styles.visibilityTargetButton}

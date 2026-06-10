@@ -943,6 +943,15 @@
   margin: 0.3rem 0 0;
 }
 
+.visibilityTargetCount {
+  color: var(--gmb-primary);
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1.35;
+  margin-top: 0.45rem;
+}
+
 .visibilityTargetButton {
   align-items: center;
   background: #253349;
