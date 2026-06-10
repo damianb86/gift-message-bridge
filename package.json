@@ -4,7 +4,9 @@
   "scripts": {
     "build": "react-router build",
     "build:production": "sh scripts/build-production.sh",
-    "dev": "shopify app dev",
+    "dev": "shopify app dev --config localhost --use-localhost",
+    "dev:localhost": "shopify app dev --config localhost --use-localhost",
+    "dev:public": "shopify app dev --config shopify.app.toml --no-update",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",
     "deploy": "shopify app deploy",

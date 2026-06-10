@@ -7,7 +7,7 @@ embedded = true
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "qorve-dev.myshopify.com"
+dev_store_url = "damian-xdcxxupp.myshopify.com"
 
 [webhooks]
 api_version = "2026-04"
@@ -25,11 +25,11 @@ api_version = "2026-04"
   compliance_topics = [ "shop/redact" ]
 
   [[webhooks.subscriptions]]
-  uri = "/webhooks/app/uninstalled"
+  uri = "https://qorve-2.duckdns.org/webhooks/app/uninstalled"
   topics = [ "app/uninstalled" ]
 
   [[webhooks.subscriptions]]
-  uri = "/webhooks/app/scopes_update"
+  uri = "https://qorve-2.duckdns.org/webhooks/app/scopes_update"
   topics = [ "app/scopes_update" ]
 
 [access_scopes]

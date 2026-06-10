@@ -307,7 +307,7 @@ export default function GiftMessageSetup() {
     metafieldFetcher.data,
     metafieldFetcher.state,
     revalidator,
-    shopify.toast,
+    shopify,
   ]);
 
   useEffect(() => {
@@ -357,7 +357,7 @@ export default function GiftMessageSetup() {
     pendingVisibilitySelectionRef.current = null;
     shopify.toast.show(data.message, { isError: true });
   }, [
-    shopify.toast,
+    shopify,
     visibilityApplyFetcher.data,
     visibilityApplyFetcher.state,
   ]);

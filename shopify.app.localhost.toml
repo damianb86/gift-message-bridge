@@ -1,0 +1,21 @@
+# Localhost preview config.
+# Webhooks and app proxies require a public host, so keep them in shopify.app.toml.
+
+client_id = "5648b993ebb2c0c32aebf341a158f812"
+name = "Gift Pulse: Gift Messages"
+application_url = "https://localhost:3458"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "damian-xdcxxupp.myshopify.com"
+
+[webhooks]
+api_version = "2026-04"
+
+[access_scopes]
+scopes = "read_orders"
+optional_scopes = [ "write_products" ]
+
+[auth]
+redirect_urls = [ "https://localhost:3458/auth/callback" ]
