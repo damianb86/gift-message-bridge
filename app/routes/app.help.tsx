@@ -152,13 +152,13 @@ const customizationServices = [
   },
   {
     icon: "store" as const,
-    title: "Printing and fulfillment guidance",
-    text: "Support for picking, batching, QA review, packing slips, and fulfillment handoff.",
+    title: "Tailored app adjustments",
+    text: "Guidance when your store needs different fields, wording, print layouts, storefront behavior, or theme fit.",
   },
   {
     icon: "code" as const,
-    title: "Shopify workflow support",
-    text: "Help aligning order tagging, analytics, dashboards, and internal admin workflows with the app.",
+    title: "Custom Shopify workflows",
+    text: "For workflows beyond the default settings, we can help review a store-specific extension or companion app approach.",
   },
 ];
 
@@ -166,7 +166,7 @@ const requestCards = [
   {
     icon: "wrench" as const,
     title: "Request setup help",
-    text: "Ask our app support team for guidance on fitting Gift Pulse to your gifting workflow.",
+    text: "Ask our app support team for guidance on fitting Gift Pulse to your gifting workflow or store-specific needs.",
     action: "Request help",
     modal: "customization" as const,
     tone: "primary",
@@ -205,12 +205,12 @@ export default function Help() {
     customization: {
       title: "Request setup help",
       type: "customization",
-      subjectPlaceholder: "Custom gift message workflow",
+      subjectPlaceholder: "Store-specific gift message workflow",
       messageLabel: "What workflow do you need help with?",
       messagePlaceholder:
-        "Example: Configure a packing-team review queue and print cards grouped by fulfillment location.",
+        "Example: Adapt the message form, print layout, or packing-team workflow to match how this store fulfills gifts.",
       intro:
-        "Share what happens today, where setup is unclear, and what a successful workflow should do.",
+        "Share what happens today, where setup is unclear, and whether the app should behave differently for your store.",
       primary: "Send help request",
     },
     suggestion: {
@@ -321,7 +321,9 @@ export default function Help() {
                 <p className={styles.heroText}>
                   Get guidance for using the app with your catalog, team
                   process, and Shopify setup: message flows, filters,
-                  fulfillment workflows, and store-specific operations.
+                  fulfillment workflows, store-specific operations, and tailored
+                  adjustments when the default settings do not fully match your
+                  needs.
                 </p>
               </div>
               <div className={styles.actions}>
@@ -356,7 +358,7 @@ export default function Help() {
                 {[
                   "Gift workflows based on products, tags, order attributes, and fulfillment locations",
                   "Bulk print flows for packing teams, seasonal campaigns, or wholesale orders",
-                  "Operational guidance for gift notes, packing teams, and customer service teams",
+                  "Store-specific adjustments for message forms, print layouts, and internal workflows",
                 ].map((item) => (
                   <li key={item}>
                     <span>✓</span>
@@ -404,7 +406,9 @@ export default function Help() {
               <s-heading>How our app support can help</s-heading>
               <s-paragraph>
                 Keep the app simple for everyday use, and get help configuring
-                the behavior your store needs.
+                the behavior your store needs. If your workflow needs a more
+                tailored fit, send the context and we can review the best way to
+                support it.
               </s-paragraph>
             </div>
             <div className={styles.serviceGrid}>
@@ -429,7 +433,7 @@ export default function Help() {
             </div>
             <p className={styles.darkPanelText}>
               Prefer email? Send us context about the store, the gifting
-              problem, and the result you want.
+              problem, what should work differently, and the result you want.
             </p>
             <div className={styles.emailBox}>{contactEmail}</div>
             <s-button onClick={() => setOpenModal("support")}>
