@@ -19,8 +19,3 @@ optional_scopes = [ "write_products" ]
 
 [auth]
 redirect_urls = [ "https://localhost:3458/auth/callback" ]
-
-[app_proxy]
-url = "https://qorve-2.duckdns.org/proxy/gift-message"
-subpath = "gift-message"
-prefix = "apps"
