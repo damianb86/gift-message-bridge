@@ -8,15 +8,24 @@ import { useFetcher, useLoaderData, useRevalidator } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import db from "../db.server";
+import {
+  parseCardProductConfig,
+  serializeCardProductConfig,
+  type CardProductConfig,
+  type CardProductVariantOption,
+} from "../lib/card-products";
 import styles from "../styles/block-setup.module.css";
 
 const PRODUCT_VISIBILITY_SCOPE = "write_products";
+const PRODUCT_SETUP_SCOPE = PRODUCT_VISIBILITY_SCOPE;
 const VISIBILITY_METAFIELD_NAMESPACE = "custom";
 const VISIBILITY_METAFIELD_KEY = "show_gift_message";
 const VISIBILITY_METAFIELD_REFERENCE = `${VISIBILITY_METAFIELD_NAMESPACE}.${VISIBILITY_METAFIELD_KEY}`;
 const VISIBILITY_OWNER_TYPES = ["PRODUCT", "COLLECTION"] as const;
 const METAFIELDS_SET_CHUNK_SIZE = 25;
 const VISIBILITY_METAFIELDS_PAGE_SIZE = 250;
+const CARD_PRODUCT_VARIANTS_PAGE_SIZE = 100;
 
 type VisibilityOwnerType = (typeof VISIBILITY_OWNER_TYPES)[number];
 type VisibilityResourceType = "product" | "collection";
@@ -71,8 +80,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const visibilityResourceSelections = hasProductWriteScope
     ? await getVisibilityResourceSelections(admin)
     : { product: [], collection: [] };
+  const cardProductSettings = await db.cardProductSettings.findUnique({
+    where: { shop: session.shop },
+  });
 
   return {
+    cardProduct: parseCardProductConfig(cardProductSettings?.productsJson),
     canRequestProductWriteScope,
     collectionsUrl: `https://${session.shop}/admin/collections`,
     customDataUrl: `https://${session.shop}/admin/settings/custom_data`,
@@ -86,13 +99,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin, scopes } = await authenticate.admin(request);
+  const { admin, scopes, session } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
 
   if (
     intent !== "create-product-visibility-metafield" &&
     intent !== "create-visibility-metafields" &&
+    intent !== "set-card-products" &&
     intent !== "set-visibility-metafields"
   ) {
     return {
@@ -103,13 +117,88 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   const scopeDetails = await scopes.query();
-  if (!scopeDetails.granted.includes(PRODUCT_VISIBILITY_SCOPE)) {
+
+  if (intent === "set-card-products") {
+    const productId = String(formData.get("productId") ?? "").trim();
+
+    if (productId && !productId.startsWith("gid://shopify/Product/")) {
+      return {
+        ok: false,
+        intent,
+        message: "One selected item was not a valid product.",
+      };
+    }
+
+    if (!productId) {
+      await db.cardProductSettings.upsert({
+        where: { shop: session.shop },
+        create: {
+          shop: session.shop,
+          productsJson: serializeCardProductConfig(null),
+        },
+        update: {
+          productsJson: serializeCardProductConfig(null),
+        },
+      });
+
+      return {
+        ok: true,
+        intent,
+        cardProduct: null,
+        message: "No message card product selected.",
+      };
+    }
+
+    if (!scopeDetails.granted.includes(PRODUCT_SETUP_SCOPE)) {
+      return {
+        ok: false,
+        intent,
+        needsScope: true,
+        message:
+          "Gift Pulse needs product permission before it can update message card products.",
+      };
+    }
+
+    try {
+      const cardProduct = await getCardProductFromId(admin, productId);
+
+      await db.cardProductSettings.upsert({
+        where: { shop: session.shop },
+        create: {
+          shop: session.shop,
+          productsJson: serializeCardProductConfig(cardProduct),
+        },
+        update: {
+          productsJson: serializeCardProductConfig(cardProduct),
+        },
+      });
+
+      return {
+        ok: true,
+        intent,
+        cardProduct,
+        message: `${cardProduct.title} saved with ${cardProduct.variants.length} ${cardProduct.variants.length === 1 ? "variant" : "variants"}.`,
+      };
+    } catch (error) {
+      console.error("[block-setup:set-card-products]", error);
+      return {
+        ok: false,
+        intent,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Message card products could not be saved.",
+      };
+    }
+  }
+
+  if (!scopeDetails.granted.includes(PRODUCT_SETUP_SCOPE)) {
     return {
       ok: false,
       intent,
       needsScope: true,
       message:
-        "Gift Pulse needs product write permission before it can update product and collection visibility metafields.",
+        "Gift Pulse needs product permission before it can update product-based block setup.",
     };
   }
 
@@ -229,6 +318,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function GiftMessageSetup() {
   const {
+    cardProduct: initialCardProduct,
     canRequestProductWriteScope,
     collectionsUrl,
     customDataUrl,
@@ -240,6 +330,7 @@ export default function GiftMessageSetup() {
     visibilityResourceSelections,
   } = useLoaderData<typeof loader>();
   const shopify = useAppBridge();
+  const cardProductsFetcher = useFetcher<typeof action>();
   const metafieldFetcher = useFetcher<typeof action>();
   const visibilityApplyFetcher = useFetcher<typeof action>();
   const revalidator = useRevalidator();
@@ -251,6 +342,9 @@ export default function GiftMessageSetup() {
   });
   const [visibleResources, setVisibleResources] =
     useState<VisibilityResourceSelections>(visibilityResourceSelections);
+  const [cardProduct, setCardProduct] = useState<CardProductConfig | null>(
+    initialCardProduct,
+  );
   const [lastAppliedSelection, setLastAppliedSelection] = useState<{
     resourceType: VisibilityResourceType;
     selectedCount: number;
@@ -262,8 +356,12 @@ export default function GiftMessageSetup() {
     selectedResources: VisibilityResourceSelection[];
     unselectedCount: number;
   } | null>(null);
+  const handledMetafieldResponseRef = useRef<unknown>(null);
+  const handledCardProductsResponseRef = useRef<unknown>(null);
+  const handledVisibilityApplyResponseRef = useRef<unknown>(null);
   const isCreatingMetafield = metafieldFetcher.state !== "idle";
   const isApplyingVisibility = visibilityApplyFetcher.state !== "idle";
+  const isSavingCardProducts = cardProductsFetcher.state !== "idle";
   const allDefinitionsReady =
     definitionsReady.product && definitionsReady.collection;
 
@@ -274,16 +372,20 @@ export default function GiftMessageSetup() {
       product: Boolean(visibilityMetafieldDefinitions.product),
     });
     setVisibleResources(visibilityResourceSelections);
+    setCardProduct(initialCardProduct);
   }, [
     hasProductWriteScope,
+    initialCardProduct,
     visibilityMetafieldDefinitions,
     visibilityResourceSelections,
   ]);
 
   useEffect(() => {
     if (metafieldFetcher.state !== "idle" || !metafieldFetcher.data) return;
+    if (handledMetafieldResponseRef.current === metafieldFetcher.data) return;
 
     const data = metafieldFetcher.data;
+    handledMetafieldResponseRef.current = data;
     if (data.ok) {
       if (
         data.intent === "create-visibility-metafields" &&
@@ -303,9 +405,32 @@ export default function GiftMessageSetup() {
     }
 
     shopify.toast.show(data.message, { isError: true });
+  }, [metafieldFetcher.data, metafieldFetcher.state, revalidator, shopify]);
+
+  useEffect(() => {
+    if (cardProductsFetcher.state !== "idle" || !cardProductsFetcher.data) {
+      return;
+    }
+    if (handledCardProductsResponseRef.current === cardProductsFetcher.data) {
+      return;
+    }
+
+    const data = cardProductsFetcher.data;
+    handledCardProductsResponseRef.current = data;
+    if (data.ok) {
+      if (data.intent === "set-card-products" && "cardProduct" in data) {
+        setCardProduct((data.cardProduct ?? null) as CardProductConfig | null);
+      }
+
+      shopify.toast.show(data.message);
+      revalidator.revalidate();
+      return;
+    }
+
+    shopify.toast.show(data.message, { isError: true });
   }, [
-    metafieldFetcher.data,
-    metafieldFetcher.state,
+    cardProductsFetcher.data,
+    cardProductsFetcher.state,
     revalidator,
     shopify,
   ]);
@@ -317,8 +442,14 @@ export default function GiftMessageSetup() {
     ) {
       return;
     }
+    if (
+      handledVisibilityApplyResponseRef.current === visibilityApplyFetcher.data
+    ) {
+      return;
+    }
 
     const data = visibilityApplyFetcher.data;
+    handledVisibilityApplyResponseRef.current = data;
     if (data.ok) {
       const pendingVisibilitySelection = pendingVisibilitySelectionRef.current;
       if (
@@ -356,11 +487,7 @@ export default function GiftMessageSetup() {
 
     pendingVisibilitySelectionRef.current = null;
     shopify.toast.show(data.message, { isError: true });
-  }, [
-    shopify,
-    visibilityApplyFetcher.data,
-    visibilityApplyFetcher.state,
-  ]);
+  }, [shopify, visibilityApplyFetcher.data, visibilityApplyFetcher.state]);
 
   const requestProductPermission = async () => {
     if (hasGrantedProductScope) return true;
@@ -374,16 +501,14 @@ export default function GiftMessageSetup() {
     }
 
     try {
-      const scopeResult = await shopify.scopes.request([
-        PRODUCT_VISIBILITY_SCOPE,
-      ]);
+      const scopeResult = await shopify.scopes.request([PRODUCT_SETUP_SCOPE]);
 
       if (
         scopeResult.result !== "granted-all" ||
-        !scopeResult.detail.granted.includes(PRODUCT_VISIBILITY_SCOPE)
+        !scopeResult.detail.granted.includes(PRODUCT_SETUP_SCOPE)
       ) {
         shopify.toast.show(
-          "Product permission was not granted, so the metafields were not updated.",
+          "Product permission was not granted, so product setup was not updated.",
           { isError: true },
         );
         return false;
@@ -408,6 +533,39 @@ export default function GiftMessageSetup() {
       { intent: "create-visibility-metafields" },
       { method: "post" },
     );
+  };
+
+  const openCardProductPicker = async () => {
+    const hasPermission = await requestProductPermission();
+    if (!hasPermission) return;
+
+    try {
+      const selection = await shopify.resourcePicker({
+        action: "select",
+        filter: { variants: false },
+        multiple: false,
+        selectionIds: cardProduct ? [{ id: cardProduct.productGid }] : [],
+        type: "product",
+      });
+
+      if (selection === undefined || selection === null) return;
+
+      const selectedProductId =
+        normalizePickerSelection(selection)[0]?.id ?? "";
+
+      cardProductsFetcher.submit(
+        {
+          intent: "set-card-products",
+          productId: selectedProductId,
+        },
+        { method: "post" },
+      );
+    } catch (error) {
+      console.error("[block-setup:card-product-picker]", error);
+      shopify.toast.show("The Shopify product picker could not be opened.", {
+        isError: true,
+      });
+    }
   };
 
   const openVisibilityPicker = async (resourceType: VisibilityResourceType) => {
@@ -574,13 +732,13 @@ export default function GiftMessageSetup() {
                 icon="print"
                 number="3"
                 title="Merchant prints messages"
-                description="Choose messages and print beautiful gift cards."
+                description="Choose messages and print beautiful message cards."
               />
               <FlowConnector />
               <FlowStep
                 icon="gift"
                 number="4"
-                title="Gift card goes with the order"
+                title="Message card goes with the order"
                 description="The printed message is packed with the product."
               />
             </div>
@@ -591,6 +749,100 @@ export default function GiftMessageSetup() {
             <TrustBadge icon="lock" label="Private & secure" />
             <TrustBadge icon="tag" label="Works with any theme" />
             <TrustBadge icon="star" label="Loved by merchants" />
+          </div>
+        </div>
+      </s-section>
+
+      <s-section>
+        <div className={styles.cardProductsPanel} id="message-card-product">
+          <div className={styles.cardProductsHeader}>
+            <div>
+              <span className={styles.actionLabel}>
+                Paid message card add-on
+              </span>
+              <h2 className={styles.cardProductsTitle}>Message card product</h2>
+              <p className={styles.cardProductsText}>
+                Choose one Shopify product to sell printed message cards. Its
+                variants become the shopper-facing choices, including each
+                variant image, title, and price.
+              </p>
+            </div>
+            <div className={styles.cardProductsSummary}>
+              <span>Configured variants</span>
+              <strong>{cardProduct?.variants.length ?? 0}</strong>
+              <small>
+                {cardProduct
+                  ? `${cardProduct.title} variants can be shown in the form`
+                  : "Message-only mode stays active"}
+              </small>
+            </div>
+          </div>
+
+          <div className={styles.cardProductsManager}>
+            <div className={styles.cardProductsManagerHeader}>
+              <span className={styles.cardProductsIcon}>
+                <GiftMiniIcon />
+              </span>
+              <div>
+                <h3>Select the message card product</h3>
+                <p>
+                  Select one product that represents the printed paper/card
+                  option. Gift Pulse stores the variants for that product and
+                  adds the selected variant to the cart with the gift message
+                  properties.
+                </p>
+              </div>
+            </div>
+
+            {cardProduct ? (
+              <div className={styles.cardProductGrid}>
+                {cardProduct.variants.map((variant) => (
+                  <CardVariantPreview
+                    key={variant.variantGid || variant.variantId}
+                    product={cardProduct}
+                    variant={variant}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className={styles.cardProductsEmpty}>
+                No message card product selected. Storefront gift messages will
+                continue to work as message-only line item properties.
+              </div>
+            )}
+
+            <div className={styles.cardProductsActions}>
+              <button
+                className={styles.metafieldButton}
+                type="button"
+                onClick={openCardProductPicker}
+                disabled={isSavingCardProducts}
+              >
+                {isSavingCardProducts
+                  ? "Saving..."
+                  : cardProduct
+                    ? "Change product"
+                    : "Select product"}
+              </button>
+              {cardProduct ? (
+                <button
+                  className={styles.cardProductsClearButton}
+                  type="button"
+                  onClick={() => {
+                    cardProductsFetcher.submit(
+                      {
+                        intent: "set-card-products",
+                        productId: "",
+                      },
+                      { method: "post" },
+                    );
+                  }}
+                  disabled={isSavingCardProducts}
+                >
+                  Clear selection
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       </s-section>
@@ -735,8 +987,9 @@ export default function GiftMessageSetup() {
                 <span>
                   Saved {lastAppliedSelection.selectedCount} visible{" "}
                   {
-                    VISIBILITY_RESOURCE_LABELS[lastAppliedSelection.resourceType]
-                      .pluralLabel
+                    VISIBILITY_RESOURCE_LABELS[
+                      lastAppliedSelection.resourceType
+                    ].pluralLabel
                   }
                   {lastAppliedSelection.unselectedCount > 0
                     ? ` and turned off ${lastAppliedSelection.unselectedCount}`
@@ -1019,8 +1272,7 @@ async function getVisibilityResourcesForType(
 
     const pageInfo = metafields.pageInfo;
     hasNextPage = Boolean(pageInfo?.hasNextPage);
-    after =
-      typeof pageInfo?.endCursor === "string" ? pageInfo.endCursor : null;
+    after = typeof pageInfo?.endCursor === "string" ? pageInfo.endCursor : null;
     if (hasNextPage && !after) break;
   }
 
@@ -1217,6 +1469,182 @@ async function setVisibilityMetafields(
   return updatedCount;
 }
 
+async function getCardProductFromId(
+  admin: AdminClient,
+  productId: string,
+): Promise<CardProductConfig> {
+  let productConfig: CardProductConfig | null = null;
+  let after: string | null = null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const response = await admin.graphql(
+      `#graphql
+      query GiftCardProductDetails($id: ID!, $after: String) {
+        product(id: $id) {
+          id
+          title
+          handle
+          featuredImage {
+            url
+            altText
+          }
+          variants(first: ${CARD_PRODUCT_VARIANTS_PAGE_SIZE}, after: $after) {
+            nodes {
+              id
+              title
+              sku
+              displayName
+              price
+              availableForSale
+              image {
+                url
+                altText
+              }
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+      }`,
+      {
+        variables: {
+          after,
+          id: productId,
+        },
+      },
+    );
+    const json = await response.json();
+    const errors = json.errors as { message?: string }[] | undefined;
+    if (errors?.length) {
+      throw new Error(errors.map((error) => error.message).join("; "));
+    }
+
+    const product = json.data?.product;
+    const normalizedProduct = normalizeCardProductNode(product);
+    if (!normalizedProduct) {
+      throw new Error("The selected message card product could not be loaded.");
+    }
+
+    if (!productConfig) {
+      productConfig = {
+        ...normalizedProduct,
+        variants: [],
+      };
+    }
+
+    const variantNodes: unknown[] = Array.isArray(product?.variants?.nodes)
+      ? product.variants.nodes
+      : [];
+    productConfig.variants.push(
+      ...variantNodes
+        .map((variant) =>
+          normalizeCardVariantNode(
+            variant,
+            normalizedProduct.imageUrl,
+            normalizedProduct.imageAlt,
+          ),
+        )
+        .filter((variant): variant is CardProductVariantOption =>
+          Boolean(variant),
+        ),
+    );
+
+    const pageInfo = product?.variants?.pageInfo;
+    hasNextPage = Boolean(pageInfo?.hasNextPage);
+    after = typeof pageInfo?.endCursor === "string" ? pageInfo.endCursor : null;
+    if (hasNextPage && !after) break;
+  }
+
+  if (!productConfig || productConfig.variants.length === 0) {
+    throw new Error(
+      "The selected message card product does not have variants to add to the cart.",
+    );
+  }
+
+  return productConfig;
+}
+
+function normalizeCardProductNode(
+  value: unknown,
+): Omit<CardProductConfig, "variants"> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const node = value as {
+    featuredImage?: { altText?: unknown; url?: unknown } | null;
+    handle?: unknown;
+    id?: unknown;
+    title?: unknown;
+  };
+  const productGid = cleanAdminString(node.id);
+  const title = cleanAdminString(node.title);
+
+  if (!productGid || !title) {
+    return null;
+  }
+
+  const productImage = node.featuredImage;
+
+  return {
+    handle: cleanAdminString(node.handle),
+    imageAlt: cleanAdminString(productImage?.altText),
+    imageUrl: cleanAdminString(productImage?.url),
+    productGid,
+    title,
+  };
+}
+
+function normalizeCardVariantNode(
+  value: unknown,
+  fallbackImageUrl: string,
+  fallbackImageAlt: string,
+): CardProductVariantOption | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const node = value as {
+    availableForSale?: unknown;
+    id?: unknown;
+    image?: { altText?: unknown; url?: unknown } | null;
+    price?: unknown;
+    sku?: unknown;
+    title?: unknown;
+  };
+  const variantGid = cleanAdminString(node.id);
+  const variantId = getNumericGidId(variantGid);
+  const title = cleanAdminString(node.title);
+
+  if (!variantGid || !variantId || !title) {
+    return null;
+  }
+
+  return {
+    available:
+      typeof node.availableForSale === "boolean" ? node.availableForSale : true,
+    imageAlt: cleanAdminString(node.image?.altText) || fallbackImageAlt,
+    imageUrl: cleanAdminString(node.image?.url) || fallbackImageUrl,
+    price: cleanAdminString(node.price),
+    sku: cleanAdminString(node.sku),
+    title,
+    variantGid,
+    variantId,
+  };
+}
+
+function getNumericGidId(value: string): string {
+  const id = value.split("/").pop() ?? "";
+  return /^\d+$/.test(id) ? id : "";
+}
+
+function cleanAdminString(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
 function GuideStep({
   description,
   number,
@@ -1233,6 +1661,39 @@ function GuideStep({
         <h3>{title}</h3>
         <p>{description}</p>
       </div>
+    </div>
+  );
+}
+
+function CardVariantPreview({
+  product,
+  variant,
+}: {
+  product: CardProductConfig;
+  variant: CardProductVariantOption;
+}) {
+  const variantLabel =
+    variant.title && variant.title.toLowerCase() !== "default title"
+      ? variant.title
+      : product.title;
+
+  return (
+    <div className={styles.cardProductPreview}>
+      <span className={styles.cardProductImage}>
+        {variant.imageUrl || product.imageUrl ? (
+          <img
+            src={variant.imageUrl || product.imageUrl}
+            alt={variant.imageAlt || product.imageAlt || ""}
+          />
+        ) : (
+          <GiftMiniIcon />
+        )}
+      </span>
+      <span className={styles.cardProductCopy}>
+        <strong>{variantLabel}</strong>
+        {variant.price ? <small>{variant.price}</small> : null}
+        {variant.available === false ? <small>Out of stock</small> : null}
+      </span>
     </div>
   );
 }

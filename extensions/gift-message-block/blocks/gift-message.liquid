@@ -50,6 +50,12 @@
   if block.settings.write_line_item_properties == false
     assign write_line_item_properties = false
   endif
+  assign show_card_variant_choices = true
+  if block.settings.show_card_variant_choices == false
+    assign show_card_variant_choices = false
+  endif
+  assign card_variant_choices_style = block.settings.card_variant_choices_style | default: 'grid_4'
+  assign money_currency_code = localization.country.currency.iso_code | default: cart.currency.iso_code | default: shop.currency
   assign manual_save = false
   if mode == 'order' or block.settings.enable_save_button
     assign manual_save = true
@@ -104,6 +110,9 @@
   data-mode="{{ mode }}"
   data-cart-token="{{ cart.token }}"
   data-line-item-properties="{{ write_line_item_properties | json }}"
+  data-card-variant-choices="{{ show_card_variant_choices | json }}"
+  data-card-variant-style="{{ card_variant_choices_style | escape }}"
+  data-money-currency-code="{{ money_currency_code | escape }}"
   data-manual-save="{{ manual_save | json }}"
   data-has-saved-message="{{ has_msg | json }}"
   data-product-id="{% if mode == 'product' %}{{ product.id }}{% endif %}"
@@ -166,6 +175,11 @@
         value=""
         disabled
       >
+      <div
+        class="gmb-card-product-picker"
+        data-gmb-card-products
+        hidden
+      ></div>
       <script type="application/json" class="gmb-variants-json">
         {{- product.variants | json -}}
       </script>
@@ -401,6 +415,50 @@
       "label": "Add product gift message to line item properties",
       "info": "Strongly recommended for product pages. Cart pages always save one order-level cart attribute named Gift Message, containing From, To, and Message in one text field.",
       "default": true
+    },
+    {
+      "type": "header",
+      "content": "Message card variant choices",
+      "info": "Controls the paid printed message card variant selector shown inside the storefront form."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_card_variant_choices",
+      "label": "Show message card variant choices",
+      "info": "When enabled, product pages show small selectable cards for the variants of the message card product configured in Block setup.",
+      "default": true
+    },
+    {
+      "type": "select",
+      "id": "card_variant_choices_style",
+      "label": "Variant selector style",
+      "options": [
+        {
+          "value": "dropdown",
+          "label": "Dropdown select"
+        },
+        {
+          "value": "grid_4",
+          "label": "Image grid, 4 per row"
+        },
+        {
+          "value": "grid_3",
+          "label": "Image grid, 3 per row"
+        },
+        {
+          "value": "list_images",
+          "label": "List with images"
+        },
+        {
+          "value": "text_list",
+          "label": "Text list"
+        },
+        {
+          "value": "pills",
+          "label": "Compact text buttons"
+        }
+      ],
+      "default": "grid_4"
     },
     {
       "type": "checkbox",

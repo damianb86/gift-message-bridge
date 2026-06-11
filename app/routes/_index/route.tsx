@@ -40,7 +40,7 @@ export default function App() {
             </div>
             <div className={styles.queueItem}>
               <strong>Ready to print</strong>
-              <small>Gift card queued</small>
+              <small>Message card queued</small>
             </div>
             <div className={styles.queueItem}>
               <strong>Needs review</strong>
@@ -56,7 +56,9 @@ export default function App() {
             <div className={styles.ribbon} />
             <div className={styles.notePaper}>
               <span>Gift note</span>
-              <p>Message saved with sender, recipient, and fulfillment context.</p>
+              <p>
+                Message saved with sender, recipient, and fulfillment context.
+              </p>
               <small>Ready for packing</small>
             </div>
           </div>

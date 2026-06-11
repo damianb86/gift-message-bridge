@@ -1,12 +1,32 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
+import { parseCardProductConfig } from "../lib/card-products";
 
 // Shopify forwards /apps/gift-message → {app_url}/proxy/gift-message
 // The HMAC on the request is verified by authenticate.public.appProxy.
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.public.appProxy(request);
+  const { session } = await authenticate.public.appProxy(request);
+  const url = new URL(request.url);
+  const intent = url.searchParams.get("intent") ?? "";
+
+  if (intent === "card-products") {
+    const shop = session?.shop ?? url.searchParams.get("shop") ?? "";
+
+    if (!shop) {
+      return jsonResponse({ error: "shop missing" }, 400);
+    }
+
+    const settings = await db.cardProductSettings.findUnique({
+      where: { shop },
+    });
+
+    return jsonResponse({
+      product: parseCardProductConfig(settings?.productsJson),
+    });
+  }
+
   return new Response("OK", { status: 200 });
 };
 
@@ -123,3 +143,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     headers: { "Content-Type": "application/json" },
   });
 };
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json",
+    },
+  });
+}

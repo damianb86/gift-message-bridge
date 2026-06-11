@@ -20,6 +20,7 @@ const PRINT_ORDER_ENDPOINT = "/api/print-order-gift-message";
 
 const GIFT_MESSAGE_PROPERTY = "Gift Message";
 const GIFT_MESSAGE_REF_PROPERTY = "Gift Message Ref";
+const GIFT_MESSAGE_CARD_PROPERTY = "_Gift Message Card";
 const GIFT_MESSAGE_FROM_ATTRIBUTE = "Gift Message From";
 const GIFT_MESSAGE_TO_ATTRIBUTE = "Gift Message To";
 
@@ -383,7 +384,7 @@ function collectGiftMessages(order) {
     collectLineGiftMessages(line, index, orderReference, orderDate),
   );
 
-  return [...orderMessages, ...lineMessages];
+  return dedupeGiftMessages([...orderMessages, ...lineMessages]);
 }
 
 function collectOrderGiftMessages(attributes, orderReference, orderDate) {
@@ -426,6 +427,10 @@ function collectOrderGiftMessages(attributes, orderReference, orderDate) {
 function collectLineGiftMessages(line, index, orderReference, orderDate) {
   const attributes = line.customAttributes || [];
   const giftMessageValue = findGiftMessage(attributes);
+  const giftMessageCardSource = findAttributeValue(
+    attributes,
+    GIFT_MESSAGE_CARD_PROPERTY,
+  );
 
   if (!giftMessageValue) {
     return [];
@@ -445,7 +450,8 @@ function collectLineGiftMessages(line, index, orderReference, orderDate) {
         `${orderReference || "Order"}-${index + 1}`,
       cartReference: orderReference,
       cartToken: orderReference,
-      productReference: buildProductReference(line),
+      isMessageCardAddon: Boolean(giftMessageCardSource),
+      productReference: giftMessageCardSource || buildProductReference(line),
       sender: parsed.sender,
       recipient: parsed.recipient,
       message,
@@ -460,6 +466,44 @@ function findGiftMessage(attributes) {
     findLooseAttributeValue(attributes, "gift message") ||
     findLooseAttributeValue(attributes, "gift_message")
   );
+}
+
+function dedupeGiftMessages(messages) {
+  const byKey = new Map();
+  const orderedKeys = [];
+  const passthrough = [];
+
+  for (const message of messages) {
+    const reference = clean(message.reference);
+    const key =
+      reference ||
+      `${clean(message.sender)}:${clean(message.recipient)}:${clean(message.message)}`;
+
+    if (!key) {
+      passthrough.push(message);
+      continue;
+    }
+
+    const current = byKey.get(key);
+    if (!current) {
+      byKey.set(key, message);
+      orderedKeys.push(key);
+      continue;
+    }
+
+    if (current.isMessageCardAddon && !message.isMessageCardAddon) {
+      byKey.set(key, message);
+    }
+  }
+
+  return [
+    ...passthrough,
+    ...orderedKeys.map((key) => byKey.get(key)).filter(Boolean),
+  ].map((message) => {
+    const printableMessage = { ...message };
+    delete printableMessage.isMessageCardAddon;
+    return printableMessage;
+  });
 }
 
 function buildProductReference(line) {

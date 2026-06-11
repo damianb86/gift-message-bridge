@@ -5,8 +5,14 @@
   var PROXY_PATH = "/apps/gift-message";
   var MESSAGE_PROPERTY = "Gift Message";
   var MESSAGE_REFERENCE_PROPERTY = "Gift Message Ref";
+  var CARD_PRODUCT_SOURCE_PROPERTY = "_Gift Message Card";
   var REFERENCE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   var REFERENCE_LENGTH = 5;
+  var CARD_PRODUCTS_INTENT = "card-products";
+  var cardProductsRequest = null;
+  var pendingProductAdd = null;
+  var cartAddInterceptorInstalled = false;
+  var nativeFetch = window.fetch ? window.fetch.bind(window) : null;
 
   function initBlock(block) {
     if (block.dataset.gmbInitialized === "true") return;
@@ -23,6 +29,7 @@
     var saveButton = block.querySelector(".gmb-save-button");
     var savedSummary = block.querySelector("[data-gmb-saved-summary]");
     var editButton = block.querySelector(".gmb-edit-button");
+    var cardProductPicker = block.querySelector("[data-gmb-card-products]");
     var removeButtons = block.querySelectorAll(
       ".gmb-remove-button, .gmb-summary-remove-button",
     );
@@ -38,10 +45,19 @@
     var isDirty = false;
     var lineItemPropertiesEnabled =
       block.dataset.lineItemProperties !== "false";
+    var cardVariantChoicesEnabled =
+      block.dataset.cardVariantChoices !== "false";
+    var cardVariantStyle = normalizeCardVariantStyle(
+      block.dataset.cardVariantStyle,
+    );
+    var moneyCurrencyCode = getCurrencyCode(block.dataset.moneyCurrencyCode);
     var productId = block.dataset.productId || "";
     var productTitle = block.dataset.productTitle || "";
     var productHandle = block.dataset.productHandle || "";
     var productVariants = getProductVariants();
+    var cardProductConfig = null;
+    var cardVariantOptions = [];
+    var selectedCardVariant = null;
     var maxLen = parseInt(textarea.getAttribute("maxlength"), 10) || 250;
     var lastProductCheckoutIntentAt = 0;
     var cartReference = "";
@@ -74,6 +90,16 @@
         if (senderInput) senderInput.disabled = !open;
         if (recipientInput) recipientInput.disabled = !open;
         if (messageIdInput) messageIdInput.disabled = !open;
+        if (cardProductPicker) {
+          cardProductPicker
+            .querySelectorAll(
+              ".gmb-card-product-option, .gmb-card-product-select",
+            )
+            .forEach(function (control) {
+              control.disabled =
+                !open || control.getAttribute("aria-disabled") === "true";
+            });
+        }
       }
     }
 
@@ -128,10 +154,17 @@
     }
 
     if (mode === "product") {
+      installCartAddInterceptor();
+      if (cardVariantChoicesEnabled) {
+        loadCardProductConfig(renderCardVariantPicker);
+      }
       loadCartToken(syncProductPropertiesFromCurrentForm);
       textarea.addEventListener("focus", loadCartToken);
       if (!manualSave) {
-        textarea.addEventListener("input", syncProductPropertiesFromCurrentForm);
+        textarea.addEventListener(
+          "input",
+          syncProductPropertiesFromCurrentForm,
+        );
         if (senderInput)
           senderInput.addEventListener(
             "input",
@@ -145,6 +178,9 @@
       }
       syncProductProperties();
       document.addEventListener("submit", handleProductSubmit, true);
+      document.addEventListener("pointerdown", handleProductAddIntent, true);
+      document.addEventListener("touchstart", handleProductAddIntent, true);
+      document.addEventListener("click", handleProductAddIntent, true);
       document.addEventListener(
         "pointerdown",
         handleProductCheckoutIntent,
@@ -431,8 +467,8 @@
     function hasAnyContent() {
       return Boolean(
         getMessageValue().trim() ||
-          getSenderValue().trim() ||
-          getRecipientValue().trim(),
+        getSenderValue().trim() ||
+        getRecipientValue().trim(),
       );
     }
 
@@ -481,8 +517,28 @@
       var form = event && event.target ? event.target : findProductForm();
       if (!isProductForm(form)) return;
 
+      prepareCardProductAdd(form);
+    }
+
+    function handleProductAddIntent(event) {
+      if (mode !== "product") return;
+      if (!isAddToCartTarget(event.target)) return;
+      if (isDynamicCheckoutTarget(event.target)) return;
+
+      var form = findProductFormForElement(event.target) || findProductForm();
+      if (!isProductForm(form)) return;
+
+      prepareCardProductAdd(form);
+    }
+
+    function prepareCardProductAdd(form) {
       syncProductProperties(form);
       persistProductMessage();
+
+      var cardContext = buildCardProductAddContext(form);
+      if (!cardContext) return;
+
+      setPendingCardProductAdd(cardContext);
     }
 
     function handleProductCheckoutIntent(event) {
@@ -498,6 +554,253 @@
 
       syncProductProperties(form);
       persistProductMessage();
+    }
+
+    function loadCardProductConfig(callback) {
+      getCardProductConfig()
+        .then(function (config) {
+          cardProductConfig = config;
+          cardVariantOptions = config && config.variants ? config.variants : [];
+          selectedCardVariant =
+            findFirstAvailableCardVariant(cardVariantOptions);
+          if (cardProductPicker) {
+            cardProductPicker.dataset.gmbCardProductsState =
+              cardVariantOptions.length > 0 ? "ready" : "empty";
+          }
+          if (typeof callback === "function") callback(cardVariantOptions);
+        })
+        .catch(function (err) {
+          console.warn("[GiftMessage] card product lookup failed:", err);
+          cardProductConfig = null;
+          cardVariantOptions = [];
+          selectedCardVariant = null;
+          if (cardProductPicker) {
+            cardProductPicker.dataset.gmbCardProductsState = "error";
+          }
+          if (typeof callback === "function") callback(cardVariantOptions);
+        });
+    }
+
+    function renderCardVariantPicker(variants) {
+      if (!cardProductPicker) return;
+
+      cardProductPicker.innerHTML = "";
+      cardProductPicker.hidden = true;
+      removeCardProductPickerStyleClasses(cardProductPicker);
+
+      if (!Array.isArray(variants) || variants.length === 0) {
+        return;
+      }
+
+      var label = document.createElement("div");
+      label.className = "gmb-card-product-label";
+      label.textContent = "Choose a message card";
+
+      var grid = document.createElement("div");
+      grid.className = "gmb-card-product-grid";
+      cardProductPicker.classList.add(
+        "gmb-card-product-picker--" + cardVariantStyle,
+      );
+
+      if (cardVariantStyle === "dropdown") {
+        renderCardVariantDropdown(cardProductPicker, label, variants);
+        return;
+      }
+
+      variants.forEach(function (variant) {
+        var available = isCardVariantAvailable(variant);
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "gmb-card-product-option";
+        button.dataset.variantId = variant.variantId || "";
+        button.setAttribute(
+          "aria-pressed",
+          selectedCardVariant &&
+            button.dataset.variantId === selectedCardVariant.variantId
+            ? "true"
+            : "false",
+        );
+        button.disabled = !available;
+        button.toggleAttribute("data-gmb-sold-out", !available);
+        button.setAttribute("aria-disabled", available ? "false" : "true");
+
+        var imageWrap = document.createElement("span");
+        imageWrap.className = "gmb-card-product-image";
+
+        if (variant.imageUrl) {
+          var image = document.createElement("img");
+          image.src = variant.imageUrl;
+          image.alt = variant.imageAlt || "";
+          image.loading = "lazy";
+          imageWrap.appendChild(image);
+        } else {
+          var placeholder = document.createElement("span");
+          placeholder.className = "gmb-card-product-placeholder";
+          placeholder.setAttribute("aria-hidden", "true");
+          placeholder.textContent = "+";
+          imageWrap.appendChild(placeholder);
+        }
+
+        var title = document.createElement("span");
+        title.className = "gmb-card-product-title";
+        title.textContent = getCardVariantTitle(variant);
+
+        button.appendChild(imageWrap);
+        button.appendChild(title);
+
+        if (variant.price) {
+          var price = document.createElement("span");
+          price.className = "gmb-card-product-price";
+          price.textContent = formatCardVariantPrice(variant.price);
+          button.appendChild(price);
+        }
+
+        if (!available) {
+          var status = document.createElement("span");
+          status.className = "gmb-card-product-status";
+          status.textContent = "Out of stock";
+          button.appendChild(status);
+        }
+
+        button.addEventListener("click", function () {
+          if (!isCardVariantAvailable(variant)) return;
+          setSelectedCardVariant(variant);
+        });
+        grid.appendChild(button);
+      });
+
+      cardProductPicker.appendChild(label);
+      cardProductPicker.appendChild(grid);
+      cardProductPicker.hidden = false;
+
+      if (!toggle.checked) {
+        grid
+          .querySelectorAll(".gmb-card-product-option")
+          .forEach(function (button) {
+            button.disabled = true;
+          });
+      }
+    }
+
+    function renderCardVariantDropdown(container, label, variants) {
+      var select = document.createElement("select");
+      select.className = "gmb-card-product-select";
+      select.disabled = !toggle.checked || !selectedCardVariant;
+      select.setAttribute(
+        "aria-disabled",
+        selectedCardVariant ? "false" : "true",
+      );
+
+      variants.forEach(function (variant) {
+        var available = isCardVariantAvailable(variant);
+        var option = document.createElement("option");
+        option.value = variant.variantId || "";
+        option.disabled = !available;
+        option.textContent = buildCardVariantOptionText(variant, available);
+
+        if (
+          selectedCardVariant &&
+          selectedCardVariant.variantId === variant.variantId
+        ) {
+          option.selected = true;
+        }
+
+        select.appendChild(option);
+      });
+
+      select.addEventListener("change", function () {
+        var selectedVariantId = select.value;
+        var variant = variants.find(function (item) {
+          return item.variantId === selectedVariantId;
+        });
+        setSelectedCardVariant(variant || null);
+      });
+
+      container.appendChild(label);
+      container.appendChild(select);
+      container.hidden = false;
+    }
+
+    function setSelectedCardVariant(variant) {
+      if (variant && !isCardVariantAvailable(variant)) return;
+      selectedCardVariant = variant || null;
+
+      if (!cardProductPicker) return;
+      cardProductPicker
+        .querySelectorAll(".gmb-card-product-option")
+        .forEach(function (button) {
+          button.setAttribute(
+            "aria-pressed",
+            selectedCardVariant &&
+              button.dataset.variantId === selectedCardVariant.variantId
+              ? "true"
+              : "false",
+          );
+        });
+
+      var select = cardProductPicker.querySelector(".gmb-card-product-select");
+      if (select && selectedCardVariant) {
+        select.value = selectedCardVariant.variantId;
+      }
+    }
+
+    function buildCardProductAddContext(form) {
+      if (!lineItemPropertiesEnabled) return null;
+      if (!cardVariantChoicesEnabled) return null;
+      if (!selectedCardVariant || !selectedCardVariant.variantId) return null;
+      if (!shouldIncludeMessageInProductForm()) return null;
+
+      var value = getMessageValue();
+      var sender = getSenderValue();
+      var recipient = getRecipientValue();
+      if (!value.trim() && !sender.trim() && !recipient.trim()) return null;
+
+      var messageId = ensureMessageId();
+      var messageProperties = {};
+      messageProperties[MESSAGE_PROPERTY] = formatLineItemGiftMessage(
+        sender,
+        recipient,
+        value,
+      );
+      messageProperties[MESSAGE_REFERENCE_PROPERTY] = messageId;
+
+      var cardProperties = copyObject(messageProperties);
+      cardProperties[CARD_PRODUCT_SOURCE_PROPERTY] =
+        productTitle || productHandle || "Gift message product";
+
+      var originalItem = buildOriginalCartItem(form, messageProperties);
+      if (!originalItem) return null;
+
+      return {
+        cardItem: {
+          id: selectedCardVariant.variantId,
+          properties: cardProperties,
+          quantity: 1,
+        },
+        consumed: false,
+        form: form,
+        originalItem: originalItem,
+        onThemeError: function () {
+          setSaving("Could not add message card. Try again.");
+        },
+        onThemeSuccess: function () {
+          setSaving("Added to cart");
+          window.setTimeout(function () {
+            setSaving("");
+          }, 1800);
+        },
+      };
+    }
+
+    function setPendingCardProductAdd(context) {
+      if (!nativeFetch) return;
+      consumePendingProductAdd(pendingProductAdd);
+      pendingProductAdd = context;
+
+      context.expiryTimer = window.setTimeout(function () {
+        if (pendingProductAdd !== context || context.consumed) return;
+        consumePendingProductAdd(context);
+      }, 4000);
     }
 
     function syncProductPropertiesFromCurrentForm() {
@@ -549,18 +852,25 @@
       var messageId = ensureMessageId();
       var variant = getSelectedVariant(findProductForm());
 
-      persistMessage(value, sender, recipient, {
-        cartToken: cartToken,
-        cartReference: ensureCartReference(),
-        messageId: messageId,
-        mode: "product",
-        productId: productId,
-        productTitle: productTitle,
-        productVariantTitle: getVariantTitle(variant),
-        productSku: variant && variant.sku ? String(variant.sku) : "",
-        productHandle: productHandle,
-        keepalive: true,
-      }, onSuccess, onError);
+      persistMessage(
+        value,
+        sender,
+        recipient,
+        {
+          cartToken: cartToken,
+          cartReference: ensureCartReference(),
+          messageId: messageId,
+          mode: "product",
+          productId: productId,
+          productTitle: productTitle,
+          productVariantTitle: getVariantTitle(variant),
+          productSku: variant && variant.sku ? String(variant.sku) : "",
+          productHandle: productHandle,
+          keepalive: true,
+        },
+        onSuccess,
+        onError,
+      );
     }
 
     function isDynamicCheckoutTarget(target) {
@@ -579,6 +889,25 @@
           ].join(","),
         ),
       );
+    }
+
+    function isAddToCartTarget(target) {
+      if (!target || typeof target.closest !== "function") return false;
+
+      var trigger = target.closest(
+        [
+          "button[type='submit']",
+          "input[type='submit']",
+          "button[name='add']",
+          "input[name='add']",
+          "[data-add-to-cart]",
+          "[data-add-to-cart-button]",
+        ].join(","),
+      );
+
+      if (!trigger || isDynamicCheckoutTarget(trigger)) return false;
+
+      return Boolean(findProductFormForElement(trigger));
     }
 
     function findProductFormForElement(target) {
@@ -641,6 +970,61 @@
       });
     }
 
+    function buildOriginalCartItem(form, messageProperties) {
+      if (!form) return null;
+
+      var formData = new FormData(form);
+      var variantId = String(formData.get("id") || "").trim();
+      if (!variantId) {
+        var variantInput = form.querySelector(
+          "input[name='id'], select[name='id']",
+        );
+        variantId = variantInput ? String(variantInput.value || "").trim() : "";
+      }
+      if (!variantId) return null;
+
+      var properties = collectLineItemProperties(formData);
+      Object.keys(messageProperties).forEach(function (key) {
+        properties[key] = messageProperties[key];
+      });
+
+      var quantity = parseQuantity(formData.get("quantity"));
+      var item = {
+        id: variantId,
+        properties: properties,
+        quantity: quantity,
+      };
+      var sellingPlan = String(formData.get("selling_plan") || "").trim();
+
+      if (sellingPlan) {
+        item.selling_plan = sellingPlan;
+      }
+
+      return item;
+    }
+
+    function collectLineItemProperties(formData) {
+      var properties = {};
+
+      formData.forEach(function (value, key) {
+        var match = String(key).match(/^properties\[(.+)\]$/);
+        if (!match) return;
+
+        var propertyName = match[1];
+        var propertyValue = String(value || "");
+        if (propertyName) {
+          properties[propertyName] = propertyValue;
+        }
+      });
+
+      return properties;
+    }
+
+    function parseQuantity(value) {
+      var quantity = parseInt(String(value || "1"), 10);
+      return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+    }
+
     function shouldIncludeMessageInProductForm() {
       if (!manualSave) return toggle.checked;
       return hasSavedMessage && !isDirty;
@@ -691,20 +1075,32 @@
         });
     }
 
-    function updateCartAttributes(value, sender, recipient, onSuccess, onError) {
-      var root =
+    function getShopifyRoot() {
+      return (
         (window.Shopify &&
           window.Shopify.routes &&
           window.Shopify.routes.root) ||
-        "/";
+        "/"
+      );
+    }
+
+    function updateCartAttributes(
+      value,
+      sender,
+      recipient,
+      onSuccess,
+      onError,
+    ) {
+      var root = getShopifyRoot();
       fetch(root + "cart/update.js", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           attributes: {
-            "Gift Message": value || sender || recipient
-              ? formatLineItemGiftMessage(sender, recipient, value)
-              : "",
+            "Gift Message":
+              value || sender || recipient
+                ? formatLineItemGiftMessage(sender, recipient, value)
+                : "",
             "Gift Message From": "",
             "Gift Message To": "",
             "Gift Message Ref": "",
@@ -732,11 +1128,7 @@
         return;
       }
 
-      var root =
-        (window.Shopify &&
-          window.Shopify.routes &&
-          window.Shopify.routes.root) ||
-        "/";
+      var root = getShopifyRoot();
       fetch(root + "cart.js", { headers: { Accept: "application/json" } })
         .then(function (res) {
           if (!res.ok) throw new Error("cart.js " + res.status);
@@ -821,6 +1213,61 @@
       return title && title.toLowerCase() !== "default title" ? title : "";
     }
 
+    function getCardVariantTitle(variant) {
+      var title = variant && variant.title ? String(variant.title).trim() : "";
+
+      if (title && title.toLowerCase() !== "default title") {
+        return title;
+      }
+
+      return cardProductConfig && cardProductConfig.title
+        ? cardProductConfig.title
+        : "Message card";
+    }
+
+    function findFirstAvailableCardVariant(variants) {
+      if (!Array.isArray(variants)) return null;
+
+      return (
+        variants.find(function (variant) {
+          return isCardVariantAvailable(variant);
+        }) || null
+      );
+    }
+
+    function isCardVariantAvailable(variant) {
+      return !variant || variant.available !== false;
+    }
+
+    function formatCardVariantPrice(price) {
+      var rawPrice = String(price || "").trim();
+      if (!rawPrice) return "";
+
+      var numericPrice = Number(rawPrice.replace(/[^0-9.-]/g, ""));
+      if (!Number.isFinite(numericPrice) || !moneyCurrencyCode) {
+        return rawPrice;
+      }
+
+      try {
+        return new Intl.NumberFormat(getLocaleCode(), {
+          currency: moneyCurrencyCode,
+          style: "currency",
+        }).format(numericPrice);
+      } catch (err) {
+        return rawPrice;
+      }
+    }
+
+    function buildCardVariantOptionText(variant, available) {
+      var parts = [getCardVariantTitle(variant)];
+      var price = formatCardVariantPrice(variant && variant.price);
+
+      if (price) parts.push(price);
+      if (!available) parts.push("Out of stock");
+
+      return parts.join(" - ");
+    }
+
     function formatLineItemGiftMessage(sender, recipient, message) {
       var lines = [];
       var cleanSender = String(sender || "").trim();
@@ -874,6 +1321,295 @@
 
       return prefix + "-" + code;
     }
+  }
+
+  function getCardProductConfig() {
+    if (cardProductsRequest) return cardProductsRequest;
+
+    if (!nativeFetch) {
+      return Promise.resolve(null);
+    }
+
+    cardProductsRequest = nativeFetch(getCardProductsProxyUrl(), {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("card products " + res.status);
+        return res.json();
+      })
+      .then(function (json) {
+        var config = normalizeCardProductConfig(json && json.product);
+        if (!config) {
+          cardProductsRequest = null;
+        }
+        return config;
+      })
+      .catch(function (err) {
+        cardProductsRequest = null;
+        console.warn("[GiftMessage] card products unavailable:", err);
+        return null;
+      });
+
+    return cardProductsRequest;
+  }
+
+  function getCardProductsProxyUrl() {
+    var params = new URLSearchParams();
+    var shop = getShopDomain();
+
+    params.set("intent", CARD_PRODUCTS_INTENT);
+    if (shop) params.set("shop", shop);
+
+    return PROXY_PATH + "?" + params.toString();
+  }
+
+  function getShopDomain() {
+    if (!window.Shopify || typeof window.Shopify !== "object") return "";
+
+    return cleanString(
+      window.Shopify.shop ||
+        window.Shopify.shopDomain ||
+        window.Shopify.shop_domain ||
+        "",
+    );
+  }
+
+  function normalizeCardProductConfig(product) {
+    if (!product || typeof product !== "object") return null;
+
+    var variants = Array.isArray(product.variants)
+      ? product.variants
+          .map(function (variant) {
+            var variantId = cleanString(variant && variant.variantId);
+            var title = cleanString(variant && variant.title);
+
+            if (!variantId || !title) return null;
+
+            return {
+              available:
+                variant && typeof variant.available === "boolean"
+                  ? variant.available
+                  : true,
+              imageAlt: cleanString(variant && variant.imageAlt),
+              imageUrl: cleanString(variant && variant.imageUrl),
+              price: cleanString(variant && variant.price),
+              sku: cleanString(variant && variant.sku),
+              title: title,
+              variantGid: cleanString(variant && variant.variantGid),
+              variantId: variantId,
+            };
+          })
+          .filter(Boolean)
+      : [];
+
+    if (variants.length === 0) return null;
+
+    return {
+      handle: cleanString(product.handle),
+      imageAlt: cleanString(product.imageAlt),
+      imageUrl: cleanString(product.imageUrl),
+      productGid: cleanString(product.productGid),
+      title: cleanString(product.title),
+      variants: variants,
+    };
+  }
+
+  function installCartAddInterceptor() {
+    if (cartAddInterceptorInstalled || !nativeFetch) return;
+    cartAddInterceptorInstalled = true;
+
+    window.fetch = function (input, init) {
+      var context = pendingProductAdd;
+
+      if (!context || context.consumed || !isCartAddRequest(input, init)) {
+        return nativeFetch(input, init);
+      }
+
+      var options = extractCartAddOptions(init && init.body);
+      var request = buildCartAddRequest(input, init, context, options);
+      consumePendingProductAdd(context);
+
+      return nativeFetch(request.url, request.init).then(function (response) {
+        if (response.ok) {
+          if (typeof context.onThemeSuccess === "function") {
+            context.onThemeSuccess(response);
+          }
+          notifyThemeCartListeners(response);
+        } else if (typeof context.onThemeError === "function") {
+          context.onThemeError(response);
+        }
+
+        return response;
+      });
+    };
+  }
+
+  function isCartAddRequest(input, init) {
+    var method = cleanString((init && init.method) || input.method || "GET");
+    var url = cleanString(input && input.url ? input.url : input);
+
+    if (method.toUpperCase() !== "POST") return false;
+    return /\/cart\/add(\.js)?(?:\?|$)/.test(url);
+  }
+
+  function buildCartAddRequest(input, init, context, options) {
+    var url = cleanString(input && input.url ? input.url : input);
+    var nextInit = copyObject(init || {});
+    var payload = {
+      items: [context.originalItem, context.cardItem],
+    };
+
+    if (options.sections) payload.sections = options.sections;
+    if (options.sections_url) payload.sections_url = options.sections_url;
+
+    nextInit.method = "POST";
+    nextInit.body = JSON.stringify(payload);
+    nextInit.headers = mergeHeaders(nextInit.headers, {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    });
+
+    return { init: nextInit, url: url };
+  }
+
+  function extractCartAddOptions(body) {
+    var options = {};
+
+    if (!body) return options;
+
+    if (typeof FormData !== "undefined" && body instanceof FormData) {
+      setOptionIfPresent(options, "sections", body.get("sections"));
+      setOptionIfPresent(options, "sections_url", body.get("sections_url"));
+      return options;
+    }
+
+    if (
+      typeof URLSearchParams !== "undefined" &&
+      body instanceof URLSearchParams
+    ) {
+      setOptionIfPresent(options, "sections", body.get("sections"));
+      setOptionIfPresent(options, "sections_url", body.get("sections_url"));
+      return options;
+    }
+
+    if (typeof body === "string") {
+      try {
+        var json = JSON.parse(body);
+        setOptionIfPresent(options, "sections", json.sections);
+        setOptionIfPresent(options, "sections_url", json.sections_url);
+      } catch (err) {
+        var params = new URLSearchParams(body);
+        setOptionIfPresent(options, "sections", params.get("sections"));
+        setOptionIfPresent(options, "sections_url", params.get("sections_url"));
+      }
+    }
+
+    return options;
+  }
+
+  function setOptionIfPresent(options, key, value) {
+    if (value === undefined || value === null || value === "") return;
+    options[key] = value;
+  }
+
+  function consumePendingProductAdd(context) {
+    if (!context) return;
+    context.consumed = true;
+
+    if (context.expiryTimer) {
+      window.clearTimeout(context.expiryTimer);
+    }
+
+    if (pendingProductAdd === context) {
+      pendingProductAdd = null;
+    }
+  }
+
+  function notifyThemeCartListeners(response) {
+    if (!response || typeof response.clone !== "function") return;
+
+    response
+      .clone()
+      .json()
+      .then(function (data) {
+        document.dispatchEvent(
+          new CustomEvent("gmb:cart-added", { detail: data }),
+        );
+      })
+      .catch(function () {});
+  }
+
+  function mergeHeaders(headers, values) {
+    var nextHeaders = new Headers(headers || {});
+
+    Object.keys(values).forEach(function (key) {
+      nextHeaders.set(key, values[key]);
+    });
+
+    return nextHeaders;
+  }
+
+  function copyObject(value) {
+    var copy = {};
+
+    Object.keys(value || {}).forEach(function (key) {
+      copy[key] = value[key];
+    });
+
+    return copy;
+  }
+
+  function normalizeCardVariantStyle(value) {
+    var style = cleanString(value);
+    var allowedStyles = [
+      "dropdown",
+      "grid_4",
+      "grid_3",
+      "list_images",
+      "text_list",
+      "pills",
+    ];
+
+    return allowedStyles.indexOf(style) !== -1 ? style : "grid_4";
+  }
+
+  function removeCardProductPickerStyleClasses(element) {
+    if (!element) return;
+
+    [
+      "dropdown",
+      "grid_4",
+      "grid_3",
+      "list_images",
+      "text_list",
+      "pills",
+    ].forEach(function (style) {
+      element.classList.remove("gmb-card-product-picker--" + style);
+    });
+  }
+
+  function getCurrencyCode(fallback) {
+    return cleanString(
+      (window.Shopify &&
+        window.Shopify.currency &&
+        window.Shopify.currency.active) ||
+        fallback ||
+        "",
+    ).toUpperCase();
+  }
+
+  function getLocaleCode() {
+    return (
+      cleanString(document.documentElement && document.documentElement.lang) ||
+      (navigator.languages && navigator.languages[0]) ||
+      navigator.language ||
+      "en"
+    );
+  }
+
+  function cleanString(value) {
+    return String(value || "").trim();
   }
 
   // ── Bootstrap ────────────────────────────────────────────────────────────
