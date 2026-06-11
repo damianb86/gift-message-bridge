@@ -41,6 +41,9 @@
 
   assign lbl       = block.settings.label       | default: 'Add a gift message'
   assign ph        = block.settings.placeholder | default: 'Write a birthday, thank you, wedding love, etc.'
+  assign from_placeholder = block.settings.from_placeholder | default: 'From'
+  assign to_placeholder = block.settings.to_placeholder | default: 'To'
+  assign message_field_label = block.settings.message_field_label | default: 'Message'
   assign max_chars = block.settings.char_limit  | default: 250
   assign preset    = block.settings.preset      | default: 'default'
   assign custom_css = block.settings.custom_css | default: ''
@@ -55,6 +58,7 @@
     assign show_card_variant_choices = false
   endif
   assign card_variant_choices_style = block.settings.card_variant_choices_style | default: 'grid_4'
+  assign card_variant_choices_label = block.settings.card_variant_choices_label | default: 'Choose a message card'
   assign money_currency_code = localization.country.currency.iso_code | default: cart.currency.iso_code | default: shop.currency
   assign manual_save = false
   if mode == 'order' or block.settings.enable_save_button
@@ -112,6 +116,7 @@
   data-line-item-properties="{{ write_line_item_properties | json }}"
   data-card-variant-choices="{{ show_card_variant_choices | json }}"
   data-card-variant-style="{{ card_variant_choices_style | escape }}"
+  data-card-variant-label="{{ card_variant_choices_label | escape }}"
   data-money-currency-code="{{ money_currency_code | escape }}"
   data-manual-save="{{ manual_save | json }}"
   data-has-saved-message="{{ has_msg | json }}"
@@ -152,13 +157,13 @@
       <div class="gmb-row">
         <input
           class="gmb-input gmb-from"
-          placeholder="From"
-          aria-label="Gift message from"
+          placeholder="{{ from_placeholder | escape }}"
+          aria-label="{{ from_placeholder | escape }}"
         >
         <input
           class="gmb-input gmb-to"
-          placeholder="To"
-          aria-label="Gift message to"
+          placeholder="{{ to_placeholder | escape }}"
+          aria-label="{{ to_placeholder | escape }}"
         >
       </div>
       <textarea
@@ -167,7 +172,7 @@
         placeholder="{{ ph | escape }}"
         maxlength="{{ max_chars }}"
         rows="3"
-        aria-label="{{ lbl | escape }}"
+        aria-label="{{ message_field_label | escape }}"
       ></textarea>
       <input
         type="hidden"
@@ -193,14 +198,14 @@
       <div class="gmb-row">
         <input
           class="gmb-input gmb-from"
-          placeholder="From"
-          aria-label="Gift message from"
+          placeholder="{{ from_placeholder | escape }}"
+          aria-label="{{ from_placeholder | escape }}"
           value="{{ existing_sender | escape }}"
         >
         <input
           class="gmb-input gmb-to"
-          placeholder="To"
-          aria-label="Gift message to"
+          placeholder="{{ to_placeholder | escape }}"
+          aria-label="{{ to_placeholder | escape }}"
           value="{{ existing_recipient | escape }}"
         >
       </div>
@@ -210,7 +215,7 @@
         placeholder="{{ ph | escape }}"
         maxlength="{{ max_chars }}"
         rows="3"
-        aria-label="{{ lbl | escape }}"
+        aria-label="{{ message_field_label | escape }}"
       >{{- existing | escape -}}</textarea>
 
     {%- endif -%}
@@ -396,8 +401,26 @@
     {
       "type": "textarea",
       "id": "placeholder",
-      "label": "Placeholder text",
+      "label": "Message placeholder",
       "default": "Write a birthday, thank you, wedding love, etc."
+    },
+    {
+      "type": "text",
+      "id": "message_field_label",
+      "label": "Message field accessibility label",
+      "default": "Message"
+    },
+    {
+      "type": "text",
+      "id": "from_placeholder",
+      "label": "From placeholder",
+      "default": "From"
+    },
+    {
+      "type": "text",
+      "id": "to_placeholder",
+      "label": "To placeholder",
+      "default": "To"
     },
     {
       "type": "range",
@@ -434,6 +457,12 @@
       "label": "Show message card variant choices",
       "info": "When enabled, product pages show small selectable cards for the variants of the message card product configured in Block setup.",
       "default": true
+    },
+    {
+      "type": "text",
+      "id": "card_variant_choices_label",
+      "label": "Variant selector label",
+      "default": "Choose a message card"
     },
     {
       "type": "select",

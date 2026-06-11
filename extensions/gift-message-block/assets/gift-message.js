@@ -50,6 +50,8 @@
     var cardVariantStyle = normalizeCardVariantStyle(
       block.dataset.cardVariantStyle,
     );
+    var cardVariantLabel =
+      cleanString(block.dataset.cardVariantLabel) || "Choose a message card";
     var moneyCurrencyCode = getCurrencyCode(block.dataset.moneyCurrencyCode);
     var productId = block.dataset.productId || "";
     var productTitle = block.dataset.productTitle || "";
@@ -594,7 +596,7 @@
 
       var label = document.createElement("div");
       label.className = "gmb-card-product-label";
-      label.textContent = "Choose a message card";
+      label.textContent = cardVariantLabel;
 
       var grid = document.createElement("div");
       grid.className = "gmb-card-product-grid";
