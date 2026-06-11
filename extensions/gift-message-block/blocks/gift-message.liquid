@@ -312,10 +312,17 @@
 
   {%- when 'dark' -%}
   /* Dark — inverted, for dark-background sections */
-  #gmb-{{ block.id }}{--gmb-block-label-color:#eef8f4;--gmb-block-panel-bg:rgba(255,255,255,.07);--gmb-block-panel-border:rgba(255,255,255,.14);--gmb-block-field-bg:rgba(255,255,255,.1);--gmb-block-field-border:rgba(255,255,255,.22);--gmb-block-field-text:#f8fafc;--gmb-block-placeholder:rgba(248,250,252,.58);--gmb-block-note:rgba(238,248,244,.72);background:#334155;border-radius:.625rem;color:#eef8f4;padding:1.05rem 1.125rem;}
+  #gmb-{{ block.id }}{--gmb-block-label-color:#eef8f4;--gmb-block-panel-bg:rgba(15,23,42,.54);--gmb-block-panel-border:rgba(255,255,255,.18);--gmb-block-field-bg:#0f172a;--gmb-block-field-hover-bg:#111c33;--gmb-block-field-focus-bg:#0f172a;--gmb-block-field-border:rgba(255,255,255,.28);--gmb-block-field-text:#f8fafc;--gmb-block-placeholder:rgba(248,250,252,.62);--gmb-block-note:rgba(238,248,244,.78);background:#334155;border-radius:.625rem;color:#eef8f4;padding:1.05rem 1.125rem;}
   #gmb-{{ block.id }} .gmb-check-ui{border-color:rgba(255,255,255,.72);}
+  #gmb-{{ block.id }} .gmb-input,
+  #gmb-{{ block.id }} .gmb-message,
+  #gmb-{{ block.id }} .gmb-card-product-select{caret-color:#f8fafc;color:#f8fafc;background:#0f172a;}
+  #gmb-{{ block.id }} .gmb-input:hover,
+  #gmb-{{ block.id }} .gmb-message:hover,
+  #gmb-{{ block.id }} .gmb-card-product-select:hover{color:#f8fafc;background:#111c33;}
   #gmb-{{ block.id }} .gmb-input:focus,
-  #gmb-{{ block.id }} .gmb-message:focus{border-color:var(--gmb-block-primary);box-shadow:0 0 0 3px var(--gmb-block-focus);}
+  #gmb-{{ block.id }} .gmb-message:focus,
+  #gmb-{{ block.id }} .gmb-card-product-select:focus{background:#0f172a;border-color:var(--gmb-block-primary);box-shadow:0 0 0 3px var(--gmb-block-focus);color:#f8fafc;}
 
   {%- when 'glass' -%}
   /* Glass — frosted-glass, works over images/gradients */

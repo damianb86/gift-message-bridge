@@ -15,6 +15,8 @@
   --gmb-block-panel-bg: rgba(255, 255, 255, 0.68);
   --gmb-block-panel-border: rgba(51, 65, 85, 0.12);
   --gmb-block-field-bg: #fff;
+  --gmb-block-field-hover-bg: var(--gmb-block-field-bg);
+  --gmb-block-field-focus-bg: var(--gmb-block-field-bg);
   --gmb-block-field-border: rgba(51, 65, 85, 0.18);
   --gmb-block-field-text: #1f2937;
   --gmb-block-placeholder: #7b8794;
@@ -162,8 +164,16 @@
   min-height: 4.5rem;
 }
 
+.gmb-input:hover,
+.gmb-message:hover {
+  color: var(--gmb-block-field-text);
+  background: var(--gmb-block-field-hover-bg);
+}
+
 .gmb-input:focus,
 .gmb-message:focus {
+  color: var(--gmb-block-field-text);
+  background: var(--gmb-block-field-focus-bg);
   border-color: var(--gmb-block-primary);
   outline: none;
   box-shadow: 0 0 0 3px var(--gmb-block-focus);
@@ -174,6 +184,13 @@
 .gmb-message::placeholder {
   color: var(--gmb-block-placeholder);
   opacity: 1;
+}
+
+.gmb-input:-webkit-autofill,
+.gmb-message:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--gmb-block-field-bg) inset;
+  -webkit-text-fill-color: var(--gmb-block-field-text);
+  caret-color: var(--gmb-block-field-text);
 }
 
 .gmb-card-product-picker {
@@ -226,7 +243,14 @@
   width: 100%;
 }
 
+.gmb-card-product-select:hover {
+  background: var(--gmb-block-field-hover-bg);
+  color: var(--gmb-block-field-text);
+}
+
 .gmb-card-product-select:focus-visible {
+  background: var(--gmb-block-field-focus-bg);
+  color: var(--gmb-block-field-text);
   border-color: var(--gmb-block-primary);
   box-shadow: 0 0 0 3px var(--gmb-block-focus);
   outline: none;
@@ -258,7 +282,9 @@
 
 .gmb-card-product-option:hover,
 .gmb-card-product-option:focus-visible {
+  background: var(--gmb-block-field-hover-bg);
   border-color: var(--gmb-block-primary);
+  color: var(--gmb-block-field-text);
   box-shadow: 0 0 0 3px var(--gmb-block-focus);
   outline: none;
 }
