@@ -1,17 +1,43 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect } from "react-router";
 
+import { authenticate } from "../../shopify.server";
 import styles from "./styles.module.css";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
+  const blockSetupPath = buildBlockSetupPath(url.searchParams);
 
-  if (url.searchParams.get("shop")) {
-    throw redirect(`/app?${url.searchParams.toString()}`);
+  if (hasShopifyContext(url.searchParams)) {
+    throw redirect(blockSetupPath);
+  }
+
+  let hasAdminSession = false;
+
+  try {
+    await authenticate.admin(request);
+    hasAdminSession = true;
+  } catch {
+    hasAdminSession = false;
+  }
+
+  if (hasAdminSession) {
+    throw redirect(blockSetupPath);
   }
 
   return null;
 };
+
+function hasShopifyContext(searchParams: URLSearchParams) {
+  return ["shop", "host", "embedded", "hmac", "id_token"].some((key) =>
+    searchParams.has(key),
+  );
+}
+
+function buildBlockSetupPath(searchParams: URLSearchParams) {
+  const query = searchParams.toString();
+  return query ? `/app?${query}` : "/app";
+}
 
 export default function App() {
   return (
@@ -72,6 +98,9 @@ export default function App() {
               Store.
             </p>
           </div>
+          <a className={styles.buttonLink} href="/app">
+            Go to Block Setup
+          </a>
         </div>
       </section>
 

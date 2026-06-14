@@ -288,6 +288,25 @@
   background: var(--gmb-primary-hover);
 }
 
+.buttonLink {
+  align-items: center;
+  background: var(--gmb-primary);
+  border-radius: 8px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 15px;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.buttonLink:hover {
+  background: var(--gmb-primary-hover);
+}
+
 .workflow {
   width: min(1160px, 100%);
   margin: 0 auto;
