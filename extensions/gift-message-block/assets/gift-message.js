@@ -4,8 +4,12 @@
   var WARN_THRESHOLD = 20;
   var PROXY_PATH = "/apps/gift-message";
   var MESSAGE_PROPERTY = "Gift Message";
+  var MESSAGE_FROM_PROPERTY = "Gift Message From";
+  var MESSAGE_TO_PROPERTY = "Gift Message To";
   var MESSAGE_REFERENCE_PROPERTY = "Gift Message Ref";
   var CARD_PRODUCT_SOURCE_PROPERTY = "_Gift Message Card";
+  var CARD_PRODUCT_SELECTION_PROPERTY = "_Gift Message Card Selection";
+  var CARD_PRODUCT_VARIANT_ID_PROPERTY = "_Gift Message Card Variant";
   var REFERENCE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   var REFERENCE_LENGTH = 5;
   var CARD_PRODUCTS_INTENT = "card-products";
@@ -727,7 +731,11 @@
       if (variant && !isCardVariantAvailable(variant)) return;
       selectedCardVariant = variant || null;
 
-      if (!cardProductPicker) return;
+      if (!cardProductPicker) {
+        syncProductPropertiesFromCurrentForm();
+        return;
+      }
+
       cardProductPicker
         .querySelectorAll(".gmb-card-product-option")
         .forEach(function (button) {
@@ -744,6 +752,8 @@
       if (select && selectedCardVariant) {
         select.value = selectedCardVariant.variantId;
       }
+
+      syncProductPropertiesFromCurrentForm();
     }
 
     function buildCardProductAddContext(form) {
@@ -758,19 +768,20 @@
       if (!value.trim() && !sender.trim() && !recipient.trim()) return null;
 
       var messageId = ensureMessageId();
-      var messageProperties = {};
-      messageProperties[MESSAGE_PROPERTY] = formatLineItemGiftMessage(
+      var messageProperties = buildGiftMessageLineItemProperties(
         sender,
         recipient,
         value,
+        messageId,
       );
-      messageProperties[MESSAGE_REFERENCE_PROPERTY] = messageId;
-
       var cardProperties = copyObject(messageProperties);
       cardProperties[CARD_PRODUCT_SOURCE_PROPERTY] =
-        productTitle || productHandle || "Gift message product";
+        buildOriginalProductReference(form);
 
-      var originalItem = buildOriginalCartItem(form, messageProperties);
+      var originalItem = buildOriginalCartItem(
+        form,
+        buildGiftMessageReferenceProperties(messageId),
+      );
       if (!originalItem) return null;
 
       return {
@@ -830,12 +841,19 @@
 
       var messageId = ensureMessageId();
 
-      addProductProperty(
-        form,
-        MESSAGE_PROPERTY,
-        formatLineItemGiftMessage(sender, recipient, value),
-      );
-      addProductProperty(form, MESSAGE_REFERENCE_PROPERTY, messageId);
+      if (shouldAttachMessageToCardProduct()) {
+        addProductProperties(
+          form,
+          buildGiftMessageReferenceProperties(messageId),
+        );
+      } else {
+        addProductProperty(
+          form,
+          MESSAGE_PROPERTY,
+          formatLineItemGiftMessage(sender, recipient, value),
+        );
+        addProductProperty(form, MESSAGE_REFERENCE_PROPERTY, messageId);
+      }
 
       return true;
     }
@@ -965,6 +983,12 @@
       form.appendChild(input);
     }
 
+    function addProductProperties(form, properties) {
+      Object.keys(properties || {}).forEach(function (key) {
+        addProductProperty(form, key, properties[key]);
+      });
+    }
+
     function removeProductProperties(form) {
       if (!form) return;
       form.querySelectorAll("[data-gmb-property]").forEach(function (input) {
@@ -1005,6 +1029,52 @@
       return item;
     }
 
+    function buildGiftMessageLineItemProperties(
+      sender,
+      recipient,
+      message,
+      messageId,
+    ) {
+      var properties = {};
+      var cleanSender = String(sender || "").trim();
+      var cleanRecipient = String(recipient || "").trim();
+      var cleanMessage = String(message || "").trim();
+
+      properties[MESSAGE_PROPERTY] =
+        cleanMessage ||
+        formatLineItemGiftMessage(cleanSender, cleanRecipient, message);
+
+      if (cleanSender) {
+        properties[MESSAGE_FROM_PROPERTY] = cleanSender;
+      }
+
+      if (cleanRecipient) {
+        properties[MESSAGE_TO_PROPERTY] = cleanRecipient;
+      }
+
+      properties[MESSAGE_REFERENCE_PROPERTY] = messageId;
+
+      return properties;
+    }
+
+    function buildGiftMessageReferenceProperties(messageId) {
+      var properties = {};
+      var cardSelection = getSelectedCardVariantReference();
+
+      properties[MESSAGE_REFERENCE_PROPERTY] = messageId;
+
+      if (cardSelection) {
+        properties[CARD_PRODUCT_SELECTION_PROPERTY] = cardSelection;
+      }
+
+      if (selectedCardVariant && selectedCardVariant.variantId) {
+        properties[CARD_PRODUCT_VARIANT_ID_PROPERTY] =
+          selectedCardVariant.variantId;
+      }
+
+      return properties;
+    }
+
     function collectLineItemProperties(formData) {
       var properties = {};
 
@@ -1030,6 +1100,14 @@
     function shouldIncludeMessageInProductForm() {
       if (!manualSave) return toggle.checked;
       return hasSavedMessage && !isDirty;
+    }
+
+    function shouldAttachMessageToCardProduct() {
+      return Boolean(
+        cardVariantChoicesEnabled &&
+        selectedCardVariant &&
+        selectedCardVariant.variantId,
+      );
     }
 
     function persistMessage(
@@ -1225,6 +1303,40 @@
       return cardProductConfig && cardProductConfig.title
         ? cardProductConfig.title
         : "Message card";
+    }
+
+    function getSelectedCardVariantReference() {
+      if (!selectedCardVariant || !selectedCardVariant.variantId) return "";
+
+      var productName =
+        cardProductConfig && cardProductConfig.title
+          ? cardProductConfig.title
+          : "Message card";
+      var variantTitle = getCardVariantTitle(selectedCardVariant);
+
+      if (variantTitle && variantTitle !== productName) {
+        return productName + " - " + variantTitle;
+      }
+
+      return productName;
+    }
+
+    function buildOriginalProductReference(form) {
+      var variant = getSelectedVariant(form);
+      var title = String(productTitle || "").trim();
+      var variantTitle = getVariantTitle(variant);
+      var sku = variant && variant.sku ? String(variant.sku).trim() : "";
+      var parts = [];
+
+      if (title) {
+        parts.push(title + (variantTitle ? " - " + variantTitle : ""));
+      }
+
+      if (sku) {
+        parts.push("SKU: " + sku);
+      }
+
+      return parts.join(" | ") || productHandle || "Gift message product";
     }
 
     function findFirstAvailableCardVariant(variants) {

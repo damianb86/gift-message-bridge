@@ -375,16 +375,48 @@ function collectGiftMessages(order) {
   const lines = order?.lineItems?.nodes || [];
   const orderReference = clean(order?.name) || clean(order?.id);
   const orderDate = formatDate(order?.processedAt || order?.createdAt);
+  const linkedProductReferences = buildLinkedProductReferences(lines);
   const orderMessages = collectOrderGiftMessages(
     order?.customAttributes || [],
     orderReference,
     orderDate,
   );
   const lineMessages = lines.flatMap((line, index) =>
-    collectLineGiftMessages(line, index, orderReference, orderDate),
+    collectLineGiftMessages(
+      line,
+      index,
+      orderReference,
+      orderDate,
+      linkedProductReferences,
+    ),
   );
 
   return dedupeGiftMessages([...orderMessages, ...lineMessages]);
+}
+
+function buildLinkedProductReferences(lines) {
+  const references = new Map();
+
+  for (const line of lines || []) {
+    const attributes = line.customAttributes || [];
+    const reference = findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY);
+    const giftMessageValue = findGiftMessage(attributes);
+    const giftMessageCardSource = findAttributeValue(
+      attributes,
+      GIFT_MESSAGE_CARD_PROPERTY,
+    );
+
+    if (!reference || giftMessageValue || giftMessageCardSource) {
+      continue;
+    }
+
+    const productReference = buildProductReference(line);
+    if (productReference && !references.has(reference)) {
+      references.set(reference, productReference);
+    }
+  }
+
+  return references;
 }
 
 function collectOrderGiftMessages(attributes, orderReference, orderDate) {
@@ -424,13 +456,23 @@ function collectOrderGiftMessages(attributes, orderReference, orderDate) {
   ];
 }
 
-function collectLineGiftMessages(line, index, orderReference, orderDate) {
+function collectLineGiftMessages(
+  line,
+  index,
+  orderReference,
+  orderDate,
+  linkedProductReferences,
+) {
   const attributes = line.customAttributes || [];
   const giftMessageValue = findGiftMessage(attributes);
   const giftMessageCardSource = findAttributeValue(
     attributes,
     GIFT_MESSAGE_CARD_PROPERTY,
   );
+  const reference =
+    findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY) ||
+    `${orderReference || "Order"}-${index + 1}`;
+  const linkedProductReference = linkedProductReferences.get(reference);
 
   if (!giftMessageValue) {
     return [];
@@ -445,15 +487,22 @@ function collectLineGiftMessages(line, index, orderReference, orderDate) {
 
   return [
     {
-      reference:
-        findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY) ||
-        `${orderReference || "Order"}-${index + 1}`,
+      reference,
       cartReference: orderReference,
       cartToken: orderReference,
-      isMessageCardAddon: Boolean(giftMessageCardSource),
-      productReference: giftMessageCardSource || buildProductReference(line),
-      sender: parsed.sender,
-      recipient: parsed.recipient,
+      isMessageCardAddon: Boolean(
+        giftMessageCardSource || linkedProductReference,
+      ),
+      productReference:
+        linkedProductReference ||
+        giftMessageCardSource ||
+        buildProductReference(line),
+      sender:
+        findAttributeValue(attributes, GIFT_MESSAGE_FROM_ATTRIBUTE) ||
+        parsed.sender,
+      recipient:
+        findAttributeValue(attributes, GIFT_MESSAGE_TO_ATTRIBUTE) ||
+        parsed.recipient,
       message,
       date: orderDate,
     },
