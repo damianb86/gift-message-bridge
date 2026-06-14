@@ -203,15 +203,15 @@ export default function Help() {
 
   const modalContent = {
     customization: {
-      title: "Request setup help",
+      title: "Request a store-specific customization",
       type: "customization",
-      subjectPlaceholder: "Store-specific gift message workflow",
-      messageLabel: "What workflow do you need help with?",
+      subjectPlaceholder: "Store-specific Gift Pulse adjustment",
+      messageLabel: "What should work differently for this store?",
       messagePlaceholder:
-        "Example: Adapt the message form, print layout, or packing-team workflow to match how this store fulfills gifts.",
+        "Example: Adjust the storefront form style, add a specific field, change the print layout, or adapt the packing-team workflow.",
       intro:
-        "Share what happens today, where setup is unclear, and whether the app should behave differently for your store.",
-      primary: "Send help request",
+        "Share what happens today, what should be different, and how the app could fit your store more closely.",
+      primary: "Send customization request",
     },
     suggestion: {
       title: "Suggest an improvement",
@@ -368,6 +368,28 @@ export default function Help() {
               </ul>
             </div>
           </div>
+        </div>
+      </s-section>
+
+      <s-section>
+        <div className={styles.customRequestBanner}>
+          <div className={styles.customRequestCopy}>
+            <span className={styles.customRequestEyebrow}>
+              Store-specific fit
+            </span>
+            <h2>Need Gift Pulse to work a little differently?</h2>
+            <p>
+              Send a request if your store needs a design, style, workflow, or
+              feature adjustment so the app matches how your team sells,
+              prepares, or fulfills gift orders.
+            </p>
+          </div>
+          <s-button
+            variant="primary"
+            onClick={() => setOpenModal("customization")}
+          >
+            Request customization
+          </s-button>
         </div>
       </s-section>
 

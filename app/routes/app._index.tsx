@@ -628,6 +628,43 @@ export default function GiftMessageSetup() {
   return (
     <s-page heading="Block Setup" inlineSize="large">
       <s-section>
+        <s-box
+          background="subdued"
+          borderColor="base"
+          borderRadius="base"
+          borderWidth="small"
+          padding="base"
+        >
+          <div
+            style={{
+              alignItems: "center",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "0.75rem",
+              justifyContent: "space-between",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                flex: "1 1 320px",
+                gap: "0.125rem",
+                minWidth: 0,
+              }}
+            >
+              <s-text type="strong">Need a store-specific adjustment?</s-text>
+              <s-text color="subdued">
+                If your store needs a design, style, workflow, or feature change
+                so Gift Pulse fits better, contact us and we can review the best
+                way to help.
+              </s-text>
+            </div>
+            <s-link href="/app/help">Open Help & Contact</s-link>
+          </div>
+        </s-box>
+      </s-section>
+
+      <s-section>
         <div className={styles.setupShowcase}>
           <div className={styles.heroGrid}>
             <div className={styles.heroCopy}>

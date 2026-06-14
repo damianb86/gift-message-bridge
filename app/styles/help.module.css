@@ -71,6 +71,50 @@
   gap: 0.75rem;
 }
 
+.customRequestBanner {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid rgba(79, 175, 143, 0.22);
+  border-left: 4px solid var(--gmb-sage);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(51, 65, 85, 0.08);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 1rem;
+}
+
+.customRequestCopy {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.customRequestEyebrow {
+  color: var(--gmb-primary);
+  font-size: 0.72rem;
+  font-weight: 760;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.customRequestCopy h2 {
+  color: var(--gmb-charcoal);
+  font-size: 1rem;
+  font-weight: 760;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.customRequestCopy p {
+  color: var(--gmb-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin: 0;
+  max-width: 760px;
+}
+
 .popularCard {
   background:
     linear-gradient(90deg, rgba(238, 248, 244, 0.14) 1px, transparent 1px),
@@ -377,6 +421,11 @@
   .actions,
   .privacyActions,
   .modalActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .customRequestBanner {
     align-items: stretch;
     flex-direction: column;
   }
