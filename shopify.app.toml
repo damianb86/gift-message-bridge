@@ -2,7 +2,7 @@
 
 client_id = "5648b993ebb2c0c32aebf341a158f812"
 name = "Gift Pulse: Gift Messages"
-application_url = "https://qorve-2.duckdns.org"
+application_url = "https://app-gift-pulse.zuam.dev"
 embedded = true
 
 [build]
@@ -25,11 +25,11 @@ api_version = "2026-04"
   compliance_topics = [ "shop/redact" ]
 
   [[webhooks.subscriptions]]
-  uri = "https://qorve-2.duckdns.org/webhooks/app/uninstalled"
+  uri = "https://app-gift-pulse.zuam.dev/webhooks/app/uninstalled"
   topics = [ "app/uninstalled" ]
 
   [[webhooks.subscriptions]]
-  uri = "https://qorve-2.duckdns.org/webhooks/app/scopes_update"
+  uri = "https://app-gift-pulse.zuam.dev/webhooks/app/scopes_update"
   topics = [ "app/scopes_update" ]
 
 [access_scopes]
@@ -38,9 +38,9 @@ scopes = "read_orders"
 optional_scopes = [ "write_products" ]
 
 [auth]
-redirect_urls = [ "https://qorve-2.duckdns.org/auth/callback" ]
+redirect_urls = [ "https://app-gift-pulse.zuam.dev/auth/callback" ]
 
 [app_proxy]
-url = "https://qorve-2.duckdns.org/proxy/gift-message"
+url = "https://app-gift-pulse.zuam.dev/proxy/gift-message"
 subpath = "gift-message"
 prefix = "apps"
