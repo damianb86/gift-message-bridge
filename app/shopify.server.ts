@@ -6,6 +6,7 @@ import {
 } from "@shopify/shopify-app-react-router/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
+import { notifyAppInstalled } from "./lib/app-lifecycle-email.server";
 
 function normalizeAppUrl(value?: string) {
   const rawUrl = value?.trim();
@@ -58,6 +59,11 @@ const shopify = shopifyApp({
   distribution: AppDistribution.AppStore,
   future: {
     expiringOfflineAccessTokens: true,
+  },
+  hooks: {
+    afterAuth: async ({ admin, session }) => {
+      await notifyAppInstalled({ admin, session });
+    },
   },
   ...(process.env.SHOP_CUSTOM_DOMAIN
     ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }

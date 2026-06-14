@@ -19,6 +19,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     db.printTemplateSettings.deleteMany({ where: { shop: shopDomain } }),
     db.printJob.deleteMany({ where: { shop: shopDomain } }),
     db.contactRequest.deleteMany({ where: { shop: shopDomain } }),
+    db.appInstallation.deleteMany({ where: { shop: shopDomain } }),
     db.session.deleteMany({ where: { shop: shopDomain } }),
   ]);
 

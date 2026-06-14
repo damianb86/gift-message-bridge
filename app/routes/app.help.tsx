@@ -27,11 +27,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const intent = String(formData.get("intent") ?? "");
 
   if (intent === "privacy-data-request") {
-    const [giftMessages, printTemplates, contacts] = await Promise.all([
-      db.giftMessage.count({ where: { shop: session.shop } }),
-      db.printTemplateSettings.count({ where: { shop: session.shop } }),
-      db.contactRequest.count({ where: { shop: session.shop } }),
-    ]);
+    const [giftMessages, printTemplates, contacts, appInstallations] =
+      await Promise.all([
+        db.giftMessage.count({ where: { shop: session.shop } }),
+        db.printTemplateSettings.count({ where: { shop: session.shop } }),
+        db.contactRequest.count({ where: { shop: session.shop } }),
+        db.appInstallation.count({ where: { shop: session.shop } }),
+      ]);
 
     await sendContactEmail({
       type: "Privacy: Data summary",
@@ -44,6 +46,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         `- Gift messages: ${giftMessages}`,
         `- Print template settings: ${printTemplates}`,
         `- Contact requests: ${contacts}`,
+        `- App installation records: ${appInstallations}`,
         "- Sessions: active offline access tokens",
         "",
         "No personal customer account data is stored by the app.",
@@ -53,7 +56,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return {
       ok: true,
       intent: "privacy-data-request" as const,
-      counts: { giftMessages, printTemplates, contacts },
+      counts: { giftMessages, printTemplates, contacts, appInstallations },
       message: "Data summary sent to our team. We will respond within 30 days.",
     };
   }
@@ -63,6 +66,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       db.giftMessage.deleteMany({ where: { shop: session.shop } }),
       db.printTemplateSettings.deleteMany({ where: { shop: session.shop } }),
       db.contactRequest.deleteMany({ where: { shop: session.shop } }),
+      db.appInstallation.deleteMany({ where: { shop: session.shop } }),
       db.session.deleteMany({ where: { shop: session.shop } }),
     ]);
 
@@ -74,7 +78,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         `Shop: ${session.shop}`,
         "",
         "The merchant requested deletion of all app data.",
-        "Deleted: gift messages, print template settings, contact requests, and sessions.",
+        "Deleted: gift messages, print template settings, contact requests, app installation records, and sessions.",
       ].join("\n"),
     });
 
@@ -270,7 +274,7 @@ export default function Help() {
     if (data.ok) {
       const counts = "counts" in data ? data.counts : null;
       const extra = counts
-        ? ` ${counts.giftMessages} gift message(s), ${counts.printTemplates} template setting(s), ${counts.contacts} contact request(s).`
+        ? ` ${counts.giftMessages} gift message(s), ${counts.printTemplates} template setting(s), ${counts.contacts} contact request(s), ${counts.appInstallations} app installation record(s).`
         : "";
       shopify.toast.show(`${data.message}${extra}`, { duration: 7000 });
     } else {
@@ -483,11 +487,12 @@ export default function Help() {
               "Gift messages and related product/cart references",
               "Print template preferences and custom template code",
               "Contact requests sent through this page",
+              "Basic app installation and uninstall status for your shop",
               "Session tokens for Shopify admin authentication",
               "No personal customer account data is stored by the app",
             ].map((item, index) => (
               <li key={item}>
-                <span>{index === 4 ? "✓" : "·"}</span>
+                <span>{index === 5 ? "✓" : "·"}</span>
                 <s-text>{item}</s-text>
               </li>
             ))}
