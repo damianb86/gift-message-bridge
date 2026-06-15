@@ -502,6 +502,10 @@
       );
     }
 
+    function hasSelectedCardProduct() {
+      return shouldAttachMessageToCardProduct();
+    }
+
     /**
      * Send the message to the App Proxy (/apps/gift-message).
      * Shopify proxies the request to the app backend, which verifies the HMAC,
@@ -637,6 +641,11 @@
         return;
       }
 
+      if (cardVariantStyle === "dropdown_images") {
+        renderCardVariantImageDropdown(cardProductPicker, label, variants);
+        return;
+      }
+
       variants.forEach(function (variant) {
         var available = isCardVariantAvailable(variant);
         var button = document.createElement("button");
@@ -747,6 +756,204 @@
       container.hidden = false;
     }
 
+    function renderCardVariantImageDropdown(container, label, variants) {
+      var dropdown = document.createElement("div");
+      dropdown.className = "gmb-card-product-image-dropdown";
+
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "gmb-card-product-dropdown-button";
+      button.setAttribute("aria-haspopup", "listbox");
+      button.setAttribute("aria-expanded", "false");
+      button.disabled = !toggle.checked || !selectedCardVariant;
+
+      var menu = document.createElement("div");
+      menu.className = "gmb-card-product-dropdown-menu";
+      menu.hidden = true;
+      menu.setAttribute("role", "listbox");
+
+      variants.forEach(function (variant) {
+        var available = isCardVariantAvailable(variant);
+        var option = document.createElement("button");
+        option.type = "button";
+        option.className = "gmb-card-product-dropdown-option";
+        option.dataset.variantId = variant.variantId || "";
+        option.disabled = !available;
+        option.setAttribute("role", "option");
+        option.setAttribute("aria-disabled", available ? "false" : "true");
+        option.setAttribute(
+          "aria-selected",
+          selectedCardVariant &&
+            selectedCardVariant.variantId === variant.variantId
+            ? "true"
+            : "false",
+        );
+        option.toggleAttribute("data-gmb-sold-out", !available);
+
+        appendCardVariantImage(option, variant);
+        appendCardVariantText(option, variant, available);
+
+        option.addEventListener("click", function () {
+          if (!available) return;
+          setSelectedCardVariant(variant);
+          closeCardVariantImageDropdown(dropdown);
+        });
+
+        menu.appendChild(option);
+      });
+
+      button.addEventListener("click", function () {
+        if (button.disabled) return;
+        setCardVariantImageDropdownOpen(dropdown, menu.hidden);
+      });
+
+      button.addEventListener("keydown", function (event) {
+        if (event.key !== "ArrowDown") return;
+        if (button.disabled) return;
+        event.preventDefault();
+        setCardVariantImageDropdownOpen(dropdown, true);
+        focusFirstAvailableDropdownOption(dropdown);
+      });
+
+      menu.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeCardVariantImageDropdown(dropdown);
+          button.focus();
+        }
+      });
+
+      document.addEventListener("click", function (event) {
+        if (!dropdown.contains(event.target)) {
+          closeCardVariantImageDropdown(dropdown);
+        }
+      });
+
+      dropdown.appendChild(button);
+      dropdown.appendChild(menu);
+      container.appendChild(label);
+      container.appendChild(dropdown);
+      container.hidden = false;
+      updateCardVariantImageDropdown();
+    }
+
+    function appendCardVariantImage(parent, variant) {
+      var imageWrap = document.createElement("span");
+      imageWrap.className = "gmb-card-product-image";
+
+      if (variant && variant.imageUrl) {
+        var image = document.createElement("img");
+        image.src = variant.imageUrl;
+        image.alt = variant.imageAlt || "";
+        image.loading = "lazy";
+        imageWrap.appendChild(image);
+      } else {
+        var placeholder = document.createElement("span");
+        placeholder.className = "gmb-card-product-placeholder";
+        placeholder.setAttribute("aria-hidden", "true");
+        placeholder.textContent = "+";
+        imageWrap.appendChild(placeholder);
+      }
+
+      parent.appendChild(imageWrap);
+    }
+
+    function appendCardVariantText(parent, variant, available) {
+      var copy = document.createElement("span");
+      copy.className = "gmb-card-product-dropdown-copy";
+
+      var title = document.createElement("span");
+      title.className = "gmb-card-product-title";
+      title.textContent = variant
+        ? getCardVariantTitle(variant)
+        : "Select a message card";
+      copy.appendChild(title);
+
+      if (variant && variant.price) {
+        var price = document.createElement("span");
+        price.className = "gmb-card-product-price";
+        price.textContent = formatCardVariantPrice(variant.price);
+        copy.appendChild(price);
+      }
+
+      if (available === false) {
+        var status = document.createElement("span");
+        status.className = "gmb-card-product-status";
+        status.textContent = "Out of stock";
+        copy.appendChild(status);
+      }
+
+      parent.appendChild(copy);
+    }
+
+    function updateCardVariantImageDropdown() {
+      if (!cardProductPicker) return;
+
+      var dropdown = cardProductPicker.querySelector(
+        ".gmb-card-product-image-dropdown",
+      );
+      if (!dropdown) return;
+
+      var button = dropdown.querySelector(".gmb-card-product-dropdown-button");
+      if (!button) return;
+
+      button.innerHTML = "";
+      if (selectedCardVariant) {
+        appendCardVariantImage(button, selectedCardVariant);
+        appendCardVariantText(
+          button,
+          selectedCardVariant,
+          isCardVariantAvailable(selectedCardVariant),
+        );
+      } else {
+        appendCardVariantImage(button, null);
+        appendCardVariantText(button, null, true);
+      }
+
+      var chevron = document.createElement("span");
+      chevron.className = "gmb-card-product-dropdown-chevron";
+      chevron.setAttribute("aria-hidden", "true");
+      chevron.textContent = "v";
+      button.appendChild(chevron);
+      button.disabled = !toggle.checked || !selectedCardVariant;
+
+      dropdown
+        .querySelectorAll(".gmb-card-product-dropdown-option")
+        .forEach(function (option) {
+          var selected =
+            selectedCardVariant &&
+            option.dataset.variantId === selectedCardVariant.variantId;
+          option.setAttribute("aria-selected", selected ? "true" : "false");
+        });
+    }
+
+    function setCardVariantImageDropdownOpen(dropdown, open) {
+      if (!dropdown) return;
+
+      var button = dropdown.querySelector(".gmb-card-product-dropdown-button");
+      var menu = dropdown.querySelector(".gmb-card-product-dropdown-menu");
+      if (!button || !menu) return;
+
+      if (button.disabled) open = false;
+      dropdown.toggleAttribute("data-gmb-open", open);
+      menu.hidden = !open;
+      button.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    function closeCardVariantImageDropdown(dropdown) {
+      setCardVariantImageDropdownOpen(dropdown, false);
+    }
+
+    function focusFirstAvailableDropdownOption(dropdown) {
+      var option =
+        dropdown &&
+        dropdown.querySelector(
+          ".gmb-card-product-dropdown-option:not(:disabled)",
+        );
+
+      if (option) option.focus();
+    }
+
     function setSelectedCardVariant(variant) {
       if (variant && !isCardVariantAvailable(variant)) return;
       selectedCardVariant = variant || null;
@@ -773,6 +980,8 @@
         select.value = selectedCardVariant.variantId;
       }
 
+      updateCardVariantImageDropdown();
+
       syncProductPropertiesFromCurrentForm();
       if (manualSave) {
         isDirty = true;
@@ -787,11 +996,19 @@
       if (!cardProductPicker) return;
 
       cardProductPicker
-        .querySelectorAll(".gmb-card-product-option, .gmb-card-product-select")
+        .querySelectorAll(
+          ".gmb-card-product-option, .gmb-card-product-select, .gmb-card-product-dropdown-button, .gmb-card-product-dropdown-option",
+        )
         .forEach(function (control) {
           control.disabled =
             disabled || control.getAttribute("aria-disabled") === "true";
         });
+
+      if (disabled) {
+        cardProductPicker
+          .querySelectorAll(".gmb-card-product-image-dropdown")
+          .forEach(closeCardVariantImageDropdown);
+      }
     }
 
     function buildCardProductAddContext(form) {
@@ -1861,6 +2078,7 @@
     var style = cleanString(value);
     var allowedStyles = [
       "dropdown",
+      "dropdown_images",
       "grid_4",
       "grid_3",
       "list_images",
@@ -1876,6 +2094,7 @@
 
     [
       "dropdown",
+      "dropdown_images",
       "grid_4",
       "grid_3",
       "list_images",
@@ -1907,6 +2126,17 @@
 
   function cleanString(value) {
     return String(value || "").trim();
+  }
+
+  function hashString(value) {
+    var text = String(value || "");
+    var hash = 0;
+
+    for (var i = 0; i < text.length; i += 1) {
+      hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+    }
+
+    return hash.toString(36);
   }
 
   function initBlocksIn(root) {
@@ -2064,12 +2294,21 @@
     applyDrawerMountSettings(embed, mount);
     insertDrawerMount(drawer, mount, embed.dataset.gmbDrawerPlacement);
 
-    if (!mount.querySelector("[data-gmb-block]")) {
+    var templateSignature = getDrawerTemplateSignature(template);
+    var shouldRefreshTemplate =
+      mount.dataset.gmbDrawerTemplateSignature !== templateSignature;
+
+    if (shouldRefreshTemplate || !mount.querySelector("[data-gmb-block]")) {
       mount.textContent = "";
+      mount.dataset.gmbDrawerTemplateSignature = templateSignature;
       mount.appendChild(template.content.cloneNode(true));
     }
 
     initBlocksIn(mount);
+  }
+
+  function getDrawerTemplateSignature(template) {
+    return String(hashString(template && template.innerHTML));
   }
 
   function applyDrawerMountSettings(embed, mount) {
