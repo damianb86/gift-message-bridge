@@ -557,14 +557,9 @@ export default function GiftMessageSetup() {
   };
 
   const requestThemePermission = async () => {
-    if (hasGrantedThemeScope) return true;
-
-    if (!canRequestThemeReadScope) {
-      shopify.toast.show(
-        "The optional theme permission is not available yet. Deploy the updated app configuration first.",
-        { isError: true },
-      );
-      return false;
+    if (hasGrantedThemeScope) {
+      revalidator.revalidate();
+      return true;
     }
 
     setIsRequestingThemeScope(true);
@@ -588,9 +583,12 @@ export default function GiftMessageSetup() {
       return true;
     } catch (error) {
       console.error("[block-setup:theme-scope-request]", error);
-      shopify.toast.show("Theme permission could not be requested.", {
-        isError: true,
-      });
+      shopify.toast.show(
+        canRequestThemeReadScope
+          ? "Theme permission could not be requested."
+          : "Theme permission could not be requested. If Shopify does not show the permission dialog, deploy the updated app configuration first.",
+        { isError: true },
+      );
       return false;
     } finally {
       setIsRequestingThemeScope(false);
