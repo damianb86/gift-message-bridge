@@ -26,6 +26,9 @@ const VISIBILITY_OWNER_TYPES = ["PRODUCT", "COLLECTION"] as const;
 const METAFIELDS_SET_CHUNK_SIZE = 25;
 const VISIBILITY_METAFIELDS_PAGE_SIZE = 250;
 const CARD_PRODUCT_VARIANTS_PAGE_SIZE = 100;
+const SHOPIFY_APP_API_KEY =
+  process.env.SHOPIFY_API_KEY || "5648b993ebb2c0c32aebf341a158f812";
+const DRAWER_APP_EMBED_HANDLE = "gift-message-drawer";
 
 type VisibilityOwnerType = (typeof VISIBILITY_OWNER_TYPES)[number];
 type VisibilityResourceType = "product" | "collection";
@@ -91,6 +94,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     customDataUrl: `https://${session.shop}/admin/settings/custom_data`,
     editorProductUrl: `${editorBase}?template=product`,
     editorCartUrl: `${editorBase}?template=cart`,
+    editorDrawerUrl: `${editorBase}?context=apps&template=cart&activateAppId=${SHOPIFY_APP_API_KEY}/${DRAWER_APP_EMBED_HANDLE}`,
     hasProductWriteScope,
     productsUrl: `https://${session.shop}/admin/products`,
     visibilityMetafieldDefinitions,
@@ -323,6 +327,7 @@ export default function GiftMessageSetup() {
     collectionsUrl,
     customDataUrl,
     editorCartUrl,
+    editorDrawerUrl,
     editorProductUrl,
     hasProductWriteScope,
     productsUrl,
@@ -693,7 +698,7 @@ export default function GiftMessageSetup() {
                 <FeatureItem
                   icon="layout"
                   title="Flexible placement"
-                  description="Works on product and cart pages"
+                  description="Works on product pages, cart pages, and drawers"
                 />
                 <FeatureItem
                   icon="shield"
@@ -715,8 +720,8 @@ export default function GiftMessageSetup() {
                 <div>
                   <h2>Open theme editor</h2>
                   <p>
-                    Use the same block in either storefront context. Choose the
-                    place you want to edit.
+                    Use the block or app embed in the storefront context you
+                    want to edit.
                   </p>
                 </div>
               </div>
@@ -736,6 +741,20 @@ export default function GiftMessageSetup() {
                   icon={<CartPageIcon />}
                   preview="cart"
                   title="Cart page"
+                />
+                <EditorDestination
+                  description="Activate the app embed for compatible cart drawers"
+                  href={editorDrawerUrl}
+                  icon={<DrawerIcon />}
+                  preview="drawer"
+                  title="Cart drawer"
+                />
+                <EditorDestination
+                  disabled
+                  description="Checkout needs a separate checkout extension setup"
+                  icon={<CheckoutIcon />}
+                  preview="checkout"
+                  title="Checkout"
                 />
               </div>
             </div>
@@ -1760,6 +1779,7 @@ function FeatureItem({
 function EditorDestination({
   active = false,
   description,
+  disabled = false,
   href,
   icon,
   preview,
@@ -1767,20 +1787,17 @@ function EditorDestination({
 }: {
   active?: boolean;
   description: string;
-  href: string;
+  disabled?: boolean;
+  href?: string;
   icon: ReactNode;
-  preview: "cart" | "product";
+  preview: "cart" | "checkout" | "drawer" | "product";
   title: string;
 }) {
-  return (
-    <a
-      className={`${styles.editorChoice} ${
-        active ? styles.editorChoiceActive : ""
-      }`}
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-    >
+  const className = `${styles.editorChoice} ${
+    active ? styles.editorChoiceActive : ""
+  }`;
+  const content = (
+    <>
       <span className={styles.editorChoiceStatus}>
         {active ? <CheckIcon /> : null}
       </span>
@@ -1790,16 +1807,38 @@ function EditorDestination({
         <small>{description}</small>
       </span>
       <SetupPreview type={preview} />
+    </>
+  );
+
+  if (disabled || !href) {
+    return (
+      <span
+        aria-disabled="true"
+        className={className}
+        style={{ cursor: "default", opacity: 0.72 }}
+      >
+        {content}
+      </span>
+    );
+  }
+
+  return (
+    <a className={className} href={href} target="_blank" rel="noreferrer">
+      {content}
     </a>
   );
 }
 
-function SetupPreview({ type }: { type: "cart" | "product" }) {
+function SetupPreview({
+  type,
+}: {
+  type: "cart" | "checkout" | "drawer" | "product";
+}) {
   return (
     <span
       aria-hidden="true"
       className={`${styles.setupPreview} ${
-        type === "cart" ? styles.setupPreviewCart : ""
+        type === "product" ? "" : styles.setupPreviewCart
       }`}
     >
       <span className={styles.previewImage} />
@@ -2016,6 +2055,28 @@ function CartPageIcon() {
       <path d="M10 20h.01" />
       <path d="M17 20h.01" />
       <path d="M11 12h4" />
+    </svg>
+  );
+}
+
+function DrawerIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M5 4h14v16H5z" />
+      <path d="M14 4v16" />
+      <path d="M8 9h3" />
+      <path d="M8 13h3" />
+      <path d="M16.5 12h.01" />
+    </svg>
+  );
+}
+
+function CheckoutIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      <path d="M6 7h12l-1 12H7L6 7Z" />
+      <path d="M9 7a3 3 0 0 1 6 0" />
+      <path d="m9 13 2 2 4-5" />
     </svg>
   );
 }

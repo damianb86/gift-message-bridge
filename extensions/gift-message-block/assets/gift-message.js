@@ -1,6 +1,9 @@
 (function () {
   "use strict";
 
+  if (window.__GiftMessageBridgeLiteLoaded) return;
+  window.__GiftMessageBridgeLiteLoaded = true;
+
   var WARN_THRESHOLD = 20;
   var PROXY_PATH = "/apps/gift-message";
   var MESSAGE_PROPERTY = "Gift Message";
@@ -16,6 +19,9 @@
   var cardProductsRequest = null;
   var pendingProductAdd = null;
   var cartAddInterceptorInstalled = false;
+  var drawerEmbedCounter = 0;
+  var drawerSyncTimer = null;
+  var mutationObserverInstalled = false;
   var nativeFetch = window.fetch ? window.fetch.bind(window) : null;
 
   function initBlock(block) {
@@ -1726,25 +1732,371 @@
     return String(value || "").trim();
   }
 
-  // ── Bootstrap ────────────────────────────────────────────────────────────
-  document.querySelectorAll("[data-gmb-block]").forEach(initBlock);
+  function initBlocksIn(root) {
+    var scope = root || document;
 
-  document.addEventListener("shopify:section:load", function (event) {
-    event.target.querySelectorAll("[data-gmb-block]").forEach(initBlock);
-  });
+    if (
+      scope.nodeType === 1 &&
+      typeof scope.matches === "function" &&
+      scope.matches("[data-gmb-block]")
+    ) {
+      initBlock(scope);
+    }
 
-  if (typeof MutationObserver !== "undefined") {
-    new MutationObserver(function (mutations) {
-      mutations.forEach(function (mutation) {
-        mutation.addedNodes.forEach(function (node) {
-          if (node.nodeType !== 1) return;
-          if (node.matches("[data-gmb-block]")) {
-            initBlock(node);
-          } else {
-            node.querySelectorAll("[data-gmb-block]").forEach(initBlock);
-          }
-        });
+    if (typeof scope.querySelectorAll === "function") {
+      scope.querySelectorAll("[data-gmb-block]").forEach(initBlock);
+    }
+  }
+
+  function initDrawerEmbedsIn(root) {
+    var scope = root || document;
+
+    if (
+      scope.nodeType === 1 &&
+      typeof scope.matches === "function" &&
+      scope.matches("[data-gmb-drawer-embed]")
+    ) {
+      initDrawerEmbed(scope);
+    }
+
+    if (typeof scope.querySelectorAll === "function") {
+      scope
+        .querySelectorAll("[data-gmb-drawer-embed]")
+        .forEach(initDrawerEmbed);
+    }
+  }
+
+  function initDrawerEmbed(embed) {
+    if (!embed.dataset.gmbDrawerEmbedId) {
+      drawerEmbedCounter += 1;
+      embed.dataset.gmbDrawerEmbedId =
+        embed.id || "gmb-drawer-embed-" + drawerEmbedCounter;
+    }
+
+    if (embed.dataset.gmbDrawerInitialized === "true") {
+      scheduleDrawerEmbedsSync();
+      return;
+    }
+
+    embed.dataset.gmbDrawerInitialized = "true";
+    syncDrawerEmbed(embed);
+    window.setTimeout(function () {
+      syncDrawerEmbed(embed);
+    }, 300);
+    window.setTimeout(function () {
+      syncDrawerEmbed(embed);
+    }, 1200);
+  }
+
+  function scheduleDrawerEmbedsSync() {
+    if (drawerSyncTimer) return;
+
+    drawerSyncTimer = window.setTimeout(function () {
+      drawerSyncTimer = null;
+      document
+        .querySelectorAll("[data-gmb-drawer-embed]")
+        .forEach(syncDrawerEmbed);
+    }, 80);
+  }
+
+  function syncDrawerEmbed(embed) {
+    if (!embed || embed.dataset.gmbDrawerEnabled === "false") return;
+
+    var template = embed.querySelector("template[data-gmb-drawer-template]");
+    if (!template || !template.content) return;
+
+    var drawer = findCartDrawer(embed);
+    if (!drawer) return;
+
+    var embedId = embed.dataset.gmbDrawerEmbedId;
+    removeDrawerMountsOutside(drawer, embedId);
+
+    var mount = findDrawerMount(drawer, embedId);
+    if (!mount) {
+      mount = document.createElement("div");
+      mount.className = "gmb-drawer-mount";
+      mount.dataset.gmbDrawerMount = embedId;
+    }
+
+    insertDrawerMount(drawer, mount, embed.dataset.gmbDrawerPlacement);
+
+    if (!mount.querySelector("[data-gmb-block]")) {
+      mount.textContent = "";
+      mount.appendChild(template.content.cloneNode(true));
+    }
+
+    initBlocksIn(mount);
+  }
+
+  function findCartDrawer(embed) {
+    var customSelector = cleanString(embed.dataset.gmbDrawerSelector);
+    var candidates = [];
+
+    if (customSelector) {
+      try {
+        pushDrawerCandidates(
+          candidates,
+          document.querySelectorAll(customSelector),
+        );
+      } catch (err) {
+        console.warn("[GiftMessage] invalid drawer selector:", err);
+      }
+    }
+
+    [
+      "cart-drawer",
+      "#CartDrawer",
+      "#cart-drawer",
+      ".cart-drawer",
+      "[data-cart-drawer]",
+      "[data-cart-drawer-root]",
+      "[data-cart-drawer-container]",
+      "[data-drawer='cart']",
+      "[data-drawer-id='cart']",
+      "[data-section-type='cart-drawer']",
+      "[id*='CartDrawer']",
+      "[id*='cart-drawer']",
+      "[class*='cart-drawer']",
+      "[class*='CartDrawer']",
+    ].forEach(function (selector) {
+      pushDrawerCandidates(candidates, document.querySelectorAll(selector));
+    });
+
+    return findBestDrawerCandidate(candidates, embed);
+  }
+
+  function pushDrawerCandidates(candidates, nodes) {
+    Array.prototype.forEach.call(nodes || [], function (node) {
+      if (candidates.indexOf(node) === -1) candidates.push(node);
+    });
+  }
+
+  function findBestDrawerCandidate(candidates, embed) {
+    var best = null;
+    var bestScore = -Infinity;
+
+    candidates.forEach(function (candidate) {
+      var score = scoreDrawerCandidate(candidate, embed);
+      if (score > bestScore) {
+        best = candidate;
+        bestScore = score;
+      }
+    });
+
+    return bestScore > -10 ? best : null;
+  }
+
+  function scoreDrawerCandidate(candidate, embed) {
+    if (!candidate || candidate === document.body) return -Infinity;
+    if (embed && (embed === candidate || embed.contains(candidate))) {
+      return -Infinity;
+    }
+
+    var tagName = cleanString(candidate.tagName).toLowerCase();
+    if (
+      ["script", "style", "template", "link", "meta"].indexOf(tagName) !== -1
+    ) {
+      return -Infinity;
+    }
+
+    var descriptor = getElementDescriptor(candidate);
+    var score = 0;
+
+    if (tagName === "cart-drawer") score += 18;
+    if (/cart[-_\s]?drawer/i.test(descriptor)) score += 14;
+    if (/drawer/i.test(descriptor) && /cart/i.test(descriptor)) score += 8;
+    if (candidate.hasAttribute("open")) score += 8;
+    if (candidate.hidden) score -= 8;
+
+    var ariaHidden = candidate.getAttribute("aria-hidden");
+    if (ariaHidden === "false") score += 6;
+    if (ariaHidden === "true") score -= 6;
+
+    if (
+      /\b(open|active|is-active|is-visible|menu-opening)\b/i.test(descriptor)
+    ) {
+      score += 6;
+    }
+
+    if (
+      candidate.querySelector(
+        [
+          "form[action*='/cart']",
+          "button[name='checkout']",
+          "input[name='checkout']",
+          "a[href*='/checkout']",
+          ".cart-drawer__footer",
+          ".drawer__footer",
+        ].join(","),
+      )
+    ) {
+      score += 8;
+    }
+
+    if (isElementVisible(candidate)) score += 5;
+
+    return score;
+  }
+
+  function getElementDescriptor(element) {
+    return cleanString(
+      [
+        element.id,
+        typeof element.className === "string"
+          ? element.className
+          : element.getAttribute("class"),
+      ].join(" "),
+    );
+  }
+
+  function isElementVisible(element) {
+    if (!element || typeof element.getBoundingClientRect !== "function") {
+      return false;
+    }
+
+    var style = window.getComputedStyle
+      ? window.getComputedStyle(element)
+      : null;
+    if (
+      style &&
+      (style.display === "none" ||
+        style.visibility === "hidden" ||
+        style.visibility === "collapse")
+    ) {
+      return false;
+    }
+
+    var rect = element.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  }
+
+  function findDrawerMount(drawer, embedId) {
+    var mount = null;
+
+    drawer.querySelectorAll("[data-gmb-drawer-mount]").forEach(function (node) {
+      if (!mount && node.dataset.gmbDrawerMount === embedId) {
+        mount = node;
+      }
+    });
+
+    return mount;
+  }
+
+  function removeDrawerMountsOutside(drawer, embedId) {
+    document
+      .querySelectorAll("[data-gmb-drawer-mount]")
+      .forEach(function (node) {
+        if (node.dataset.gmbDrawerMount === embedId && !drawer.contains(node)) {
+          node.remove();
+        }
       });
-    }).observe(document.body, { childList: true, subtree: true });
+  }
+
+  function insertDrawerMount(drawer, mount, placement) {
+    var normalizedPlacement = cleanString(placement) || "before_checkout";
+
+    if (normalizedPlacement === "top") {
+      if (drawer.firstElementChild !== mount) {
+        drawer.insertBefore(mount, drawer.firstElementChild);
+      }
+      return;
+    }
+
+    if (normalizedPlacement === "bottom") {
+      if (mount.parentNode !== drawer || drawer.lastElementChild !== mount) {
+        drawer.appendChild(mount);
+      }
+      return;
+    }
+
+    var checkoutTarget = drawer.querySelector(
+      [
+        "button[name='checkout']",
+        "input[name='checkout']",
+        "a[href*='/checkout']",
+        "[data-cart-checkout-button]",
+        ".cart__checkout-button",
+        ".cart-drawer__checkout",
+      ].join(","),
+    );
+
+    if (
+      checkoutTarget &&
+      checkoutTarget.parentNode &&
+      drawer.contains(checkoutTarget.parentNode) &&
+      checkoutTarget.parentNode !== mount
+    ) {
+      checkoutTarget.parentNode.insertBefore(mount, checkoutTarget);
+      return;
+    }
+
+    var footer = drawer.querySelector(
+      [
+        ".cart-drawer__footer",
+        ".drawer__footer",
+        "[class*='cart-drawer__footer']",
+        "[class*='CartDrawer-Footer']",
+        "footer",
+      ].join(","),
+    );
+
+    if (footer && footer !== mount && drawer.contains(footer)) {
+      footer.insertBefore(mount, footer.firstElementChild);
+      return;
+    }
+
+    drawer.appendChild(mount);
+  }
+
+  function bootstrapGiftMessageBridge() {
+    initBlocksIn(document);
+    initDrawerEmbedsIn(document);
+
+    document.addEventListener("shopify:section:load", function (event) {
+      initBlocksIn(event.target);
+      initDrawerEmbedsIn(event.target);
+      scheduleDrawerEmbedsSync();
+    });
+
+    if (
+      !mutationObserverInstalled &&
+      document.body &&
+      typeof MutationObserver !== "undefined"
+    ) {
+      mutationObserverInstalled = true;
+      new MutationObserver(function (mutations) {
+        var shouldSyncDrawers = false;
+
+        mutations.forEach(function (mutation) {
+          if (mutation.type === "attributes") {
+            shouldSyncDrawers = true;
+            return;
+          }
+
+          mutation.addedNodes.forEach(function (node) {
+            if (node.nodeType !== 1) return;
+            initBlocksIn(node);
+            initDrawerEmbedsIn(node);
+            shouldSyncDrawers = true;
+          });
+        });
+
+        if (shouldSyncDrawers) scheduleDrawerEmbedsSync();
+      }).observe(document.body, {
+        attributeFilter: ["aria-hidden", "class", "hidden", "open"],
+        attributes: true,
+        childList: true,
+        subtree: true,
+      });
+    }
+  }
+
+  // ── Bootstrap ────────────────────────────────────────────────────────────
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootstrapGiftMessageBridge, {
+      once: true,
+    });
+  } else {
+    bootstrapGiftMessageBridge();
   }
 })();

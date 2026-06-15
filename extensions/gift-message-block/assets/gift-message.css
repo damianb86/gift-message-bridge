@@ -32,6 +32,20 @@
   font-size: 1rem;
 }
 
+.gmb-drawer-mount {
+  box-sizing: border-box;
+  margin: 0.75rem 0;
+  width: 100%;
+}
+
+.gmb-drawer-mount .gmb-box {
+  margin: 0;
+}
+
+.gmb-box--drawer {
+  font-size: 0.95rem;
+}
+
 /* Toggle row */
 .gmb-toggle {
   display: flex;
