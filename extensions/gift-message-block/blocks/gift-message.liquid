@@ -44,6 +44,10 @@
   assign from_placeholder = block.settings.from_placeholder | default: 'From'
   assign to_placeholder = block.settings.to_placeholder | default: 'To'
   assign message_field_label = block.settings.message_field_label | default: 'Message'
+  assign text_form_enabled = true
+  if block.settings.enable_text_form == false
+    assign text_form_enabled = false
+  endif
   assign max_chars = block.settings.char_limit  | default: 250
   assign preset    = block.settings.preset      | default: 'default'
   assign custom_css = block.settings.custom_css | default: ''
@@ -61,7 +65,9 @@
   assign card_variant_choices_label = block.settings.card_variant_choices_label | default: 'Choose a message card'
   assign money_currency_code = localization.country.currency.iso_code | default: cart.currency.iso_code | default: shop.currency
   assign manual_save = false
-  if mode == 'order' or block.settings.enable_save_button
+  if text_form_enabled == false
+    assign manual_save = false
+  elsif mode == 'order' or block.settings.enable_save_button
     assign manual_save = true
   endif
   assign width_unit = block.settings.width_unit | default: 'percent'
@@ -70,7 +76,7 @@
     assign width_value = block.settings.width_px | default: 520 | append: 'px'
   endif
 
-  if mode == 'order'
+  if mode == 'order' and text_form_enabled
     assign raw_existing = cart.attributes['Gift Message'] | default: cart.attributes.gift_message | default: ''
     assign existing = raw_existing
     assign existing_sender = cart.attributes['Gift Message From'] | default: cart.attributes.gift_message_from | default: ''
@@ -116,6 +122,7 @@
   data-card-variant-choices="{{ show_card_variant_choices | json }}"
   data-card-variant-style="{{ card_variant_choices_style | escape }}"
   data-card-variant-label="{{ card_variant_choices_label | escape }}"
+  data-text-form-enabled="{{ text_form_enabled | json }}"
   data-money-currency-code="{{ money_currency_code | escape }}"
   data-manual-save="{{ manual_save | json }}"
   data-has-saved-message="{{ has_msg | json }}"
@@ -153,26 +160,37 @@
         Product page: JS can mirror these fields into the add-to-cart form as
         line item properties, even when this app section is outside the form.
       {%- endcomment -%}
-      <div class="gmb-row">
-        <input
-          class="gmb-input gmb-from"
-          placeholder="{{ from_placeholder | escape }}"
-          aria-label="{{ from_placeholder | escape }}"
-        >
-        <input
-          class="gmb-input gmb-to"
-          placeholder="{{ to_placeholder | escape }}"
-          aria-label="{{ to_placeholder | escape }}"
-        >
-      </div>
-      <textarea
-        id="gmb-ta-{{ block.id }}"
-        class="gmb-message"
-        placeholder="{{ ph | escape }}"
-        maxlength="{{ max_chars }}"
-        rows="3"
-        aria-label="{{ message_field_label | escape }}"
-      ></textarea>
+      {%- if text_form_enabled -%}
+        <div class="gmb-row">
+          <input
+            class="gmb-input gmb-from"
+            placeholder="{{ from_placeholder | escape }}"
+            aria-label="{{ from_placeholder | escape }}"
+          >
+          <input
+            class="gmb-input gmb-to"
+            placeholder="{{ to_placeholder | escape }}"
+            aria-label="{{ to_placeholder | escape }}"
+          >
+        </div>
+        <textarea
+          id="gmb-ta-{{ block.id }}"
+          class="gmb-message"
+          placeholder="{{ ph | escape }}"
+          maxlength="{{ max_chars }}"
+          rows="3"
+          aria-label="{{ message_field_label | escape }}"
+        ></textarea>
+      {%- else -%}
+        <textarea
+          id="gmb-ta-{{ block.id }}"
+          class="gmb-message"
+          maxlength="{{ max_chars }}"
+          hidden
+          disabled
+          aria-hidden="true"
+        ></textarea>
+      {%- endif -%}
       <input
         type="hidden"
         class="gmb-message-id"
@@ -194,40 +212,57 @@
         cart.attributes via /apps/gift-message (app proxy) by gift-message.js.
         Pre-filled from Liquid on page load.
       {%- endcomment -%}
-      <div class="gmb-row">
-        <input
-          class="gmb-input gmb-from"
-          placeholder="{{ from_placeholder | escape }}"
-          aria-label="{{ from_placeholder | escape }}"
-          value="{{ existing_sender | escape }}"
-        >
-        <input
-          class="gmb-input gmb-to"
-          placeholder="{{ to_placeholder | escape }}"
-          aria-label="{{ to_placeholder | escape }}"
-          value="{{ existing_recipient | escape }}"
-        >
-      </div>
-      <textarea
-        id="gmb-ta-{{ block.id }}"
-        class="gmb-message"
-        placeholder="{{ ph | escape }}"
-        maxlength="{{ max_chars }}"
-        rows="3"
-        aria-label="{{ message_field_label | escape }}"
-      >{{- existing | escape -}}</textarea>
+      {%- if text_form_enabled -%}
+        <div class="gmb-row">
+          <input
+            class="gmb-input gmb-from"
+            placeholder="{{ from_placeholder | escape }}"
+            aria-label="{{ from_placeholder | escape }}"
+            value="{{ existing_sender | escape }}"
+          >
+          <input
+            class="gmb-input gmb-to"
+            placeholder="{{ to_placeholder | escape }}"
+            aria-label="{{ to_placeholder | escape }}"
+            value="{{ existing_recipient | escape }}"
+          >
+        </div>
+        <textarea
+          id="gmb-ta-{{ block.id }}"
+          class="gmb-message"
+          placeholder="{{ ph | escape }}"
+          maxlength="{{ max_chars }}"
+          rows="3"
+          aria-label="{{ message_field_label | escape }}"
+        >{{- existing | escape -}}</textarea>
+      {%- else -%}
+        <textarea
+          id="gmb-ta-{{ block.id }}"
+          class="gmb-message"
+          maxlength="{{ max_chars }}"
+          hidden
+          disabled
+          aria-hidden="true"
+        ></textarea>
+      {%- endif -%}
 
     {%- endif -%}
 
-    <div class="gmb-note">
-      <span class="gmb-status" aria-live="polite"></span>
-      <span class="gmb-count" aria-live="polite">
-        <span class="gmb-count-left">
-          {{- max_chars | minus: existing.size -}}
+    {%- if text_form_enabled -%}
+      <div class="gmb-note">
+        <span class="gmb-status" aria-live="polite"></span>
+        <span class="gmb-count" aria-live="polite">
+          <span class="gmb-count-left">
+            {{- max_chars | minus: existing.size -}}
+          </span>
+          <span class="gmb-count-total"> / {{ max_chars }}</span>
         </span>
-        <span class="gmb-count-total"> / {{ max_chars }}</span>
-      </span>
-    </div>
+      </div>
+    {%- else -%}
+      <div class="gmb-note" hidden>
+        <span class="gmb-status" aria-live="polite"></span>
+      </div>
+    {%- endif -%}
 
     {%- if manual_save -%}
       <div class="gmb-actions">
@@ -399,28 +434,39 @@
       "default": "Add a gift message"
     },
     {
+      "type": "checkbox",
+      "id": "enable_text_form",
+      "label": "Enable text message form",
+      "info": "Disable this when shoppers should only select a paid message card variant without entering From, To, or Message text.",
+      "default": true
+    },
+    {
       "type": "textarea",
       "id": "placeholder",
       "label": "Message placeholder",
-      "default": "Write a birthday, thank you, wedding love, etc."
+      "default": "Write a birthday, thank you, wedding love, etc.",
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "text",
       "id": "message_field_label",
       "label": "Message field accessibility label",
-      "default": "Message"
+      "default": "Message",
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "text",
       "id": "from_placeholder",
       "label": "From placeholder",
-      "default": "From"
+      "default": "From",
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "text",
       "id": "to_placeholder",
       "label": "To placeholder",
-      "default": "To"
+      "default": "To",
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "range",
@@ -430,7 +476,8 @@
       "max": 1000,
       "step": 10,
       "unit": "ch",
-      "default": 250
+      "default": 250,
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "color",
@@ -462,7 +509,8 @@
       "type": "text",
       "id": "card_variant_choices_label",
       "label": "Variant selector label",
-      "default": "Choose a message card"
+      "default": "Choose a message card",
+      "visible_if": "{{ block.settings.show_card_variant_choices == true }}"
     },
     {
       "type": "select",
@@ -494,14 +542,16 @@
           "label": "Compact text buttons"
         }
       ],
-      "default": "grid_4"
+      "default": "grid_4",
+      "visible_if": "{{ block.settings.show_card_variant_choices == true }}"
     },
     {
       "type": "checkbox",
       "id": "enable_save_button",
       "label": "Show save button on product pages",
       "info": "Cart pages always use a save button. Enable this to require the button on product pages too; the message is not saved until the customer clicks it.",
-      "default": false
+      "default": false,
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "header",
@@ -519,7 +569,8 @@
       "type": "text",
       "id": "save_button_label",
       "label": "Save button label",
-      "default": "Save gift message"
+      "default": "Save gift message",
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "select",
@@ -540,7 +591,8 @@
       "max": 100,
       "step": 5,
       "unit": "%",
-      "default": 100
+      "default": 100,
+      "visible_if": "{{ block.settings.width_unit == 'percent' }}"
     },
     {
       "type": "range",
@@ -551,7 +603,8 @@
       "max": 1200,
       "step": 20,
       "unit": "px",
-      "default": 520
+      "default": 520,
+      "visible_if": "{{ block.settings.width_unit == 'px' }}"
     },
     {
       "type": "select",

@@ -54,6 +54,7 @@
     var manualSave = block.dataset.manualSave === "true";
     var hasSavedMessage = block.dataset.hasSavedMessage === "true";
     var isDirty = false;
+    var textFormEnabled = block.dataset.textFormEnabled !== "false";
     var lineItemPropertiesEnabled =
       block.dataset.lineItemProperties !== "false";
     var cardVariantChoicesEnabled =
@@ -95,7 +96,7 @@
       syncPanelOpenState(block, toggle, field, open);
 
       if (mode === "product") {
-        textarea.disabled = !open;
+        textarea.disabled = !open || !textFormEnabled;
         if (senderInput) senderInput.disabled = !open;
         if (recipientInput) recipientInput.disabled = !open;
         if (messageIdInput) messageIdInput.disabled = !open;
@@ -117,7 +118,7 @@
       setPanelOpen(checked);
 
       if (manualSave) {
-        if (checked) {
+        if (checked && textFormEnabled) {
           textarea.focus();
         }
         updateManualUi();
@@ -139,7 +140,7 @@
         if (recipientInput) recipientInput.value = "";
       }
 
-      if (mode === "order" && checked) {
+      if (mode === "order" && checked && textFormEnabled) {
         textarea.focus();
       }
 
@@ -160,6 +161,8 @@
       if (senderInput) senderInput.disabled = true;
       if (recipientInput) recipientInput.disabled = true;
       if (messageIdInput) messageIdInput.disabled = true;
+    } else if (mode === "product" && !textFormEnabled) {
+      textarea.disabled = true;
     }
 
     if (mode === "product") {
@@ -168,8 +171,10 @@
         loadCardProductConfig(renderCardVariantPicker);
       }
       loadCartToken(syncProductPropertiesFromCurrentForm);
-      textarea.addEventListener("focus", loadCartToken);
-      if (!manualSave) {
+      if (textFormEnabled) {
+        textarea.addEventListener("focus", loadCartToken);
+      }
+      if (!manualSave && textFormEnabled) {
         textarea.addEventListener(
           "input",
           syncProductPropertiesFromCurrentForm,
@@ -204,7 +209,7 @@
     }
 
     if (manualSave) {
-      textarea.addEventListener("input", markDirty);
+      if (textFormEnabled) textarea.addEventListener("input", markDirty);
       if (senderInput) senderInput.addEventListener("input", markDirty);
       if (recipientInput) recipientInput.addEventListener("input", markDirty);
       if (saveButton) {
@@ -214,7 +219,7 @@
         editButton.addEventListener("click", function () {
           toggle.checked = true;
           setPanelOpen(true);
-          textarea.focus();
+          if (textFormEnabled) textarea.focus();
           updateManualUi();
         });
       }
@@ -474,6 +479,8 @@
     }
 
     function hasAnyContent() {
+      if (!textFormEnabled) return false;
+
       return Boolean(
         getMessageValue().trim() ||
         getSenderValue().trim() ||
@@ -768,7 +775,14 @@
       var value = getMessageValue();
       var sender = getSenderValue();
       var recipient = getRecipientValue();
-      if (!value.trim() && !sender.trim() && !recipient.trim()) return null;
+      var hasTextContent = hasGiftMessageTextContent(sender, recipient, value);
+      if (
+        textFormEnabled &&
+        !hasTextContent &&
+        !shouldAttachMessageToCardProduct()
+      ) {
+        return null;
+      }
 
       var messageId = ensureMessageId();
       var messageProperties = buildGiftMessageLineItemProperties(
@@ -832,14 +846,16 @@
       var value = getMessageValue();
       var sender = getSenderValue();
       var recipient = getRecipientValue();
-      var hasContent =
+      var hasTextContent = hasGiftMessageTextContent(sender, recipient, value);
+      var hasProductAddOn = shouldAttachMessageToCardProduct();
+      var shouldIncludePayload =
         shouldIncludeMessageInProductForm() &&
-        Boolean(value.trim() || sender.trim() || recipient.trim());
+        (hasTextContent || hasProductAddOn);
 
       removeProductProperties(form);
 
       if (!lineItemPropertiesEnabled) return false;
-      if (!hasContent) return false;
+      if (!shouldIncludePayload) return false;
       if (manualSave && (!hasSavedMessage || isDirty)) return false;
 
       var messageId = ensureMessageId();
@@ -866,8 +882,9 @@
       var sender = getSenderValue();
       var recipient = getRecipientValue();
       var hasContent =
+        textFormEnabled &&
         shouldIncludeMessageInProductForm() &&
-        Boolean(value.trim() || sender.trim() || recipient.trim());
+        hasGiftMessageTextContent(sender, recipient, value);
 
       if (!hasContent) return;
       if (manualSave && (!hasSavedMessage || isDirty)) return;
@@ -1042,10 +1059,15 @@
       var cleanSender = String(sender || "").trim();
       var cleanRecipient = String(recipient || "").trim();
       var cleanMessage = String(message || "").trim();
+      var formattedMessage = formatLineItemGiftMessage(
+        cleanSender,
+        cleanRecipient,
+        cleanMessage,
+      );
 
-      properties[MESSAGE_PROPERTY] =
-        cleanMessage ||
-        formatLineItemGiftMessage(cleanSender, cleanRecipient, message);
+      if (formattedMessage) {
+        properties[MESSAGE_PROPERTY] = cleanMessage || formattedMessage;
+      }
 
       if (cleanSender) {
         properties[MESSAGE_FROM_PROPERTY] = cleanSender;
@@ -1058,6 +1080,16 @@
       properties[MESSAGE_REFERENCE_PROPERTY] = messageId;
 
       return properties;
+    }
+
+    function hasGiftMessageTextContent(sender, recipient, message) {
+      if (!textFormEnabled) return false;
+
+      return Boolean(
+        String(message || "").trim() ||
+        String(sender || "").trim() ||
+        String(recipient || "").trim(),
+      );
     }
 
     function buildGiftMessageReferenceProperties(messageId) {

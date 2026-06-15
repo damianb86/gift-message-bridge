@@ -9,6 +9,10 @@
   assign from_placeholder = block.settings.from_placeholder | default: 'From'
   assign to_placeholder = block.settings.to_placeholder | default: 'To'
   assign message_field_label = block.settings.message_field_label | default: 'Message'
+  assign text_form_enabled = true
+  if block.settings.enable_text_form == false
+    assign text_form_enabled = false
+  endif
   assign max_chars = block.settings.char_limit | default: 250
   assign save_button_label = block.settings.save_button_label | default: 'Save gift message'
   assign accent_color = block.settings.accent_color | default: '#4FAF8F'
@@ -21,7 +25,10 @@
     assign width_value = block.settings.width_px | default: 520 | append: 'px'
   endif
 
-  assign raw_existing = cart.attributes['Gift Message'] | default: cart.attributes.gift_message | default: ''
+  assign raw_existing = ''
+  if text_form_enabled
+    assign raw_existing = cart.attributes['Gift Message'] | default: cart.attributes.gift_message | default: ''
+  endif
   assign existing = raw_existing
   assign existing_sender = cart.attributes['Gift Message From'] | default: cart.attributes.gift_message_from | default: ''
   assign existing_recipient = cart.attributes['Gift Message To'] | default: cart.attributes.gift_message_to | default: ''
@@ -62,6 +69,7 @@
       data-cart-token="{{ cart.token }}"
       data-line-item-properties="false"
       data-card-variant-choices="false"
+      data-text-form-enabled="{{ text_form_enabled | json }}"
       data-manual-save="true"
       data-has-saved-message="{{ has_msg | json }}"
       id="gmb-drawer-{{ block.id }}"
@@ -85,63 +93,84 @@
         id="gmb-drawer-field-{{ block.id }}"
         class="gmb-panel"
       >
-        <div class="gmb-row">
-          <input
-            class="gmb-input gmb-from"
-            placeholder="{{ from_placeholder | escape }}"
-            aria-label="{{ from_placeholder | escape }}"
-            value="{{ existing_sender | escape }}"
-          >
-          <input
-            class="gmb-input gmb-to"
-            placeholder="{{ to_placeholder | escape }}"
-            aria-label="{{ to_placeholder | escape }}"
-            value="{{ existing_recipient | escape }}"
-          >
-        </div>
-        <textarea
-          id="gmb-drawer-ta-{{ block.id }}"
-          class="gmb-message"
-          placeholder="{{ ph | escape }}"
-          maxlength="{{ max_chars }}"
-          rows="3"
-          aria-label="{{ message_field_label | escape }}"
-        >{{- existing | escape -}}</textarea>
+        {%- if text_form_enabled -%}
+          <div class="gmb-row">
+            <input
+              class="gmb-input gmb-from"
+              placeholder="{{ from_placeholder | escape }}"
+              aria-label="{{ from_placeholder | escape }}"
+              value="{{ existing_sender | escape }}"
+            >
+            <input
+              class="gmb-input gmb-to"
+              placeholder="{{ to_placeholder | escape }}"
+              aria-label="{{ to_placeholder | escape }}"
+              value="{{ existing_recipient | escape }}"
+            >
+          </div>
+          <textarea
+            id="gmb-drawer-ta-{{ block.id }}"
+            class="gmb-message"
+            placeholder="{{ ph | escape }}"
+            maxlength="{{ max_chars }}"
+            rows="3"
+            aria-label="{{ message_field_label | escape }}"
+          >{{- existing | escape -}}</textarea>
+        {%- else -%}
+          <textarea
+            id="gmb-drawer-ta-{{ block.id }}"
+            class="gmb-message"
+            maxlength="{{ max_chars }}"
+            hidden
+            disabled
+            aria-hidden="true"
+          ></textarea>
+        {%- endif -%}
 
-        <div class="gmb-note">
-          <span class="gmb-status" aria-live="polite"></span>
-          <span class="gmb-count" aria-live="polite">
-            <span class="gmb-count-left">
-              {{- max_chars | minus: existing.size -}}
+        {%- if text_form_enabled -%}
+          <div class="gmb-note">
+            <span class="gmb-status" aria-live="polite"></span>
+            <span class="gmb-count" aria-live="polite">
+              <span class="gmb-count-left">
+                {{- max_chars | minus: existing.size -}}
+              </span>
+              <span class="gmb-count-total"> / {{ max_chars }}</span>
             </span>
-            <span class="gmb-count-total"> / {{ max_chars }}</span>
-          </span>
-        </div>
+          </div>
+        {%- else -%}
+          <div class="gmb-note" hidden>
+            <span class="gmb-status" aria-live="polite"></span>
+          </div>
+        {%- endif -%}
 
-        <div class="gmb-actions">
-          <button type="button" class="gmb-save-button">
-            {{- save_button_label -}}
-          </button>
-          <button
-            type="button"
-            class="gmb-remove-button"
-            {%- unless has_msg %} hidden{%- endunless -%}
-          >
-            Remove
-          </button>
-        </div>
+        {%- if text_form_enabled -%}
+          <div class="gmb-actions">
+            <button type="button" class="gmb-save-button">
+              {{- save_button_label -}}
+            </button>
+            <button
+              type="button"
+              class="gmb-remove-button"
+              {%- unless has_msg %} hidden{%- endunless -%}
+            >
+              Remove
+            </button>
+          </div>
+        {%- endif -%}
       </div>
 
-      <div
-        class="gmb-saved-summary"
-        data-gmb-saved-summary
-        {%- unless has_msg %} hidden{%- endunless -%}
-      >
-        <span class="gmb-saved-dot" aria-hidden="true"></span>
-        <span class="gmb-saved-text">Gift message saved</span>
-        <button type="button" class="gmb-edit-button">Edit</button>
-        <button type="button" class="gmb-summary-remove-button">Remove</button>
-      </div>
+      {%- if text_form_enabled -%}
+        <div
+          class="gmb-saved-summary"
+          data-gmb-saved-summary
+          {%- unless has_msg %} hidden{%- endunless -%}
+        >
+          <span class="gmb-saved-dot" aria-hidden="true"></span>
+          <span class="gmb-saved-text">Gift message saved</span>
+          <button type="button" class="gmb-edit-button">Edit</button>
+          <button type="button" class="gmb-summary-remove-button">Remove</button>
+        </div>
+      {%- endif -%}
     </div>
   </template>
 </div>
@@ -173,7 +202,8 @@
       "type": "text",
       "id": "drawer_selector",
       "label": "Cart drawer CSS selector",
-      "info": "Optional. Use this only for custom themes when the automatic drawer detection needs a specific target."
+      "info": "Optional. Use this only for custom themes when the automatic drawer detection needs a specific target.",
+      "visible_if": "{{ block.settings.enable_drawer == true }}"
     },
     {
       "type": "select",
@@ -184,7 +214,8 @@
         { "value": "above_subtotal", "label": "Above Subtotal" },
         { "value": "above_checkout", "label": "Above Checkout Button" }
       ],
-      "default": "below_cart_items"
+      "default": "below_cart_items",
+      "visible_if": "{{ block.settings.enable_drawer == true }}"
     },
     {
       "type": "header",
@@ -197,28 +228,39 @@
       "default": "Add a gift message"
     },
     {
+      "type": "checkbox",
+      "id": "enable_text_form",
+      "label": "Enable text message form",
+      "info": "Disable this when this embed should not collect From, To, or Message text.",
+      "default": true
+    },
+    {
       "type": "textarea",
       "id": "placeholder",
       "label": "Message placeholder",
-      "default": "Write a birthday, thank you, wedding love, etc."
+      "default": "Write a birthday, thank you, wedding love, etc.",
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "text",
       "id": "message_field_label",
       "label": "Message field accessibility label",
-      "default": "Message"
+      "default": "Message",
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "text",
       "id": "from_placeholder",
       "label": "From placeholder",
-      "default": "From"
+      "default": "From",
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "text",
       "id": "to_placeholder",
       "label": "To placeholder",
-      "default": "To"
+      "default": "To",
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "range",
@@ -228,13 +270,15 @@
       "max": 1000,
       "step": 10,
       "unit": "ch",
-      "default": 250
+      "default": 250,
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "text",
       "id": "save_button_label",
       "label": "Save button label",
-      "default": "Save gift message"
+      "default": "Save gift message",
+      "visible_if": "{{ block.settings.enable_text_form == true }}"
     },
     {
       "type": "header",
@@ -264,7 +308,8 @@
       "max": 100,
       "step": 5,
       "unit": "%",
-      "default": 100
+      "default": 100,
+      "visible_if": "{{ block.settings.width_unit == 'percent' }}"
     },
     {
       "type": "range",
@@ -274,7 +319,8 @@
       "max": 1200,
       "step": 20,
       "unit": "px",
-      "default": 520
+      "default": 520,
+      "visible_if": "{{ block.settings.width_unit == 'px' }}"
     },
     {
       "type": "textarea",
