@@ -18,11 +18,24 @@
   assign accent_color = block.settings.accent_color | default: '#4FAF8F'
   assign drawer_selector = block.settings.drawer_selector | default: ''
   assign drawer_placement = block.settings.drawer_placement | default: 'below_cart_items'
+  assign drawer_padding_block = block.settings.drawer_padding_block | default: 0
+  assign drawer_padding_inline = block.settings.drawer_padding_inline | default: 0
   assign custom_css = block.settings.custom_css | default: ''
+  assign show_card_variant_choices = false
+  if block.settings.show_card_variant_choices
+    assign show_card_variant_choices = true
+  endif
+  assign card_variant_choices_style = block.settings.card_variant_choices_style | default: 'grid_3'
+  assign card_variant_choices_label = block.settings.card_variant_choices_label | default: 'Choose a message card'
+  assign money_currency_code = localization.country.currency.iso_code | default: cart.currency.iso_code | default: shop.currency
   assign width_unit = block.settings.width_unit | default: 'percent'
   assign width_value = block.settings.width_percent | default: 100 | append: '%'
   if width_unit == 'px'
     assign width_value = block.settings.width_px | default: 520 | append: 'px'
+  endif
+  assign render_actions = false
+  if text_form_enabled or show_card_variant_choices
+    assign render_actions = true
   endif
 
   assign raw_existing = ''
@@ -57,6 +70,8 @@
   data-gmb-drawer-enabled="{{ drawer_enabled | json }}"
   data-gmb-drawer-selector="{{ drawer_selector | escape }}"
   data-gmb-drawer-placement="{{ drawer_placement | escape }}"
+  data-gmb-drawer-padding-block="{{ drawer_padding_block }}"
+  data-gmb-drawer-padding-inline="{{ drawer_padding_inline }}"
   id="gmb-drawer-embed-{{ block.id }}"
   hidden
   {{ block.shopify_attributes }}
@@ -68,8 +83,11 @@
       data-mode="order"
       data-cart-token="{{ cart.token }}"
       data-line-item-properties="false"
-      data-card-variant-choices="false"
+      data-card-variant-choices="{{ show_card_variant_choices | json }}"
+      data-card-variant-style="{{ card_variant_choices_style | escape }}"
+      data-card-variant-label="{{ card_variant_choices_label | escape }}"
       data-text-form-enabled="{{ text_form_enabled | json }}"
+      data-money-currency-code="{{ money_currency_code | escape }}"
       data-manual-save="true"
       data-has-saved-message="{{ has_msg | json }}"
       id="gmb-drawer-{{ block.id }}"
@@ -126,6 +144,17 @@
             aria-hidden="true"
           ></textarea>
         {%- endif -%}
+        <input
+          type="hidden"
+          class="gmb-message-id"
+          value=""
+          disabled
+        >
+        <div
+          class="gmb-card-product-picker"
+          data-gmb-card-products
+          hidden
+        ></div>
 
         {%- if text_form_enabled -%}
           <div class="gmb-note">
@@ -143,18 +172,20 @@
           </div>
         {%- endif -%}
 
-        {%- if text_form_enabled -%}
+        {%- if render_actions -%}
           <div class="gmb-actions">
             <button type="button" class="gmb-save-button">
               {{- save_button_label -}}
             </button>
-            <button
-              type="button"
-              class="gmb-remove-button"
-              {%- unless has_msg %} hidden{%- endunless -%}
-            >
-              Remove
-            </button>
+            {%- if text_form_enabled -%}
+              <button
+                type="button"
+                class="gmb-remove-button"
+                {%- unless has_msg %} hidden{%- endunless -%}
+              >
+                Remove
+              </button>
+            {%- endif -%}
           </div>
         {%- endif -%}
       </div>
@@ -218,6 +249,28 @@
       "visible_if": "{{ block.settings.enable_drawer == true }}"
     },
     {
+      "type": "range",
+      "id": "drawer_padding_block",
+      "label": "Vertical padding",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 0,
+      "visible_if": "{{ block.settings.enable_drawer == true }}"
+    },
+    {
+      "type": "range",
+      "id": "drawer_padding_inline",
+      "label": "Horizontal padding",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 0,
+      "visible_if": "{{ block.settings.enable_drawer == true }}"
+    },
+    {
       "type": "header",
       "content": "Gift message text"
     },
@@ -278,7 +331,59 @@
       "id": "save_button_label",
       "label": "Save button label",
       "default": "Save gift message",
-      "visible_if": "{{ block.settings.enable_text_form == true }}"
+      "visible_if": "{{ block.settings.enable_text_form == true or block.settings.show_card_variant_choices == true }}"
+    },
+    {
+      "type": "header",
+      "content": "Message card variant choices",
+      "info": "Controls the paid message card variant selector shown inside the cart drawer form."
+    },
+    {
+      "type": "checkbox",
+      "id": "show_card_variant_choices",
+      "label": "Show message card variant choices",
+      "info": "When enabled, the drawer form shows the variants of the message card product configured in Block setup.",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "card_variant_choices_label",
+      "label": "Variant selector label",
+      "default": "Choose a message card",
+      "visible_if": "{{ block.settings.show_card_variant_choices == true }}"
+    },
+    {
+      "type": "select",
+      "id": "card_variant_choices_style",
+      "label": "Variant selector style",
+      "options": [
+        {
+          "value": "dropdown",
+          "label": "Dropdown select"
+        },
+        {
+          "value": "grid_4",
+          "label": "Image grid, 4 per row"
+        },
+        {
+          "value": "grid_3",
+          "label": "Image grid, 3 per row"
+        },
+        {
+          "value": "list_images",
+          "label": "List with images"
+        },
+        {
+          "value": "text_list",
+          "label": "Text list"
+        },
+        {
+          "value": "pills",
+          "label": "Compact text buttons"
+        }
+      ],
+      "default": "grid_3",
+      "visible_if": "{{ block.settings.show_card_variant_choices == true }}"
     },
     {
       "type": "header",

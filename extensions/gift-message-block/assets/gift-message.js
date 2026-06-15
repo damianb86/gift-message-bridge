@@ -94,22 +94,13 @@
     // ── Toggle ───────────────────────────────────────────────────────────
     function setPanelOpen(open) {
       syncPanelOpenState(block, toggle, field, open);
+      setCardProductPickerDisabled(!open);
 
       if (mode === "product") {
         textarea.disabled = !open || !textFormEnabled;
         if (senderInput) senderInput.disabled = !open;
         if (recipientInput) recipientInput.disabled = !open;
         if (messageIdInput) messageIdInput.disabled = !open;
-        if (cardProductPicker) {
-          cardProductPicker
-            .querySelectorAll(
-              ".gmb-card-product-option, .gmb-card-product-select",
-            )
-            .forEach(function (control) {
-              control.disabled =
-                !open || control.getAttribute("aria-disabled") === "true";
-            });
-        }
       }
     }
 
@@ -165,11 +156,15 @@
       textarea.disabled = true;
     }
 
+    if (cardVariantChoicesEnabled && cardProductPicker) {
+      loadCardProductConfig(function (variants) {
+        renderCardVariantPicker(variants);
+        if (manualSave) updateManualUi();
+      });
+    }
+
     if (mode === "product") {
       installCartAddInterceptor();
-      if (cardVariantChoicesEnabled) {
-        loadCardProductConfig(renderCardVariantPicker);
-      }
       loadCartToken(syncProductPropertiesFromCurrentForm);
       if (textFormEnabled) {
         textarea.addEventListener("focus", loadCartToken);
@@ -318,6 +313,7 @@
       var value = getMessageValue();
       var sender = getSenderValue();
       var recipient = getRecipientValue();
+      var hasTextContent = hasGiftMessageTextContent(sender, recipient, value);
 
       if (!hasAnyContent()) {
         removeSavedMessage();
@@ -332,6 +328,10 @@
         isDirty = false;
         block.dataset.hasSavedMessage = "true";
         syncProductProperties();
+        if (!hasTextContent) {
+          finishManualSave();
+          return;
+        }
         persistProductMessage(
           function () {
             finishManualSave();
@@ -348,17 +348,31 @@
       }
 
       loadCartToken(function () {
-        saveOrderMessage(
-          value,
-          sender,
-          recipient,
-          function () {
-            finishManualSave();
-          },
-          function () {
-            failManualSave();
-          },
-        );
+        var finishOrderSave = function () {
+          addSelectedCardProductToCart(
+            function () {
+              finishManualSave();
+            },
+            function () {
+              failManualSave();
+            },
+          );
+        };
+
+        if (textFormEnabled || hasTextContent) {
+          saveOrderMessage(
+            value,
+            sender,
+            recipient,
+            finishOrderSave,
+            function () {
+              failManualSave();
+            },
+          );
+          return;
+        }
+
+        finishOrderSave();
       });
     }
 
@@ -479,12 +493,12 @@
     }
 
     function hasAnyContent() {
-      if (!textFormEnabled) return false;
-
       return Boolean(
-        getMessageValue().trim() ||
-        getSenderValue().trim() ||
-        getRecipientValue().trim(),
+        hasGiftMessageTextContent(
+          getSenderValue(),
+          getRecipientValue(),
+          getMessageValue(),
+        ) || hasSelectedCardProduct(),
       );
     }
 
@@ -690,11 +704,7 @@
       cardProductPicker.hidden = false;
 
       if (!toggle.checked) {
-        grid
-          .querySelectorAll(".gmb-card-product-option")
-          .forEach(function (button) {
-            button.disabled = true;
-          });
+        setCardProductPickerDisabled(true);
       }
     }
 
@@ -764,6 +774,24 @@
       }
 
       syncProductPropertiesFromCurrentForm();
+      if (manualSave) {
+        isDirty = true;
+        hasSavedMessage = false;
+        block.dataset.hasSavedMessage = "false";
+        setSaving(hasAnyContent() ? "Unsaved" : "");
+        updateManualUi();
+      }
+    }
+
+    function setCardProductPickerDisabled(disabled) {
+      if (!cardProductPicker) return;
+
+      cardProductPicker
+        .querySelectorAll(".gmb-card-product-option, .gmb-card-product-select")
+        .forEach(function (control) {
+          control.disabled =
+            disabled || control.getAttribute("aria-disabled") === "true";
+        });
     }
 
     function buildCardProductAddContext(form) {
@@ -911,6 +939,42 @@
         onSuccess,
         onError,
       );
+    }
+
+    function addSelectedCardProductToCart(onSuccess, onError) {
+      if (!shouldAttachMessageToCardProduct()) {
+        if (typeof onSuccess === "function") onSuccess();
+        return;
+      }
+
+      if (!nativeFetch) {
+        if (typeof onError === "function")
+          onError(new Error("fetch unavailable"));
+        return;
+      }
+
+      var messageId = ensureMessageId();
+      var properties = buildGiftMessageLineItemProperties(
+        getSenderValue(),
+        getRecipientValue(),
+        getMessageValue(),
+        messageId,
+      );
+      var selection = getSelectedCardVariantReference();
+      var variantId = selectedCardVariant.variantId;
+
+      properties[CARD_PRODUCT_SOURCE_PROPERTY] =
+        mode === "order" ? "Cart drawer" : buildOriginalProductReference();
+
+      if (selection) {
+        properties[CARD_PRODUCT_SELECTION_PROPERTY] = selection;
+      }
+
+      if (variantId) {
+        properties[CARD_PRODUCT_VARIANT_ID_PROPERTY] = variantId;
+      }
+
+      addCardProductVariantToCart(variantId, properties, onSuccess, onError);
     }
 
     function isDynamicCheckoutTarget(target) {
@@ -1694,6 +1758,85 @@
       .catch(function () {});
   }
 
+  function addCardProductVariantToCart(
+    variantId,
+    properties,
+    onSuccess,
+    onError,
+  ) {
+    if (!nativeFetch || !variantId) {
+      if (typeof onSuccess === "function") onSuccess();
+      return;
+    }
+
+    cardProductVariantExistsInCart(variantId, properties)
+      .then(function (exists) {
+        if (exists) return null;
+
+        var root = getShopifyRoot();
+        return nativeFetch(root + "cart/add.js", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            items: [
+              {
+                id: variantId,
+                properties: properties,
+                quantity: 1,
+              },
+            ],
+          }),
+        }).then(function (response) {
+          if (!response.ok) throw new Error("cart/add " + response.status);
+          notifyThemeCartListeners(response);
+          return response;
+        });
+      })
+      .then(function () {
+        scheduleDrawerEmbedsSync();
+        if (typeof onSuccess === "function") onSuccess();
+      })
+      .catch(function (err) {
+        console.warn("[GiftMessage] message card add failed:", err);
+        if (typeof onError === "function") onError(err);
+      });
+  }
+
+  function cardProductVariantExistsInCart(variantId, properties) {
+    var reference = cleanString(
+      properties && properties[MESSAGE_REFERENCE_PROPERTY],
+    );
+    if (!reference) return Promise.resolve(false);
+
+    var root = getShopifyRoot();
+    return nativeFetch(root + "cart.js", {
+      headers: { Accept: "application/json" },
+    })
+      .then(function (response) {
+        if (!response.ok) throw new Error("cart.js " + response.status);
+        return response.json();
+      })
+      .then(function (cart) {
+        var items = Array.isArray(cart && cart.items) ? cart.items : [];
+        return items.some(function (item) {
+          var itemVariantId = cleanString(item && item.variant_id);
+          var itemProperties = item && item.properties ? item.properties : {};
+
+          return (
+            itemVariantId === cleanString(variantId) &&
+            cleanString(itemProperties[MESSAGE_REFERENCE_PROPERTY]) ===
+              reference
+          );
+        });
+      })
+      .catch(function () {
+        return false;
+      });
+  }
+
   function mergeHeaders(headers, values) {
     var nextHeaders = new Headers(headers || {});
 
@@ -1918,6 +2061,7 @@
       mount.dataset.gmbDrawerMount = embedId;
     }
 
+    applyDrawerMountSettings(embed, mount);
     insertDrawerMount(drawer, mount, embed.dataset.gmbDrawerPlacement);
 
     if (!mount.querySelector("[data-gmb-block]")) {
@@ -1926,6 +2070,19 @@
     }
 
     initBlocksIn(mount);
+  }
+
+  function applyDrawerMountSettings(embed, mount) {
+    if (!embed || !mount) return;
+
+    mount.style.setProperty(
+      "--gmb-drawer-padding-block",
+      normalizePixelSetting(embed.dataset.gmbDrawerPaddingBlock, 0, 48) + "px",
+    );
+    mount.style.setProperty(
+      "--gmb-drawer-padding-inline",
+      normalizePixelSetting(embed.dataset.gmbDrawerPaddingInline, 0, 48) + "px",
+    );
   }
 
   function findCartDrawer(embed) {
@@ -2292,8 +2449,12 @@
   }
 
   function getPlacementAnchor(node, type) {
+    if (type === "cartItems") {
+      return getCartItemsPlacementAnchor(node);
+    }
+
     if (type === "subtotal") {
-      return (
+      var subtotalAnchor =
         findClosestMatchingSelector(node, [
           ".cart-totals__container",
           "[class*='cart-totals__container']",
@@ -2303,8 +2464,122 @@
           ".cart-subtotal",
           ".cart__subtotal",
           ".cart-drawer__subtotal",
-        ]) || node
-      );
+        ]) || node;
+
+      return getSafeBlockPlacementAnchor(subtotalAnchor, type);
+    }
+
+    return getSafeBlockPlacementAnchor(node, type);
+  }
+
+  function getCartItemsPlacementAnchor(node) {
+    if (!node) return null;
+
+    var customItems = findClosestMatchingSelector(node, [
+      "cart-drawer-items",
+      "[data-cart-drawer-items]",
+      "[data-cart-items]",
+    ]);
+    if (customItems) return normalizeTablePlacementAnchor(customItems);
+
+    var itemsAnchor =
+      findClosestMatchingSelector(node, [
+        ".drawer__cart-items-wrapper",
+        ".cart-drawer__items",
+        ".cart-items",
+        ".cart__items",
+      ]) || node;
+
+    return normalizeTablePlacementAnchor(itemsAnchor);
+  }
+
+  function getSafeBlockPlacementAnchor(node, type) {
+    var anchor = normalizeTablePlacementAnchor(node);
+
+    while (anchor && anchor.parentElement) {
+      if (isGiftMessageOwnedNode(anchor)) return null;
+      if (!shouldPromotePlacementAnchor(anchor, type)) break;
+      anchor = normalizeTablePlacementAnchor(anchor.parentElement);
+    }
+
+    return anchor;
+  }
+
+  function shouldPromotePlacementAnchor(anchor, type) {
+    if (!anchor || !anchor.parentElement) return false;
+
+    if (type === "subtotal" && isStableSubtotalAnchor(anchor)) return false;
+    if (type === "cartItems" && isStableCartItemsAnchor(anchor)) return false;
+
+    var tagName = cleanString(anchor.tagName).toLowerCase();
+    if (
+      ["span", "strong", "small", "b", "i", "em", "dt", "dd"].indexOf(
+        tagName,
+      ) !== -1
+    ) {
+      return true;
+    }
+
+    if (!window.getComputedStyle) return false;
+
+    var style = window.getComputedStyle(anchor);
+    var parentStyle = window.getComputedStyle(anchor.parentElement);
+    var display = cleanString(style && style.display);
+    var parentDisplay = cleanString(parentStyle && parentStyle.display);
+
+    if (/^inline/.test(display) || display === "contents") return true;
+
+    return Boolean(
+      type === "subtotal" &&
+      /flex|grid/.test(parentDisplay) &&
+      anchor.parentElement.children.length <= 4,
+    );
+  }
+
+  function isStableSubtotalAnchor(anchor) {
+    return Boolean(
+      anchor &&
+      anchor.matches &&
+      anchor.matches(
+        [
+          ".cart-totals__container",
+          "[class*='cart-totals__container']",
+          ".cart-drawer__totals",
+          ".cart__totals",
+          ".totals",
+          ".cart-subtotal",
+          ".cart__subtotal",
+          ".cart-drawer__subtotal",
+        ].join(","),
+      ),
+    );
+  }
+
+  function isStableCartItemsAnchor(anchor) {
+    return Boolean(
+      anchor &&
+      anchor.matches &&
+      anchor.matches(
+        [
+          "cart-drawer-items",
+          "[data-cart-drawer-items]",
+          "[data-cart-items]",
+          ".drawer__cart-items-wrapper",
+          ".cart-drawer__items",
+          ".cart-items",
+          ".cart__items",
+          "table",
+        ].join(","),
+      ),
+    );
+  }
+
+  function normalizeTablePlacementAnchor(node) {
+    if (!node || node.nodeType !== 1) return null;
+
+    var tagName = cleanString(node.tagName).toLowerCase();
+    if (["tbody", "thead", "tfoot", "tr", "td", "th"].indexOf(tagName) !== -1) {
+      return node.closest("table") || node;
     }
 
     return node;
@@ -2419,6 +2694,16 @@
     }
 
     return drawer;
+  }
+
+  function normalizePixelSetting(value, min, max) {
+    var number = parseInt(cleanString(value), 10);
+
+    if (!Number.isFinite(number)) return min;
+    if (number < min) return min;
+    if (number > max) return max;
+
+    return number;
   }
 
   function bootstrapGiftMessageBridge() {

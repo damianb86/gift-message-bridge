@@ -37,24 +37,45 @@
   box-sizing: border-box;
   display: block;
   flex: 0 0 100%;
+  float: none;
+  isolation: isolate;
   margin: 0.75rem 0;
   min-width: 0;
+  overflow: visible;
+  padding: var(--gmb-drawer-padding-block, 0)
+    var(--gmb-drawer-padding-inline, 0);
+  position: relative;
   width: 100%;
+  z-index: 0;
 }
 
 .gmb-drawer-mount[data-gmb-drawer-placement-position="above_subtotal"] {
   border-bottom: 1px solid rgba(51, 65, 85, 0.12);
   border-top: 1px solid rgba(51, 65, 85, 0.12);
   margin: 0.85rem 0;
-  padding: 0.85rem 0;
+  padding: calc(0.85rem + var(--gmb-drawer-padding-block, 0))
+    var(--gmb-drawer-padding-inline, 0);
 }
 
 .gmb-drawer-mount .gmb-box {
   margin: 0;
+  width: 100%;
 }
 
 .gmb-box--drawer {
   font-size: 0.95rem;
+}
+
+.gmb-box--drawer .gmb-card-product-picker {
+  margin-top: 0.65rem;
+}
+
+.gmb-box--drawer .gmb-card-product-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gmb-box--drawer .gmb-card-product-picker--grid_4 .gmb-card-product-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 /* Toggle row */
