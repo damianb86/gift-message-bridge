@@ -38,6 +38,7 @@
   display: block;
   flex: 0 0 100%;
   float: none;
+  grid-column: 1 / -1;
   isolation: isolate;
   margin: 0.75rem 0;
   min-width: 0;
