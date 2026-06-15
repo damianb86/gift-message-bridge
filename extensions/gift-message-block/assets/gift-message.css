@@ -164,12 +164,12 @@
   pointer-events: none;
   transform: translateY(-0.35rem);
   transition:
-    max-height 0.26s ease,
-    margin-top 0.2s ease,
-    opacity 0.18s ease,
-    padding 0.22s ease,
-    transform 0.22s ease,
-    visibility 0s linear 0.26s;
+    max-height 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 0.3s ease,
+    opacity 0.26s ease,
+    padding 0.34s ease,
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 0.42s;
   visibility: hidden;
 }
 
@@ -188,11 +188,11 @@
   pointer-events: auto;
   transform: translateY(0);
   transition:
-    max-height 0.28s ease,
-    margin-top 0.18s ease,
-    opacity 0.18s ease,
-    padding 0.22s ease,
-    transform 0.22s ease;
+    max-height 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 0.28s ease,
+    opacity 0.28s ease,
+    padding 0.34s ease,
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   visibility: visible;
 }
 
@@ -1099,14 +1099,14 @@
   display: flex;
   gap: 1rem;
   justify-content: space-between;
-  min-height: 4rem;
+  min-height: 2.7rem;
   padding: 0;
   width: 100%;
 }
 
 .gmb-box--preset-accordion .gmb-label {
   color: #111;
-  font-size: 0.95em;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1.2;
@@ -1118,11 +1118,11 @@
   border: 0;
   border-radius: 0;
   color: #111;
-  flex: 0 0 1.2em;
-  height: 1.2em;
+  flex: 0 0 0.72em;
+  height: 0.72em;
   margin-left: auto;
   order: 2;
-  width: 1.2em;
+  width: 0.72em;
 }
 
 .gmb-box--preset-accordion .gmb-check-ui::before,
@@ -1130,13 +1130,13 @@
   background: currentColor;
   border: 0;
   content: "";
-  height: 2px;
+  height: 1.5px;
   left: 50%;
   opacity: 1;
   position: absolute;
   top: 50%;
   transform-origin: center;
-  width: 1.05em;
+  width: 0.63em;
 }
 
 .gmb-box--preset-accordion .gmb-check-ui::before {

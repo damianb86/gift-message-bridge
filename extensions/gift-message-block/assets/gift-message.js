@@ -2227,7 +2227,11 @@
 
     field.hidden = false;
     field.removeAttribute("hidden");
-    field.toggleAttribute("data-gmb-open", open);
+    if (open) {
+      field.setAttribute("data-gmb-open", "true");
+    } else {
+      field.removeAttribute("data-gmb-open");
+    }
     field.setAttribute("aria-hidden", open ? "false" : "true");
     field.style.display = "";
     if ("inert" in field) {
