@@ -533,15 +533,21 @@
         return;
       }
 
+      var persistOptions = {
+        cartToken: cartToken,
+        cartReference: ensureCartReference(),
+        mode: mode,
+      };
+
+      if (toggle.checked && shouldAttachMessageToCardProduct()) {
+        copyObjectProperties(persistOptions, getSelectedCardMessageOptions(1));
+      }
+
       persistMessage(
         value,
         sender,
         recipient,
-        {
-          cartToken: cartToken,
-          cartReference: ensureCartReference(),
-          mode: mode,
-        },
+        persistOptions,
         function () {
           // Keep the Shopify cart attribute in sync for native cart display.
           updateCartAttributes(value, sender, recipient, onSuccess, onError);
@@ -1080,7 +1086,7 @@
         cardItem: {
           id: selectedCardVariant.variantId,
           properties: cardProperties,
-          quantity: 1,
+          quantity: originalItem.quantity,
         },
         consumed: false,
         form: form,
@@ -1165,24 +1171,31 @@
       if (manualSave && (!hasSavedMessage || isDirty)) return;
 
       var messageId = ensureMessageId();
-      var variant = getSelectedVariant(findProductForm());
+      var form = findProductForm();
+      var variant = getSelectedVariant(form);
+      var persistOptions = {
+        cartToken: cartToken,
+        cartReference: ensureCartReference(),
+        messageId: messageId,
+        mode: "product",
+        productId: productId,
+        productTitle: productTitle,
+        productVariantTitle: getVariantTitle(variant),
+        productSku: variant && variant.sku ? String(variant.sku) : "",
+        productHandle: productHandle,
+        keepalive: true,
+      };
+
+      copyObjectProperties(
+        persistOptions,
+        getSelectedCardMessageOptions(getProductFormQuantity(form)),
+      );
 
       persistMessage(
         value,
         sender,
         recipient,
-        {
-          cartToken: cartToken,
-          cartReference: ensureCartReference(),
-          messageId: messageId,
-          mode: "product",
-          productId: productId,
-          productTitle: productTitle,
-          productVariantTitle: getVariantTitle(variant),
-          productSku: variant && variant.sku ? String(variant.sku) : "",
-          productHandle: productHandle,
-          keepalive: true,
-        },
+        persistOptions,
         onSuccess,
         onError,
       );
@@ -1483,6 +1496,12 @@
           product_variant_title: options.productVariantTitle || "",
           product_sku: options.productSku || "",
           product_handle: options.productHandle || "",
+          message_card_product_title: options.messageCardProductTitle || "",
+          message_card_variant_title: options.messageCardVariantTitle || "",
+          message_card_variant_id: options.messageCardVariantId || "",
+          message_card_sku: options.messageCardSku || "",
+          message_card_quantity: options.messageCardQuantity || 1,
+          message_card_reference: options.messageCardReference || "",
         }),
       })
         .then(function (res) {
@@ -1658,6 +1677,22 @@
       return productName;
     }
 
+    function getSelectedCardMessageOptions(quantity) {
+      if (!shouldAttachMessageToCardProduct()) return {};
+
+      return {
+        messageCardProductTitle:
+          cardProductConfig && cardProductConfig.title
+            ? cardProductConfig.title
+            : "Message card",
+        messageCardVariantTitle: getCardVariantTitle(selectedCardVariant),
+        messageCardVariantId: selectedCardVariant.variantId,
+        messageCardSku: selectedCardVariant.sku || "",
+        messageCardQuantity: parseQuantity(quantity),
+        messageCardReference: getSelectedCardVariantReference(),
+      };
+    }
+
     function buildOriginalProductReference(form) {
       var variant = getSelectedVariant(form);
       var title = String(productTitle || "").trim();
@@ -1674,6 +1709,16 @@
       }
 
       return parts.join(" | ") || productHandle || "Gift message product";
+    }
+
+    function getProductFormQuantity(form) {
+      if (!form) return 1;
+
+      try {
+        return parseQuantity(new FormData(form).get("quantity"));
+      } catch (err) {
+        return 1;
+      }
     }
 
     function findFirstAvailableCardVariant(variants) {
@@ -2102,6 +2147,14 @@
     });
 
     return copy;
+  }
+
+  function copyObjectProperties(target, source) {
+    Object.keys(source || {}).forEach(function (key) {
+      target[key] = source[key];
+    });
+
+    return target;
   }
 
   function normalizeCardVariantStyle(value) {

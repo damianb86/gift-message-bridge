@@ -57,6 +57,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     product_variant_title?: string;
     product_sku?: string;
     product_handle?: string;
+    message_card_product_title?: string;
+    message_card_variant_title?: string;
+    message_card_variant_id?: string;
+    message_card_sku?: string;
+    message_card_quantity?: number | string;
+    message_card_reference?: string;
   };
   try {
     body = await request.json();
@@ -91,6 +97,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     String(body?.product_handle ?? "")
       .trim()
       .slice(0, 250) || null;
+  const messageCardProductTitle =
+    String(body?.message_card_product_title ?? "")
+      .trim()
+      .slice(0, 500) || null;
+  const messageCardVariantTitle =
+    String(body?.message_card_variant_title ?? "")
+      .trim()
+      .slice(0, 500) || null;
+  const messageCardVariantId =
+    String(body?.message_card_variant_id ?? "")
+      .trim()
+      .slice(0, 250) || null;
+  const messageCardSku =
+    String(body?.message_card_sku ?? "")
+      .trim()
+      .slice(0, 250) || null;
+  const messageCardQuantity = parsePositiveQuantity(
+    body?.message_card_quantity,
+  );
+  const messageCardReference =
+    String(body?.message_card_reference ?? "")
+      .trim()
+      .slice(0, 1000) || null;
   const sourceId =
     mode === "product"
       ? messageId || `product:${cartToken}`
@@ -122,6 +151,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       productVariantTitle,
       productSku,
       productHandle,
+      messageCardProductTitle,
+      messageCardVariantTitle,
+      messageCardVariantId,
+      messageCardSku,
+      messageCardQuantity,
+      messageCardReference,
     },
     update: {
       cartToken: cartToken || sourceId,
@@ -135,6 +170,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       productVariantTitle,
       productSku,
       productHandle,
+      messageCardProductTitle,
+      messageCardVariantTitle,
+      messageCardVariantId,
+      messageCardSku,
+      messageCardQuantity,
+      messageCardReference,
     },
   });
 
@@ -143,6 +184,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     headers: { "Content-Type": "application/json" },
   });
 };
+
+function parsePositiveQuantity(value: unknown): number {
+  const quantity = Number.parseInt(String(value ?? "1"), 10);
+
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

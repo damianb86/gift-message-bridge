@@ -405,7 +405,9 @@ function collectGiftMessages(order) {
   );
 
   return expandGiftMessages(
-    dedupeGiftMessages([...orderMessages, ...lineMessages]),
+    dedupeGiftMessages(
+      removeOrderAttributeDuplicates([...orderMessages, ...lineMessages]),
+    ),
   );
 }
 
@@ -536,6 +538,7 @@ function collectOrderGiftMessages(
       cartToken: orderReference,
       isMessageCardAddon: Boolean(relatedGiftCardLine),
       messageCardReference: buildGiftCardPrintReference(relatedGiftCardLine),
+      origin: "order",
       printQuantity: getGiftCardPrintQuantity(relatedGiftCardLine),
       productReference: "Cart gift message",
       sender:
@@ -587,6 +590,7 @@ function collectLineGiftMessages(
         lineContext.giftMessageCardSource || relatedGiftCardLine,
       ),
       messageCardReference: buildGiftCardPrintReference(relatedGiftCardLine),
+      origin: "line",
       printQuantity: getGiftCardPrintQuantity(relatedGiftCardLine),
       productReference: resolveLineProductReference(
         lineContext,
@@ -651,6 +655,21 @@ function findRelatedGiftCardLineForLine(lineContext, giftCardRelations) {
   );
 }
 
+function removeOrderAttributeDuplicates(messages) {
+  const lineContentKeys = new Set(
+    messages
+      .filter((message) => message.origin === "line")
+      .map(getGiftMessageContentKey)
+      .filter(Boolean),
+  );
+
+  return messages.filter((message) => {
+    if (message.origin !== "order") return true;
+
+    return !lineContentKeys.has(getGiftMessageContentKey(message));
+  });
+}
+
 function dedupeGiftMessages(messages) {
   const byKey = new Map();
   const orderedKeys = [];
@@ -685,7 +704,11 @@ function dedupeGiftMessages(messages) {
 
 function mergeGiftMessages(current, next) {
   const preferred =
-    current.isMessageCardAddon && !next.isMessageCardAddon ? next : current;
+    current.origin === "order" && next.origin === "line"
+      ? next
+      : current.isMessageCardAddon && !next.isMessageCardAddon
+        ? next
+        : current;
   const fallback = preferred === current ? next : current;
   const merged = { ...preferred };
 
@@ -727,9 +750,18 @@ function toPrintableGiftMessage(message, copyIndex, quantity) {
   }
 
   delete printableMessage.isMessageCardAddon;
+  delete printableMessage.origin;
   delete printableMessage.printQuantity;
 
   return printableMessage;
+}
+
+function getGiftMessageContentKey(message) {
+  return [
+    normalizeKey(message.sender),
+    normalizeKey(message.recipient),
+    normalizeKey(message.message),
+  ].join(":");
 }
 
 function getGiftCardPrintQuantity(lineContext) {

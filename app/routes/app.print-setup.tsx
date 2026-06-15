@@ -56,6 +56,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       { productVariantTitle: { contains: query } },
       { productSku: { contains: query } },
       { productHandle: { contains: query } },
+      { messageCardProductTitle: { contains: query } },
+      { messageCardVariantTitle: { contains: query } },
+      { messageCardVariantId: { contains: query } },
+      { messageCardSku: { contains: query } },
+      { messageCardReference: { contains: query } },
     ];
   }
 
@@ -108,6 +113,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     productVariantTitle?: string | null;
     productSku?: string | null;
     productHandle?: string | null;
+    messageCardProductTitle?: string | null;
+    messageCardVariantTitle?: string | null;
+    messageCardVariantId?: string | null;
+    messageCardSku?: string | null;
+    messageCardQuantity?: number;
+    messageCardReference?: string | null;
     printed?: boolean;
     date: string;
   }) => ({
@@ -129,6 +140,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       m.productSku,
     ),
     productHandle: m.productHandle || "",
+    messageCardProductTitle: m.messageCardProductTitle || "",
+    messageCardVariantTitle: m.messageCardVariantTitle || "",
+    messageCardVariantId: m.messageCardVariantId || "",
+    messageCardSku: m.messageCardSku || "",
+    messageCardQuantity: Math.max(Number(m.messageCardQuantity) || 1, 1),
+    messageCardReference:
+      m.messageCardReference ||
+      formatMessageCardReference(
+        m.messageCardProductTitle,
+        m.messageCardVariantTitle,
+        m.messageCardVariantId,
+        m.messageCardSku,
+        m.messageCardQuantity,
+      ),
     printed: Boolean(m.printed),
     date: m.date,
   });
@@ -362,6 +387,45 @@ function formatProductReference(
   return parts.join(" | ");
 }
 
+function formatMessageCardReference(
+  productTitle?: string | null,
+  variantTitle?: string | null,
+  variantId?: string | null,
+  sku?: string | null,
+  quantity?: number | null,
+): string {
+  const title = String(productTitle || "").trim();
+  const variant = String(variantTitle || "").trim();
+  const cleanVariantId = String(variantId || "").trim();
+  const cleanSku = String(sku || "").trim();
+  const cleanQuantity = Math.max(Number(quantity) || 1, 1);
+  const parts: string[] = [];
+
+  if (!title && !variant && !cleanVariantId && !cleanSku) {
+    return "";
+  }
+
+  if (title) {
+    parts.push(`Name: ${title}`);
+  }
+
+  if (variant && variant.toLowerCase() !== "default title") {
+    parts.push(`Variant: ${variant}`);
+  }
+
+  if (cleanVariantId) {
+    parts.push(`Variant ID: ${cleanVariantId}`);
+  }
+
+  parts.push(`Quantity: ${cleanQuantity}`);
+
+  if (cleanSku) {
+    parts.push(`SKU: ${cleanSku}`);
+  }
+
+  return parts.join(" | ");
+}
+
 type PrintMessage = Awaited<ReturnType<typeof loader>>["printMessages"][number];
 type PreviewMessage = Pick<
   PrintMessage,
@@ -369,11 +433,12 @@ type PreviewMessage = Pick<
   | "cartReference"
   | "cartToken"
   | "productReference"
+  | "messageCardReference"
   | "sender"
   | "recipient"
   | "message"
   | "date"
->;
+> & { printCopyLabel?: string };
 
 const basePrintCss = `* { box-sizing: border-box; }
 body { margin: 0; padding: 10mm; background: #fff; }
@@ -433,11 +498,53 @@ body { margin: 0; padding: 10mm; background: #fff; }
   .gift-card { page-break-inside: avoid; break-inside: avoid; }
 }`;
 
+const printPreviewScreenCss = `@media screen {
+  html {
+    background: #f4f6f8;
+  }
+  body {
+    background: #f4f6f8;
+    padding: clamp(22px, 4vw, 44px);
+  }
+  .print-message {
+    background: #ffffff;
+    border: 1px solid rgba(51, 65, 85, .1);
+    border-radius: 10px;
+    box-shadow: 0 14px 36px rgba(51, 65, 85, .12);
+    padding: clamp(12px, 2vw, 24px);
+  }
+}
+@media screen and (max-width: 700px) {
+  body {
+    padding: 18px 12px 34px;
+    zoom: .76;
+  }
+  .print-message {
+    margin-bottom: 16px;
+    padding: 16px;
+  }
+}
+@media print {
+  html,
+  body {
+    background: #ffffff;
+    zoom: 1;
+  }
+  .print-message {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+}`;
+
 const defaultPreviewMessage: PreviewMessage = {
   reference: "GM-7K4P9",
   cartReference: "GO-2D6H8",
   cartToken: "GO-2D6H8",
   productReference: "Signature Candle - Amber / Large | SKU: CND-AMB-L",
+  messageCardReference:
+    "Name: Gift Paper | Variant: Matte Black | Variant ID: 44230526206040 | Quantity: 2 | SKU: PAPER-BLK",
   sender: "Alex",
   recipient: "Tyler",
   message: "Happy birthday! Hope this gift brings a little extra joy today.",
@@ -458,13 +565,18 @@ function renderTemplate(tpl: string, msg: PreviewMessage): string {
     .replace(/\{\{reference\}\}/g, escapeHtml(msg.reference))
     .replace(/\{\{cart_token\}\}/g, escapeHtml(msg.cartReference))
     .replace(/\{\{product_reference\}\}/g, escapeHtml(msg.productReference))
+    .replace(
+      /\{\{message_card_reference\}\}/g,
+      escapeHtml(msg.messageCardReference || ""),
+    )
+    .replace(/\{\{print_copy\}\}/g, escapeHtml(msg.printCopyLabel || ""))
     .replace(/\{\{from\}\}/g, escapeHtml(msg.sender || ""))
     .replace(/\{\{to\}\}/g, escapeHtml(msg.recipient || ""))
     .replace(/\{\{message\}\}/g, escapeHtml(msg.message))
     .replace(/\{\{date\}\}/g, escapeHtml(msg.date));
 }
 
-function renderPrintMessage(tpl: string, msg: PrintMessage): string {
+function renderPrintMessage(tpl: string, msg: PreviewMessage): string {
   return `<section class="print-message">
   <aside class="print-meta">
     <div>
@@ -483,9 +595,45 @@ function renderPrintMessage(tpl: string, msg: PrintMessage): string {
     </div>`
         : ""
     }
+    ${
+      msg.messageCardReference
+        ? `<div>
+      <div class="print-meta-title">Message card</div>
+      <div class="print-meta-value">${escapeHtml(msg.messageCardReference)}</div>
+    </div>`
+        : ""
+    }
+    ${
+      msg.printCopyLabel
+        ? `<div>
+      <div class="print-meta-title">Print copy</div>
+      <div class="print-meta-value">${escapeHtml(msg.printCopyLabel)}</div>
+    </div>`
+        : ""
+    }
   </aside>
-  ${renderTemplate(tpl, msg)}
+${renderTemplate(tpl, msg)}
 </section>`;
+}
+
+function expandMessageForPrint(message: PrintMessage): PreviewMessage[] {
+  const quantity = message.messageCardReference
+    ? Math.max(Number(message.messageCardQuantity) || 1, 1)
+    : 1;
+
+  return Array.from({ length: quantity }, (_, index) => ({
+    reference: message.reference,
+    cartReference: message.cartReference,
+    cartToken: message.cartToken,
+    productReference: message.productReference,
+    messageCardReference: message.messageCardReference,
+    printCopyLabel:
+      quantity > 1 ? `Copy ${index + 1} of ${quantity}` : undefined,
+    sender: message.sender,
+    recipient: message.recipient,
+    message: message.message,
+    date: message.date,
+  }));
 }
 
 function truncateText(value: string, maxLength: number): string {
@@ -618,7 +766,12 @@ export default function PrintSetup() {
     () => printMessages.filter((message) => selectedMessageIds.has(message.id)),
     [printMessages, selectedMessageIds],
   );
+  const selectedPrintMessages = useMemo(
+    () => selectedMessages.flatMap((message) => expandMessageForPrint(message)),
+    [selectedMessages],
+  );
   const selectedCount = selectedMessages.length;
+  const selectedPrintCount = selectedPrintMessages.length;
   const allMessagesSelected =
     printMessages.length > 0 && selectedCount === printMessages.length;
   const partiallySelected =
@@ -668,7 +821,7 @@ export default function PrintSetup() {
     templateHtml = templateHtmlValue,
     templateCss = templateCssValue,
   ) => {
-    const renderedMessages = selectedMessages
+    const renderedMessages = selectedPrintMessages
       .map((msg) => renderPrintMessage(templateHtml, msg))
       .join("\n");
 
@@ -680,6 +833,7 @@ export default function PrintSetup() {
   <style>
 ${basePrintCss}
 ${templateCss}
+${printPreviewScreenCss}
   </style>
 </head>
 <body>
@@ -968,10 +1122,7 @@ body > .gift-card {
             borderWidth="small"
             padding="base"
           >
-            <s-grid
-              gap="base"
-              gridTemplateColumns="minmax(260px, 1.4fr) repeat(2, minmax(180px, 1fr)) auto"
-            >
+            <div className={styles.filtersGrid}>
               <s-search-field
                 label="Search"
                 placeholder="Reference, cart token, name, or message"
@@ -1045,7 +1196,7 @@ body > .gift-card {
                   Clear
                 </s-button>
               </div>
-            </s-grid>
+            </div>
           </s-box>
         </s-stack>
       </s-section>
@@ -1067,74 +1218,156 @@ body > .gift-card {
                 printMessages.length === 0 ? styles.messagesTableAreaEmpty : ""
               }`}
             >
-              <s-table variant="auto">
-                <s-table-header-row>
-                  <s-table-header>
-                    <s-checkbox
-                      accessibilityLabel="Select all messages"
-                      checked={allMessagesSelected}
-                      indeterminate={partiallySelected}
-                      disabled={printMessages.length === 0}
-                      onChange={(event) =>
-                        toggleAllMessages(
-                          Boolean(
-                            (event.currentTarget as unknown as HTMLInputElement)
-                              .checked,
-                          ),
-                        )
-                      }
-                    />
-                  </s-table-header>
-                  <s-table-header listSlot="primary">
-                    Order/cart ref
-                  </s-table-header>
-                  <s-table-header listSlot="secondary">Product</s-table-header>
-                  <s-table-header>From</s-table-header>
-                  <s-table-header>To</s-table-header>
-                  <s-table-header>Message preview</s-table-header>
-                  <s-table-header>Date</s-table-header>
-                  <s-table-header>Printed</s-table-header>
-                </s-table-header-row>
-                <s-table-body>
-                  {printMessages.map((msg) => (
-                    <s-table-row key={msg.id}>
-                      <s-table-cell>
-                        <s-checkbox
-                          accessibilityLabel={`Select message from ${
-                            msg.sender || "unknown sender"
-                          }`}
-                          checked={selectedMessageIds.has(msg.id)}
-                          onChange={(event) =>
-                            toggleMessage(
-                              msg.id,
-                              Boolean(
-                                (
-                                  event.currentTarget as unknown as HTMLInputElement
-                                ).checked,
-                              ),
-                            )
-                          }
-                        />
-                      </s-table-cell>
-                      <s-table-cell>{msg.cartReference}</s-table-cell>
-                      <s-table-cell>{msg.productReference || "-"}</s-table-cell>
-                      <s-table-cell>{msg.sender || "-"}</s-table-cell>
-                      <s-table-cell>{msg.recipient || "-"}</s-table-cell>
-                      <s-table-cell>
-                        {truncateText(msg.message, 50)}
-                      </s-table-cell>
-                      <s-table-cell>{msg.date}</s-table-cell>
-                      <s-table-cell>
-                        {msg.printed ? (
-                          <s-icon type="check-circle-filled" tone="success" />
-                        ) : (
-                          <s-icon type="x-circle" color="subdued" />
-                        )}
-                      </s-table-cell>
-                    </s-table-row>
-                  ))}
-                </s-table-body>
-              </s-table>
+              <div className={styles.desktopMessagesTable}>
+                <s-table variant="auto">
+                  <s-table-header-row>
+                    <s-table-header>
+                      <s-checkbox
+                        accessibilityLabel="Select all messages"
+                        checked={allMessagesSelected}
+                        indeterminate={partiallySelected}
+                        disabled={printMessages.length === 0}
+                        onChange={(event) =>
+                          toggleAllMessages(
+                            Boolean(
+                              (
+                                event.currentTarget as unknown as HTMLInputElement
+                              ).checked,
+                            ),
+                          )
+                        }
+                      />
+                    </s-table-header>
+                    <s-table-header listSlot="primary">
+                      Order/cart ref
+                    </s-table-header>
+                    <s-table-header listSlot="secondary">
+                      Product
+                    </s-table-header>
+                    <s-table-header>Message card</s-table-header>
+                    <s-table-header>From</s-table-header>
+                    <s-table-header>To</s-table-header>
+                    <s-table-header>Message preview</s-table-header>
+                    <s-table-header>Date</s-table-header>
+                    <s-table-header>Printed</s-table-header>
+                  </s-table-header-row>
+                  <s-table-body>
+                    {printMessages.map((msg) => (
+                      <s-table-row key={msg.id}>
+                        <s-table-cell>
+                          <s-checkbox
+                            accessibilityLabel={`Select message from ${
+                              msg.sender || "unknown sender"
+                            }`}
+                            checked={selectedMessageIds.has(msg.id)}
+                            onChange={(event) =>
+                              toggleMessage(
+                                msg.id,
+                                Boolean(
+                                  (
+                                    event.currentTarget as unknown as HTMLInputElement
+                                  ).checked,
+                                ),
+                              )
+                            }
+                          />
+                        </s-table-cell>
+                        <s-table-cell>{msg.cartReference}</s-table-cell>
+                        <s-table-cell>
+                          {msg.productReference || "-"}
+                        </s-table-cell>
+                        <s-table-cell>
+                          {msg.messageCardReference
+                            ? truncateText(msg.messageCardReference, 72)
+                            : "-"}
+                        </s-table-cell>
+                        <s-table-cell>{msg.sender || "-"}</s-table-cell>
+                        <s-table-cell>{msg.recipient || "-"}</s-table-cell>
+                        <s-table-cell>
+                          {truncateText(msg.message, 50)}
+                        </s-table-cell>
+                        <s-table-cell>{msg.date}</s-table-cell>
+                        <s-table-cell>
+                          {msg.printed ? (
+                            <s-icon type="check-circle-filled" tone="success" />
+                          ) : (
+                            <s-icon type="x-circle" color="subdued" />
+                          )}
+                        </s-table-cell>
+                      </s-table-row>
+                    ))}
+                  </s-table-body>
+                </s-table>
+              </div>
+
+              <div className={styles.mobileMessagesList} role="list">
+                {printMessages.map((msg) => (
+                  <article
+                    className={styles.mobileMessageCard}
+                    key={`mobile-${msg.id}`}
+                    role="listitem"
+                  >
+                    <div className={styles.mobileMessageHeader}>
+                      <s-checkbox
+                        accessibilityLabel={`Select message from ${
+                          msg.sender || "unknown sender"
+                        }`}
+                        checked={selectedMessageIds.has(msg.id)}
+                        onChange={(event) =>
+                          toggleMessage(
+                            msg.id,
+                            Boolean(
+                              (
+                                event.currentTarget as unknown as HTMLInputElement
+                              ).checked,
+                            ),
+                          )
+                        }
+                      />
+                      <div className={styles.mobileMessageTitle}>
+                        <strong>{msg.cartReference}</strong>
+                        <span>{msg.date}</span>
+                      </div>
+                      <span
+                        className={`${styles.mobilePrintedBadge} ${
+                          msg.printed ? styles.mobilePrintedBadgeDone : ""
+                        }`}
+                      >
+                        {msg.printed ? "Printed" : "Unprinted"}
+                      </span>
+                    </div>
+
+                    <div className={styles.mobileMessagePeople}>
+                      <span>
+                        <strong>From</strong>
+                        {msg.sender || "-"}
+                      </span>
+                      <span>
+                        <strong>To</strong>
+                        {msg.recipient || "-"}
+                      </span>
+                    </div>
+
+                    <p className={styles.mobileMessageText}>
+                      {truncateText(msg.message, 140)}
+                    </p>
+
+                    {msg.productReference && (
+                      <div className={styles.mobileProductReference}>
+                        <strong>Product</strong>
+                        <span>{msg.productReference}</span>
+                      </div>
+                    )}
+
+                    {msg.messageCardReference && (
+                      <div className={styles.mobileProductReference}>
+                        <strong>Message card</strong>
+                        <span>{msg.messageCardReference}</span>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
 
               {printMessages.length === 0 && (
                 <div className={styles.emptyMessagesState}>
@@ -1162,6 +1395,8 @@ body > .gift-card {
           <div>
             <s-text type="strong">{selectedCount} selected</s-text>
             <s-text color="subdued">
+              {selectedPrintCount} print{" "}
+              {selectedPrintCount === 1 ? "card" : "cards"} ·{" "}
               {selectedTemplate.name} · {dateRangeLabel} · {printedLabel}
             </s-text>
           </div>

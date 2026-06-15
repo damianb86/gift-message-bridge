@@ -14,24 +14,30 @@ datasource db {
 }
 
 model GiftMessage {
-  id                  String   @id @default(cuid())
-  shop                String
-  cartToken           String
-  cartReference       String?
-  sourceId            String
-  message             String   @default("")
-  sender              String   @default("")
-  recipient           String   @default("")
-  mode                String   @default("order")
-  propertyName        String?
-  productId           String?
-  productTitle        String?
-  productVariantTitle String?
-  productSku          String?
-  productHandle       String?
-  printed             Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                      String   @id @default(cuid())
+  shop                    String
+  cartToken               String
+  cartReference           String?
+  sourceId                String
+  message                 String   @default("")
+  sender                  String   @default("")
+  recipient               String   @default("")
+  mode                    String   @default("order")
+  propertyName            String?
+  productId               String?
+  productTitle            String?
+  productVariantTitle     String?
+  productSku              String?
+  productHandle           String?
+  messageCardProductTitle String?
+  messageCardVariantTitle String?
+  messageCardVariantId    String?
+  messageCardSku          String?
+  messageCardQuantity     Int      @default(1)
+  messageCardReference    String?
+  printed                 Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   @@unique([shop, sourceId])
 }

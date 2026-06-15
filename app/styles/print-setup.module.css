@@ -16,6 +16,20 @@
 
 .filterActions {
   align-self: end;
+  flex-wrap: wrap;
+}
+
+.filtersGrid {
+  align-items: end;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns:
+    minmax(260px, 1.4fr) repeat(2, minmax(180px, 1fr))
+    minmax(150px, auto);
+}
+
+.filtersGrid > * {
+  min-width: 0;
 }
 
 .templateLaunch {
@@ -126,6 +140,117 @@
 
 .messagesTableArea {
   position: relative;
+}
+
+.desktopMessagesTable {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.desktopMessagesTable :global(s-table) {
+  min-width: 860px;
+}
+
+.mobileMessagesList {
+  display: none;
+}
+
+.mobileMessageCard {
+  background: #ffffff;
+  border: 1px solid rgba(51, 65, 85, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(51, 65, 85, 0.08);
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.875rem;
+}
+
+.mobileMessageHeader {
+  align-items: center;
+  display: grid;
+  gap: 0.625rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-width: 0;
+}
+
+.mobileMessageTitle {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.mobileMessageTitle strong {
+  color: var(--gmb-charcoal);
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.mobileMessageTitle span {
+  color: var(--gmb-muted);
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.mobilePrintedBadge {
+  background: var(--gmb-neutral);
+  border: 1px solid rgba(51, 65, 85, 0.1);
+  border-radius: 999px;
+  color: var(--gmb-muted);
+  font-size: 0.72rem;
+  font-weight: 720;
+  line-height: 1.2;
+  padding: 0.25rem 0.55rem;
+  white-space: nowrap;
+}
+
+.mobilePrintedBadgeDone {
+  background: var(--gmb-success);
+  border-color: rgba(79, 175, 143, 0.24);
+  color: #23795f;
+}
+
+.mobileMessagePeople {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.mobileMessagePeople span,
+.mobileProductReference {
+  background: var(--gmb-neutral);
+  border-radius: 8px;
+  color: var(--gmb-charcoal);
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+  padding: 0.55rem 0.625rem;
+}
+
+.mobileMessagePeople strong,
+.mobileProductReference strong {
+  color: var(--gmb-muted);
+  font-size: 0.68rem;
+  font-weight: 760;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.mobileMessagePeople span,
+.mobileProductReference span {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.mobileMessageText {
+  color: var(--gmb-ink);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .messagesTableAreaEmpty {
@@ -545,6 +670,7 @@
 .printPreviewDocument {
   background: var(--gmb-surface);
   border: 1px solid var(--gmb-border);
+  border-radius: 8px;
   height: 100%;
   min-height: 420px;
   width: 100%;
@@ -609,6 +735,10 @@
     grid-template-columns: 1fr;
   }
 
+  .filtersGrid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  }
+
   .templateModalBody {
     grid-template-columns: 1fr;
   }
@@ -649,6 +779,10 @@
     flex-direction: column;
   }
 
+  .filtersGrid {
+    grid-template-columns: 1fr;
+  }
+
   .templateGrid {
     grid-template-columns: 1fr;
   }
@@ -673,19 +807,58 @@
   }
 
   .printPreviewModal {
-    max-height: 94vh;
+    max-height: calc(100dvh - 1.5rem);
+    width: 100%;
   }
 
   .printPreviewBody {
+    gap: 0.75rem;
     min-height: 0;
+    overflow: auto;
+    padding: 0.75rem;
   }
 
   .printPreviewDocument {
-    min-height: 360px;
+    min-height: 300px;
+    max-height: 48vh;
   }
 
   .printPreviewFooter {
     align-items: stretch;
     flex-direction: column;
+  }
+}
+
+@media (max-width: 720px) {
+  .desktopMessagesTable {
+    display: none;
+  }
+
+  .mobileMessagesList {
+    border-top: 1px solid rgba(51, 65, 85, 0.08);
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .emptyMessagesState {
+    min-height: 300px;
+    padding: 2rem 1rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .mobileMessageHeader {
+    align-items: start;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .mobilePrintedBadge {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .mobileMessagePeople {
+    grid-template-columns: 1fr;
   }
 }
