@@ -1158,15 +1158,6 @@
         });
     }
 
-    function getShopifyRoot() {
-      return (
-        (window.Shopify &&
-          window.Shopify.routes &&
-          window.Shopify.routes.root) ||
-        "/"
-      );
-    }
-
     function updateCartAttributes(
       value,
       sender,
@@ -1486,6 +1477,13 @@
     var root = getShopifyRoot();
 
     return root.replace(/\/?$/, "/") + PROXY_PATH.replace(/^\//, "");
+  }
+
+  function getShopifyRoot() {
+    return (
+      (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) ||
+      "/"
+    );
   }
 
   function getShopDomain() {
@@ -1953,7 +1951,7 @@
       }
     });
 
-    return bestScore > -10 ? best : null;
+    return bestScore >= 12 ? best : null;
   }
 
   function scoreDrawerCandidate(candidate, embed) {
@@ -1970,11 +1968,23 @@
     }
 
     var descriptor = getElementDescriptor(candidate);
+    var hasDrawerContent = hasCartDrawerContent(candidate);
+    var isDrawerShell = isLikelyDrawerShell(candidate, tagName, descriptor);
     var score = 0;
+
+    if (isDrawerTrigger(candidate, descriptor, hasDrawerContent)) {
+      return -Infinity;
+    }
+
+    if (!hasDrawerContent && !isDrawerShell) {
+      return -Infinity;
+    }
 
     if (tagName === "cart-drawer") score += 18;
     if (/cart[-_\s]?drawer/i.test(descriptor)) score += 14;
     if (/drawer/i.test(descriptor) && /cart/i.test(descriptor)) score += 8;
+    if (isDrawerShell) score += 10;
+    if (hasDrawerContent) score += 18;
     if (candidate.hasAttribute("open")) score += 8;
     if (candidate.hidden) score -= 8;
 
@@ -1988,24 +1998,72 @@
       score += 6;
     }
 
+    if (isElementVisible(candidate)) score += 5;
+
+    return score;
+  }
+
+  function isDrawerTrigger(candidate, descriptor, hasDrawerContent) {
+    var tagName = cleanString(candidate.tagName).toLowerCase();
+
+    if (["a", "button", "input", "label", "summary"].indexOf(tagName) !== -1) {
+      return true;
+    }
+
     if (
+      !hasDrawerContent &&
+      candidate.closest &&
+      candidate.closest("a, button, label, summary")
+    ) {
+      return true;
+    }
+
+    if (
+      !hasDrawerContent &&
+      /\b(icon|toggle|button|link|opener|trigger|bubble)\b/i.test(descriptor)
+    ) {
+      return true;
+    }
+
+    var role = cleanString(candidate.getAttribute("role")).toLowerCase();
+    return !hasDrawerContent && (role === "button" || role === "link");
+  }
+
+  function isLikelyDrawerShell(candidate, tagName, descriptor) {
+    return Boolean(
+      tagName === "cart-drawer" ||
+      candidate.getAttribute("role") === "dialog" ||
+      candidate.getAttribute("aria-modal") === "true" ||
+      /(^|\s)(cart-drawer|drawer|drawer__inner|cart-drawer__inner)(\s|$)/i.test(
+        descriptor,
+      ) ||
+      /cart[-_\s]?drawer/i.test(descriptor),
+    );
+  }
+
+  function hasCartDrawerContent(candidate) {
+    return Boolean(
+      candidate.querySelector &&
       candidate.querySelector(
         [
           "form[action*='/cart']",
           "button[name='checkout']",
           "input[name='checkout']",
           "a[href*='/checkout']",
+          "cart-drawer-items",
+          "[data-cart-items]",
+          "[data-cart-drawer-items]",
+          ".cart-drawer__items",
           ".cart-drawer__footer",
+          ".cart-drawer__form",
+          ".drawer__contents",
           ".drawer__footer",
+          ".drawer__inner",
+          ".cart-items",
+          ".cart__items",
         ].join(","),
-      )
-    ) {
-      score += 8;
-    }
-
-    if (isElementVisible(candidate)) score += 5;
-
-    return score;
+      ),
+    );
   }
 
   function getElementDescriptor(element) {
@@ -2064,22 +2122,26 @@
 
   function insertDrawerMount(drawer, mount, placement) {
     var normalizedPlacement = cleanString(placement) || "before_checkout";
+    var container = findDrawerContentContainer(drawer) || drawer;
 
     if (normalizedPlacement === "top") {
-      if (drawer.firstElementChild !== mount) {
-        drawer.insertBefore(mount, drawer.firstElementChild);
+      if (container.firstElementChild !== mount) {
+        container.insertBefore(mount, container.firstElementChild);
       }
       return;
     }
 
     if (normalizedPlacement === "bottom") {
-      if (mount.parentNode !== drawer || drawer.lastElementChild !== mount) {
-        drawer.appendChild(mount);
+      if (
+        mount.parentNode !== container ||
+        container.lastElementChild !== mount
+      ) {
+        container.appendChild(mount);
       }
       return;
     }
 
-    var checkoutTarget = drawer.querySelector(
+    var checkoutTarget = container.querySelector(
       [
         "button[name='checkout']",
         "input[name='checkout']",
@@ -2093,14 +2155,14 @@
     if (
       checkoutTarget &&
       checkoutTarget.parentNode &&
-      drawer.contains(checkoutTarget.parentNode) &&
+      container.contains(checkoutTarget.parentNode) &&
       checkoutTarget.parentNode !== mount
     ) {
       checkoutTarget.parentNode.insertBefore(mount, checkoutTarget);
       return;
     }
 
-    var footer = drawer.querySelector(
+    var footer = container.querySelector(
       [
         ".cart-drawer__footer",
         ".drawer__footer",
@@ -2110,12 +2172,34 @@
       ].join(","),
     );
 
-    if (footer && footer !== mount && drawer.contains(footer)) {
+    if (footer && footer !== mount && container.contains(footer)) {
       footer.insertBefore(mount, footer.firstElementChild);
       return;
     }
 
-    drawer.appendChild(mount);
+    container.appendChild(mount);
+  }
+
+  function findDrawerContentContainer(drawer) {
+    var selectors = [
+      ".drawer__inner",
+      ".cart-drawer__inner",
+      "[class*='drawer__inner']",
+      ".drawer__contents",
+      ".cart-drawer__contents",
+      "[class*='drawer__contents']",
+      ".cart-drawer__form",
+      "form[action*='/cart']",
+    ];
+
+    for (var i = 0; i < selectors.length; i += 1) {
+      var candidate = drawer.querySelector(selectors[i]);
+      if (candidate && !candidate.matches("[data-gmb-drawer-mount]")) {
+        return candidate;
+      }
+    }
+
+    return drawer;
   }
 
   function bootstrapGiftMessageBridge() {
