@@ -82,16 +82,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const hasThemeReadScope = scopeDetails.granted.includes(THEME_SETUP_SCOPE);
   const canRequestThemeReadScope =
     scopeDetails.optional.includes(THEME_SETUP_SCOPE);
-  const themeSetupStatus = hasThemeReadScope
-    ? await getThemeSetupStatus(admin).catch((error) => {
-        console.error("[block-setup:theme-status]", error);
-        return createUnavailableThemeSetupStatus(
-          "Gift Pulse could not read the current theme setup.",
-        );
-      })
-    : createUnavailableThemeSetupStatus(
-        "Grant theme read permission to check the current theme setup.",
-      );
+  const themeSetupStatus = createUnavailableThemeSetupStatus(
+    hasThemeReadScope
+      ? "Click Check theme setup to scan the published theme."
+      : "Grant theme read permission to check the current theme setup.",
+  );
   const visibilityMetafieldDefinitions = hasProductWriteScope
     ? await getVisibilityMetafieldDefinitions(admin)
     : { product: null, collection: null };
@@ -128,6 +123,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (
     intent !== "create-product-visibility-metafield" &&
     intent !== "create-visibility-metafields" &&
+    intent !== "check-theme-setup" &&
     intent !== "set-card-products" &&
     intent !== "set-visibility-metafields"
   ) {
@@ -139,6 +135,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   const scopeDetails = await scopes.query();
+
+  if (intent === "check-theme-setup") {
+    if (!scopeDetails.granted.includes(THEME_SETUP_SCOPE)) {
+      return {
+        ok: false,
+        intent,
+        needsScope: true,
+        message:
+          "Gift Pulse needs theme read permission before it can check theme setup.",
+      };
+    }
+
+    try {
+      const checkedThemeSetupStatus = await getThemeSetupStatus(admin);
+
+      return {
+        ok: true,
+        intent,
+        message: checkedThemeSetupStatus.message,
+        themeSetupStatus: checkedThemeSetupStatus,
+      };
+    } catch (error) {
+      console.error("[block-setup:check-theme-setup]", error);
+      return {
+        ok: false,
+        intent,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Gift Pulse could not read the current theme setup.",
+      };
+    }
+  }
 
   if (intent === "set-card-products") {
     const productId = String(formData.get("productId") ?? "").trim();
@@ -358,6 +387,7 @@ export default function GiftMessageSetup() {
   const shopify = useAppBridge();
   const cardProductsFetcher = useFetcher<typeof action>();
   const metafieldFetcher = useFetcher<typeof action>();
+  const themeSetupFetcher = useFetcher<typeof action>();
   const visibilityApplyFetcher = useFetcher<typeof action>();
   const revalidator = useRevalidator();
   const [hasGrantedProductScope, setHasGrantedProductScope] =
@@ -365,6 +395,8 @@ export default function GiftMessageSetup() {
   const [hasGrantedThemeScope, setHasGrantedThemeScope] =
     useState(hasThemeReadScope);
   const [isRequestingThemeScope, setIsRequestingThemeScope] = useState(false);
+  const [currentThemeSetupStatus, setCurrentThemeSetupStatus] =
+    useState(themeSetupStatus);
   const [definitionsReady, setDefinitionsReady] = useState({
     collection: Boolean(visibilityMetafieldDefinitions.collection),
     product: Boolean(visibilityMetafieldDefinitions.product),
@@ -387,10 +419,13 @@ export default function GiftMessageSetup() {
   } | null>(null);
   const handledMetafieldResponseRef = useRef<unknown>(null);
   const handledCardProductsResponseRef = useRef<unknown>(null);
+  const handledThemeSetupResponseRef = useRef<unknown>(null);
   const handledVisibilityApplyResponseRef = useRef<unknown>(null);
   const isCreatingMetafield = metafieldFetcher.state !== "idle";
   const isApplyingVisibility = visibilityApplyFetcher.state !== "idle";
   const isSavingCardProducts = cardProductsFetcher.state !== "idle";
+  const isCheckingThemeSetup =
+    themeSetupFetcher.state !== "idle" || isRequestingThemeScope;
   const allDefinitionsReady =
     definitionsReady.product && definitionsReady.collection;
 
@@ -465,6 +500,31 @@ export default function GiftMessageSetup() {
     revalidator,
     shopify,
   ]);
+
+  useEffect(() => {
+    if (themeSetupFetcher.state !== "idle" || !themeSetupFetcher.data) {
+      return;
+    }
+    if (handledThemeSetupResponseRef.current === themeSetupFetcher.data) {
+      return;
+    }
+
+    const data = themeSetupFetcher.data;
+    handledThemeSetupResponseRef.current = data;
+
+    if (
+      data.ok &&
+      data.intent === "check-theme-setup" &&
+      "themeSetupStatus" in data &&
+      data.themeSetupStatus
+    ) {
+      setCurrentThemeSetupStatus(data.themeSetupStatus as ThemeSetupStatus);
+      shopify.toast.show(data.message);
+      return;
+    }
+
+    shopify.toast.show(data.message, { isError: true });
+  }, [shopify, themeSetupFetcher.data, themeSetupFetcher.state]);
 
   useEffect(() => {
     if (
@@ -556,43 +616,48 @@ export default function GiftMessageSetup() {
     }
   };
 
-  const requestThemePermission = async () => {
-    if (hasGrantedThemeScope) {
-      revalidator.revalidate();
-      return true;
-    }
-
-    setIsRequestingThemeScope(true);
-    try {
-      const scopeResult = await shopify.scopes.request([THEME_SETUP_SCOPE]);
-
-      if (
-        scopeResult.result !== "granted-all" ||
-        !scopeResult.detail.granted.includes(THEME_SETUP_SCOPE)
-      ) {
+  const checkThemeSetup = async () => {
+    if (!hasGrantedThemeScope) {
+      if (!canRequestThemeReadScope) {
         shopify.toast.show(
-          "Theme permission was not granted, so setup status cannot be checked.",
+          "The optional theme permission is not available yet. Deploy the updated app configuration first.",
           { isError: true },
         );
-        return false;
+        return;
       }
 
-      setHasGrantedThemeScope(true);
-      shopify.toast.show("Theme permission granted. Checking block setup...");
-      revalidator.revalidate();
-      return true;
-    } catch (error) {
-      console.error("[block-setup:theme-scope-request]", error);
-      shopify.toast.show(
-        canRequestThemeReadScope
-          ? "Theme permission could not be requested."
-          : "Theme permission could not be requested. If Shopify does not show the permission dialog, deploy the updated app configuration first.",
-        { isError: true },
-      );
-      return false;
-    } finally {
-      setIsRequestingThemeScope(false);
+      setIsRequestingThemeScope(true);
+      try {
+        const scopeResult = await shopify.scopes.request([THEME_SETUP_SCOPE]);
+
+        if (
+          scopeResult.result !== "granted-all" ||
+          !scopeResult.detail.granted.includes(THEME_SETUP_SCOPE)
+        ) {
+          shopify.toast.show(
+            "Theme permission was not granted, so setup status cannot be checked.",
+            { isError: true },
+          );
+          return;
+        }
+
+        setHasGrantedThemeScope(true);
+      } catch (error) {
+        console.error("[block-setup:theme-scope-request]", error);
+        shopify.toast.show(
+          "Theme permission could not be requested. If Shopify does not show the permission dialog, deploy the updated app configuration first.",
+          { isError: true },
+        );
+        return;
+      } finally {
+        setIsRequestingThemeScope(false);
+      }
     }
+
+    themeSetupFetcher.submit(
+      { intent: "check-theme-setup" },
+      { method: "post" },
+    );
   };
 
   const createMetafieldWithApp = async () => {
@@ -797,7 +862,7 @@ export default function GiftMessageSetup() {
                   href={editorProductUrl}
                   icon={<ProductPageIcon />}
                   preview="product"
-                  status={themeSetupStatus.targets.product}
+                  status={currentThemeSetupStatus.targets.product}
                   title="Product page"
                 />
                 <EditorDestination
@@ -805,7 +870,7 @@ export default function GiftMessageSetup() {
                   href={editorCartUrl}
                   icon={<CartPageIcon />}
                   preview="cart"
-                  status={themeSetupStatus.targets.cart}
+                  status={currentThemeSetupStatus.targets.cart}
                   title="Cart page"
                 />
                 <EditorDestination
@@ -813,7 +878,7 @@ export default function GiftMessageSetup() {
                   href={editorDrawerUrl}
                   icon={<DrawerIcon />}
                   preview="drawer"
-                  status={themeSetupStatus.targets.drawer}
+                  status={currentThemeSetupStatus.targets.drawer}
                   title="Cart drawer"
                 />
                 <EditorDestination
@@ -821,7 +886,7 @@ export default function GiftMessageSetup() {
                   description="Checkout needs a separate checkout extension setup"
                   icon={<CheckoutIcon />}
                   preview="checkout"
-                  status={themeSetupStatus.targets.checkout}
+                  status={currentThemeSetupStatus.targets.checkout}
                   title="Checkout"
                 />
               </div>
@@ -839,22 +904,18 @@ export default function GiftMessageSetup() {
                 }}
               >
                 <s-text color="subdued">
-                  {themeSetupStatus.checked
-                    ? `Checked current theme: ${themeSetupStatus.themeName || "published theme"}.`
-                    : themeSetupStatus.message}
+                  {currentThemeSetupStatus.checked
+                    ? `Checked current theme: ${currentThemeSetupStatus.themeName || "published theme"}.`
+                    : currentThemeSetupStatus.message}
                 </s-text>
-                {!hasGrantedThemeScope ? (
-                  <button
-                    className={styles.metafieldButton}
-                    disabled={isRequestingThemeScope}
-                    onClick={requestThemePermission}
-                    type="button"
-                  >
-                    {isRequestingThemeScope
-                      ? "Checking..."
-                      : "Check theme setup"}
-                  </button>
-                ) : null}
+                <button
+                  className={styles.metafieldButton}
+                  disabled={isCheckingThemeSetup}
+                  onClick={checkThemeSetup}
+                  type="button"
+                >
+                  {isCheckingThemeSetup ? "Checking..." : "Check theme setup"}
+                </button>
               </div>
             </div>
           </div>
@@ -1510,9 +1571,35 @@ function scanThemeFile(
   blockHandle: string,
 ): ThemeBlockScanResult {
   try {
-    return scanThemeJsonForBlock(JSON.parse(file.content), blockHandle);
+    return scanThemeJsonForBlock(
+      parseThemeJsonContent(file.content),
+      blockHandle,
+    );
   } catch {
     return { disabled: 0, enabled: 0, found: 0 };
+  }
+}
+
+function parseThemeJsonContent(content: string) {
+  const trimmedContent = content.trim();
+
+  try {
+    return JSON.parse(trimmedContent);
+  } catch {
+    const firstJsonObjectIndex = trimmedContent.indexOf("{");
+    const lastJsonObjectIndex = trimmedContent.lastIndexOf("}");
+
+    if (
+      firstJsonObjectIndex === -1 ||
+      lastJsonObjectIndex === -1 ||
+      lastJsonObjectIndex <= firstJsonObjectIndex
+    ) {
+      throw new Error("Theme file did not contain JSON content.");
+    }
+
+    return JSON.parse(
+      trimmedContent.slice(firstJsonObjectIndex, lastJsonObjectIndex + 1),
+    );
   }
 }
 
@@ -1558,11 +1645,24 @@ function visitThemeJson(
 }
 
 function isGiftPulseThemeBlockType(blockType: string, blockHandle: string) {
-  return (
-    blockType.includes(`/blocks/${blockHandle}/`) ||
-    blockType.includes(`/blocks/${blockHandle}`) ||
-    blockType.includes(`blocks/${blockHandle}/`)
+  const normalizedType = blockType.trim().toLowerCase();
+  const normalizedHandle = blockHandle.trim().toLowerCase();
+
+  if (!normalizedType || !normalizedHandle) return false;
+
+  const blockPathPattern = new RegExp(
+    `(^|/)blocks/${escapeRegExp(normalizedHandle)}($|[/?#:])`,
   );
+
+  return (
+    normalizedType.includes(`/blocks/${normalizedHandle}/`) ||
+    normalizedType.endsWith(`/blocks/${normalizedHandle}`) ||
+    blockPathPattern.test(normalizedType)
+  );
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function mergeThemeBlockScanResults(
