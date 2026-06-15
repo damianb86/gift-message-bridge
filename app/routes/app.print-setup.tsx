@@ -31,8 +31,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // visible after the other filters are applied).
   const baseWhere: Prisma.GiftMessageWhereInput = {
     shop: session.shop,
-    message: { not: "" },
   };
+  const baseFilters: Prisma.GiftMessageWhereInput[] = [
+    {
+      OR: [
+        { message: { not: "" } },
+        { sender: { not: "" } },
+        { recipient: { not: "" } },
+        { messageCardReference: { not: null } },
+        { messageCardProductTitle: { not: null } },
+        { messageCardVariantId: { not: null } },
+      ],
+    },
+  ];
 
   if (!showPrinted) {
     baseWhere.printed = false;
@@ -44,25 +55,29 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   if (query) {
-    baseWhere.OR = [
-      { id: { contains: query } },
-      { sourceId: { contains: query } },
-      { cartToken: { contains: query } },
-      { cartReference: { contains: query } },
-      { message: { contains: query } },
-      { sender: { contains: query } },
-      { recipient: { contains: query } },
-      { productTitle: { contains: query } },
-      { productVariantTitle: { contains: query } },
-      { productSku: { contains: query } },
-      { productHandle: { contains: query } },
-      { messageCardProductTitle: { contains: query } },
-      { messageCardVariantTitle: { contains: query } },
-      { messageCardVariantId: { contains: query } },
-      { messageCardSku: { contains: query } },
-      { messageCardReference: { contains: query } },
-    ];
+    baseFilters.push({
+      OR: [
+        { id: { contains: query } },
+        { sourceId: { contains: query } },
+        { cartToken: { contains: query } },
+        { cartReference: { contains: query } },
+        { message: { contains: query } },
+        { sender: { contains: query } },
+        { recipient: { contains: query } },
+        { productTitle: { contains: query } },
+        { productVariantTitle: { contains: query } },
+        { productSku: { contains: query } },
+        { productHandle: { contains: query } },
+        { messageCardProductTitle: { contains: query } },
+        { messageCardVariantTitle: { contains: query } },
+        { messageCardVariantId: { contains: query } },
+        { messageCardSku: { contains: query } },
+        { messageCardReference: { contains: query } },
+      ],
+    });
   }
+
+  baseWhere.AND = baseFilters;
 
   const [baseMessages, templateSettings] = await Promise.all([
     db.giftMessage.findMany({

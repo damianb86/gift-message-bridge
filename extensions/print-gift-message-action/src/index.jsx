@@ -505,18 +505,7 @@ function collectOrderGiftMessages(
   giftCardRelations,
 ) {
   const giftMessageValue = findGiftMessage(attributes);
-
-  if (!giftMessageValue) {
-    return [];
-  }
-
   const parsed = parseGiftMessageProperty(giftMessageValue);
-  const message = clean(parsed.message || giftMessageValue);
-
-  if (!message) {
-    return [];
-  }
-
   const explicitReference =
     findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY) ||
     findLooseAttributeValue(attributes, "gift_order_reference");
@@ -530,6 +519,21 @@ function collectOrderGiftMessages(
     relatedGiftCardLine?.explicitReference ||
     relatedGiftCardLine?.reference ||
     orderReference;
+  const sender =
+    findAttributeValue(attributes, GIFT_MESSAGE_FROM_ATTRIBUTE) ||
+    findLooseAttributeValue(attributes, "gift_message_from") ||
+    parsed.sender;
+  const recipient =
+    findAttributeValue(attributes, GIFT_MESSAGE_TO_ATTRIBUTE) ||
+    findLooseAttributeValue(attributes, "gift_message_to") ||
+    parsed.recipient;
+  const message = parsed.structured
+    ? parsed.message
+    : clean(parsed.message || giftMessageValue);
+
+  if (!message && !sender && !recipient && !relatedGiftCardLine) {
+    return [];
+  }
 
   return [
     {
@@ -541,14 +545,8 @@ function collectOrderGiftMessages(
       origin: "order",
       printQuantity: getGiftCardPrintQuantity(relatedGiftCardLine),
       productReference: "Cart gift message",
-      sender:
-        findAttributeValue(attributes, GIFT_MESSAGE_FROM_ATTRIBUTE) ||
-        findLooseAttributeValue(attributes, "gift_message_from") ||
-        parsed.sender,
-      recipient:
-        findAttributeValue(attributes, GIFT_MESSAGE_TO_ATTRIBUTE) ||
-        findLooseAttributeValue(attributes, "gift_message_to") ||
-        parsed.recipient,
+      sender,
+      recipient,
       message,
       date: orderDate,
     },
@@ -562,17 +560,7 @@ function collectLineGiftMessages(
   giftCardRelations,
   lineContext,
 ) {
-  if (!lineContext.giftMessageValue) {
-    return [];
-  }
-
   const parsed = parseGiftMessageProperty(lineContext.giftMessageValue);
-  const message = clean(parsed.message || lineContext.giftMessageValue);
-
-  if (!message) {
-    return [];
-  }
-
   const relatedGiftCardLine = findRelatedGiftCardLineForLine(
     lineContext,
     giftCardRelations,
@@ -580,6 +568,19 @@ function collectLineGiftMessages(
   const linkedProductReference = linkedProductReferences.get(
     lineContext.explicitReference || lineContext.reference,
   );
+  const sender =
+    findAttributeValue(lineContext.attributes, GIFT_MESSAGE_FROM_ATTRIBUTE) ||
+    parsed.sender;
+  const recipient =
+    findAttributeValue(lineContext.attributes, GIFT_MESSAGE_TO_ATTRIBUTE) ||
+    parsed.recipient;
+  const message = parsed.structured
+    ? parsed.message
+    : clean(parsed.message || lineContext.giftMessageValue);
+
+  if (!message && !sender && !recipient && !relatedGiftCardLine) {
+    return [];
+  }
 
   return [
     {
@@ -596,14 +597,8 @@ function collectLineGiftMessages(
         lineContext,
         linkedProductReference,
       ),
-      sender:
-        findAttributeValue(
-          lineContext.attributes,
-          GIFT_MESSAGE_FROM_ATTRIBUTE,
-        ) || parsed.sender,
-      recipient:
-        findAttributeValue(lineContext.attributes, GIFT_MESSAGE_TO_ATTRIBUTE) ||
-        parsed.recipient,
+      sender,
+      recipient,
       message,
       date: orderDate,
     },
@@ -704,13 +699,21 @@ function dedupeGiftMessages(messages) {
 
 function mergeGiftMessages(current, next) {
   const preferred =
-    current.origin === "order" && next.origin === "line"
+    !hasGiftMessageBody(current) && hasGiftMessageBody(next)
       ? next
-      : current.isMessageCardAddon && !next.isMessageCardAddon
+      : current.origin === "order" && next.origin === "line"
         ? next
-        : current;
+        : current.isMessageCardAddon && !next.isMessageCardAddon
+          ? next
+          : current;
   const fallback = preferred === current ? next : current;
   const merged = { ...preferred };
+
+  for (const key of ["sender", "recipient", "message"]) {
+    if (!clean(merged[key]) && clean(fallback[key])) {
+      merged[key] = fallback[key];
+    }
+  }
 
   if (!merged.messageCardReference && fallback.messageCardReference) {
     merged.messageCardReference = fallback.messageCardReference;
@@ -727,6 +730,14 @@ function mergeGiftMessages(current, next) {
   }
 
   return merged;
+}
+
+function hasGiftMessageBody(message) {
+  return Boolean(
+    clean(message?.sender) ||
+    clean(message?.recipient) ||
+    clean(message?.message),
+  );
 }
 
 function expandGiftMessages(messages) {
@@ -908,6 +919,7 @@ function findLooseAttributeValue(attributes, key) {
 
 function parseGiftMessageProperty(value) {
   const result = {
+    structured: false,
     sender: "",
     recipient: "",
     message: clean(value),
@@ -941,6 +953,7 @@ function parseGiftMessageProperty(value) {
   }
 
   if (foundStructuredLine) {
+    result.structured = true;
     result.message = clean(messageLines.join("\n"));
   }
 

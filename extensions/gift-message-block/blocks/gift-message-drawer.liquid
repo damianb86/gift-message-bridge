@@ -45,6 +45,7 @@
   assign existing = raw_existing
   assign existing_sender = cart.attributes['Gift Message From'] | default: cart.attributes.gift_message_from | default: ''
   assign existing_recipient = cart.attributes['Gift Message To'] | default: cart.attributes.gift_message_to | default: ''
+  assign existing_reference = cart.attributes['Gift Message Ref'] | default: cart.attributes.gift_order_reference | default: ''
   if raw_existing contains 'From:' or raw_existing contains 'To:' or raw_existing contains 'Message:'
     if raw_existing contains 'From:'
       assign sender_tail = raw_existing | split: 'From:' | last
@@ -60,7 +61,7 @@
   endif
 
   assign has_msg = false
-  if existing != blank or existing_sender != blank or existing_recipient != blank
+  if existing != blank or existing_sender != blank or existing_recipient != blank or existing_reference != blank
     assign has_msg = true
   endif
 -%}
@@ -147,7 +148,7 @@
         <input
           type="hidden"
           class="gmb-message-id"
-          value=""
+          value="{{ existing_reference | escape }}"
           disabled
         >
         <div

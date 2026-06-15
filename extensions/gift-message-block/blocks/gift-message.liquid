@@ -74,6 +74,11 @@
     assign width_value = block.settings.width_px | default: 520 | append: 'px'
   endif
 
+  assign existing_reference = ''
+  if mode == 'order'
+    assign existing_reference = cart.attributes['Gift Message Ref'] | default: cart.attributes.gift_order_reference | default: ''
+  endif
+
   if mode == 'order' and text_form_enabled
     assign raw_existing = cart.attributes['Gift Message'] | default: cart.attributes.gift_message | default: ''
     assign existing = raw_existing
@@ -101,6 +106,10 @@
     assign existing = ''
     assign existing_sender = ''
     assign existing_recipient = ''
+  endif
+
+  if mode == 'order' and existing_reference != blank
+    assign has_msg = true
   endif
 
   assign starts_open = has_msg
@@ -243,6 +252,12 @@
           aria-hidden="true"
         ></textarea>
       {%- endif -%}
+      <input
+        type="hidden"
+        class="gmb-message-id"
+        value="{{ existing_reference | escape }}"
+        disabled
+      >
 
     {%- endif -%}
 

@@ -236,8 +236,11 @@ function sanitizeMessages(
     .map((item, index): TemplateMessage | null => {
       const record = isRecord(item) ? item : {};
       const message = clean(record.message);
+      const messageCardReference = clean(record.messageCardReference);
+      const sender = clean(record.sender);
+      const recipient = clean(record.recipient);
 
-      if (!message) {
+      if (!message && !messageCardReference && !sender && !recipient) {
         return null;
       }
 
@@ -250,10 +253,10 @@ function sanitizeMessages(
         cartReference,
         cartToken: clean(record.cartToken) || cartReference,
         productReference: clean(record.productReference),
-        messageCardReference: clean(record.messageCardReference),
+        messageCardReference,
         printCopyLabel: clean(record.printCopyLabel),
-        sender: clean(record.sender),
-        recipient: clean(record.recipient),
+        sender,
+        recipient,
         message,
         date: clean(record.date) || formatDate(new Date()),
       };

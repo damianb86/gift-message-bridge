@@ -75,7 +75,13 @@
     var selectedCardVariant = null;
     var maxLen = parseInt(textarea.getAttribute("maxlength"), 10) || 250;
     var lastProductCheckoutIntentAt = 0;
+    var dynamicCheckoutRedirecting = false;
     var cartReference = "";
+
+    if (!textFormEnabled && !cardVariantChoicesEnabled) {
+      block.hidden = true;
+      return;
+    }
 
     // ── Character counter ────────────────────────────────────────────────
     function updateCounter() {
@@ -160,6 +166,15 @@
 
     if (cardVariantChoicesEnabled && cardProductPicker) {
       loadCardProductConfig(function (variants) {
+        if (
+          !textFormEnabled &&
+          (!Array.isArray(variants) || !variants.length)
+        ) {
+          block.hidden = true;
+          return;
+        }
+
+        block.hidden = false;
         renderCardVariantPicker(variants);
         if (manualSave) updateManualUi();
       });
@@ -189,6 +204,7 @@
       }
       syncProductProperties();
       document.addEventListener("submit", handleProductSubmit, true);
+      document.addEventListener("submit", handleProductNativeSubmitFallback);
       document.addEventListener("pointerdown", handleProductAddIntent, true);
       document.addEventListener("touchstart", handleProductAddIntent, true);
       document.addEventListener("click", handleProductAddIntent, true);
@@ -331,7 +347,7 @@
         isDirty = false;
         block.dataset.hasSavedMessage = "true";
         syncProductProperties();
-        if (!hasTextContent) {
+        if (!hasTextContent && !shouldAttachMessageToCardProduct()) {
           finishManualSave();
           return;
         }
@@ -362,7 +378,11 @@
           );
         };
 
-        if (textFormEnabled || hasTextContent) {
+        if (
+          textFormEnabled ||
+          hasTextContent ||
+          shouldAttachMessageToCardProduct()
+        ) {
           saveOrderMessage(
             value,
             sender,
@@ -447,11 +467,20 @@
           "",
           "",
           function () {
-            finishRemoveSavedMessage();
+            removeSelectedCardProductFromCart(
+              currentMessageId,
+              function () {
+                finishRemoveSavedMessage();
+              },
+              function () {
+                failManualSave();
+              },
+            );
           },
           function () {
             failManualSave();
           },
+          { includeCard: false },
         );
       });
     }
@@ -526,21 +555,37 @@
      * After the proxy confirms the save we also call /cart/update.js so the
      * cart attribute is updated for immediate display in the storefront.
      */
-    function saveOrderMessage(value, sender, recipient, onSuccess, onError) {
-      if (!cartToken) {
-        // Fallback: update the cart attribute directly if we have no token.
-        updateCartAttributes(value, sender, recipient, onSuccess, onError);
-        return;
-      }
-
+    function saveOrderMessage(
+      value,
+      sender,
+      recipient,
+      onSuccess,
+      onError,
+      options,
+    ) {
       var persistOptions = {
         cartToken: cartToken,
         cartReference: ensureCartReference(),
         mode: mode,
       };
+      var includeCard = !options || options.includeCard !== false;
 
-      if (toggle.checked && shouldAttachMessageToCardProduct()) {
+      if (includeCard && toggle.checked && shouldAttachMessageToCardProduct()) {
+        persistOptions.messageId = ensureMessageId();
         copyObjectProperties(persistOptions, getSelectedCardMessageOptions(1));
+      }
+
+      if (!cartToken) {
+        // Fallback: update the cart attribute directly if we have no token.
+        updateCartAttributes(
+          value,
+          sender,
+          recipient,
+          onSuccess,
+          onError,
+          persistOptions,
+        );
+        return;
       }
 
       persistMessage(
@@ -550,7 +595,14 @@
         persistOptions,
         function () {
           // Keep the Shopify cart attribute in sync for native cart display.
-          updateCartAttributes(value, sender, recipient, onSuccess, onError);
+          updateCartAttributes(
+            value,
+            sender,
+            recipient,
+            onSuccess,
+            onError,
+            persistOptions,
+          );
         },
         function (err) {
           console.warn(
@@ -558,7 +610,14 @@
             err,
           );
           // Graceful degradation: still update the cart attribute.
-          updateCartAttributes(value, sender, recipient, onSuccess, onError);
+          updateCartAttributes(
+            value,
+            sender,
+            recipient,
+            onSuccess,
+            onError,
+            persistOptions,
+          );
         },
       );
     }
@@ -570,6 +629,58 @@
       if (!isProductForm(form)) return;
 
       prepareCardProductAdd(form);
+    }
+
+    function handleProductNativeSubmitFallback(event) {
+      if (mode !== "product") return;
+      if (event.defaultPrevented) return;
+
+      var form = event && event.target ? event.target : findProductForm();
+      if (!isProductForm(form)) return;
+      if (
+        !(
+          shouldIncludeMessageInProductForm() &&
+          shouldAttachMessageToCardProduct()
+        )
+      ) {
+        return;
+      }
+
+      preventCheckoutEvent(event);
+      if (dynamicCheckoutRedirecting) return;
+
+      var redirectAfterAdd =
+        event && event.submitter && isDynamicCheckoutTarget(event.submitter)
+          ? redirectToCheckout
+          : redirectToCart;
+
+      dynamicCheckoutRedirecting = true;
+      setSaving(
+        redirectAfterAdd === redirectToCheckout
+          ? "Opening checkout..."
+          : "Adding to cart...",
+      );
+
+      loadCartToken(function () {
+        var context = buildCardProductAddContext(form);
+
+        if (!context) {
+          dynamicCheckoutRedirecting = false;
+          setSaving("Could not prepare message card.");
+          return;
+        }
+
+        addProductAndCardToCart(
+          context,
+          function () {
+            redirectAfterAdd();
+          },
+          function () {
+            dynamicCheckoutRedirecting = false;
+            setSaving("Could not add message card. Try again.");
+          },
+        );
+      });
     }
 
     function handleProductAddIntent(event) {
@@ -597,15 +708,65 @@
       if (mode !== "product") return;
       if (!isDynamicCheckoutTarget(event.target)) return;
 
+      var form = findProductFormForElement(event.target) || findProductForm();
+      if (!isProductForm(form)) return;
+      var shouldAddCard =
+        shouldIncludeMessageInProductForm() &&
+        shouldAttachMessageToCardProduct();
+
+      if (shouldAddCard) {
+        preventCheckoutEvent(event);
+      }
+
       var now = Date.now();
       if (now - lastProductCheckoutIntentAt < 500) return;
       lastProductCheckoutIntentAt = now;
 
-      var form = findProductFormForElement(event.target) || findProductForm();
-      if (!isProductForm(form)) return;
-
       syncProductProperties(form);
       persistProductMessage();
+
+      if (!shouldAddCard) return;
+
+      if (dynamicCheckoutRedirecting) return;
+      dynamicCheckoutRedirecting = true;
+      setSaving("Opening checkout...");
+
+      loadCartToken(function () {
+        var context = buildCardProductAddContext(form);
+
+        if (!context) {
+          dynamicCheckoutRedirecting = false;
+          setSaving(
+            manualSave
+              ? "Save the gift message before checkout."
+              : "Could not prepare message card for checkout.",
+          );
+          return;
+        }
+
+        addProductAndCardToCart(
+          context,
+          function () {
+            redirectToCheckout();
+          },
+          function () {
+            dynamicCheckoutRedirecting = false;
+            setSaving("Could not open checkout. Try again.");
+          },
+        );
+      });
+    }
+
+    function preventCheckoutEvent(event) {
+      if (event && typeof event.preventDefault === "function") {
+        event.preventDefault();
+      }
+      if (event && typeof event.stopPropagation === "function") {
+        event.stopPropagation();
+      }
+      if (event && typeof event.stopImmediatePropagation === "function") {
+        event.stopImmediatePropagation();
+      }
     }
 
     function loadCardProductConfig(callback) {
@@ -1048,7 +1209,6 @@
     }
 
     function buildCardProductAddContext(form) {
-      if (!lineItemPropertiesEnabled) return null;
       if (!cardVariantChoicesEnabled) return null;
       if (!selectedCardVariant || !selectedCardVariant.variantId) return null;
       if (!shouldIncludeMessageInProductForm()) return null;
@@ -1078,7 +1238,9 @@
 
       var originalItem = buildOriginalCartItem(
         form,
-        buildGiftMessageReferenceProperties(messageId),
+        lineItemPropertiesEnabled
+          ? buildGiftMessageReferenceProperties(messageId)
+          : {},
       );
       if (!originalItem) return null;
 
@@ -1163,9 +1325,9 @@
       var sender = getSenderValue();
       var recipient = getRecipientValue();
       var hasContent =
-        textFormEnabled &&
         shouldIncludeMessageInProductForm() &&
-        hasGiftMessageTextContent(sender, recipient, value);
+        (hasGiftMessageTextContent(sender, recipient, value) ||
+          shouldAttachMessageToCardProduct());
 
       if (!hasContent) return;
       if (manualSave && (!hasSavedMessage || isDirty)) return;
@@ -1235,6 +1397,84 @@
       }
 
       addCardProductVariantToCart(variantId, properties, onSuccess, onError);
+    }
+
+    function removeSelectedCardProductFromCart(
+      messageReference,
+      onSuccess,
+      onError,
+    ) {
+      if (!nativeFetch) {
+        if (typeof onSuccess === "function") onSuccess();
+        return;
+      }
+
+      var reference = cleanString(messageReference);
+      var variantId =
+        selectedCardVariant && selectedCardVariant.variantId
+          ? cleanString(selectedCardVariant.variantId)
+          : "";
+      var root = getShopifyRoot();
+
+      nativeFetch(root + "cart.js", { headers: { Accept: "application/json" } })
+        .then(function (response) {
+          if (!response.ok) throw new Error("cart " + response.status);
+          return response.json();
+        })
+        .then(function (cart) {
+          var items = Array.isArray(cart && cart.items) ? cart.items : [];
+          var matchingItems = items.filter(function (item) {
+            return isRelatedCardProductCartItem(item, reference, variantId);
+          });
+
+          return matchingItems.reduce(function (chain, item) {
+            return chain.then(function () {
+              return nativeFetch(root + "cart/change.js", {
+                method: "POST",
+                headers: {
+                  Accept: "application/json",
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  id: item.key || item.id,
+                  quantity: 0,
+                }),
+              }).then(function (response) {
+                if (!response.ok) {
+                  throw new Error("cart/change " + response.status);
+                }
+                notifyThemeCartListeners(response);
+                return response;
+              });
+            });
+          }, Promise.resolve());
+        })
+        .then(function () {
+          scheduleDrawerEmbedsSync();
+          if (typeof onSuccess === "function") onSuccess();
+        })
+        .catch(function (err) {
+          console.warn("[GiftMessage] message card remove failed:", err);
+          if (typeof onError === "function") onError(err);
+        });
+    }
+
+    function isRelatedCardProductCartItem(item, reference, variantId) {
+      var properties = (item && item.properties) || {};
+      var source = cleanString(properties[CARD_PRODUCT_SOURCE_PROPERTY]);
+      var itemReference = cleanString(properties[MESSAGE_REFERENCE_PROPERTY]);
+      var itemVariantId = cleanString(
+        properties[CARD_PRODUCT_VARIANT_ID_PROPERTY] || item.variant_id,
+      );
+
+      if (!source) return false;
+      if (reference && itemReference === reference) return true;
+
+      return (
+        mode === "order" &&
+        source.toLowerCase() === "cart drawer" &&
+        (!variantId || itemVariantId === variantId)
+      );
     }
 
     function isDynamicCheckoutTarget(target) {
@@ -1526,8 +1766,20 @@
       recipient,
       onSuccess,
       onError,
+      options,
     ) {
       var root = getShopifyRoot();
+      var messageId = cleanString(options && options.messageId);
+      var cardVariantId = cleanString(options && options.messageCardVariantId);
+      var cardSelection = cleanString(options && options.messageCardReference);
+      var cardProductTitle = cleanString(
+        options && options.messageCardProductTitle,
+      );
+      var cardVariantTitle = cleanString(
+        options && options.messageCardVariantTitle,
+      );
+      var cardSku = cleanString(options && options.messageCardSku);
+
       fetch(root + "cart/update.js", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1539,11 +1791,17 @@
                 : "",
             "Gift Message From": "",
             "Gift Message To": "",
-            "Gift Message Ref": "",
+            "Gift Message Ref": messageId,
+            "_Gift Message Card": cardSelection ? "Cart drawer" : "",
+            "_Gift Message Card Selection": cardSelection,
+            "_Gift Message Card Variant": cardVariantId,
+            "_Gift Message Card Product": cardProductTitle,
+            "_Gift Message Card Variant Title": cardVariantTitle,
+            "_Gift Message Card SKU": cardSku,
             gift_message: "",
             gift_message_from: "",
             gift_message_to: "",
-            gift_order_reference: "",
+            gift_order_reference: messageId,
           },
         }),
       })
@@ -2095,6 +2353,56 @@
         console.warn("[GiftMessage] message card add failed:", err);
         if (typeof onError === "function") onError(err);
       });
+  }
+
+  function addProductAndCardToCart(context, onSuccess, onError) {
+    if (
+      !nativeFetch ||
+      !context ||
+      !context.originalItem ||
+      !context.cardItem
+    ) {
+      if (typeof onError === "function") onError(new Error("cart unavailable"));
+      return;
+    }
+
+    consumePendingProductAdd(pendingProductAdd);
+
+    var root = getShopifyRoot();
+    nativeFetch(root + "cart/add.js", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        items: [context.originalItem, context.cardItem],
+      }),
+    })
+      .then(function (response) {
+        if (!response.ok) throw new Error("cart/add " + response.status);
+        notifyThemeCartListeners(response);
+        return response;
+      })
+      .then(function () {
+        if (typeof onSuccess === "function") onSuccess();
+      })
+      .catch(function (err) {
+        console.warn("[GiftMessage] checkout message card add failed:", err);
+        if (typeof onError === "function") onError(err);
+      });
+  }
+
+  function redirectToCheckout() {
+    var root = getShopifyRoot();
+
+    window.location.href = root.replace(/\/?$/, "/") + "checkout";
+  }
+
+  function redirectToCart() {
+    var root = getShopifyRoot();
+
+    window.location.href = root.replace(/\/?$/, "/") + "cart";
   }
 
   function cardProductVariantExistsInCart(variantId, properties) {
