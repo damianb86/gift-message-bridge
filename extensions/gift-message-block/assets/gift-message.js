@@ -21,6 +21,7 @@
   var cartAddInterceptorInstalled = false;
   var drawerEmbedCounter = 0;
   var drawerSyncTimer = null;
+  var globalToggleFallbackInstalled = false;
   var mutationObserverInstalled = false;
   var nativeFetch = window.fetch ? window.fetch.bind(window) : null;
 
@@ -91,11 +92,7 @@
 
     // ── Toggle ───────────────────────────────────────────────────────────
     function setPanelOpen(open) {
-      field.hidden = !open;
-      field.toggleAttribute("hidden", !open);
-      field.toggleAttribute("data-gmb-open", open);
-      field.style.display = open ? "" : "none";
-      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      syncPanelOpenState(block, toggle, field, open);
 
       if (mode === "product") {
         textarea.disabled = !open;
@@ -1126,7 +1123,7 @@
     ) {
       options = options || {};
 
-      fetch(PROXY_PATH, {
+      fetch(getAppProxyPath(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         keepalive: Boolean(options.keepalive),
@@ -1455,6 +1452,7 @@
       headers: { Accept: "application/json" },
     })
       .then(function (res) {
+        if (res.status === 404) return null;
         if (!res.ok) throw new Error("card products " + res.status);
         return res.json();
       })
@@ -1481,7 +1479,13 @@
     params.set("intent", CARD_PRODUCTS_INTENT);
     if (shop) params.set("shop", shop);
 
-    return PROXY_PATH + "?" + params.toString();
+    return getAppProxyPath() + "?" + params.toString();
+  }
+
+  function getAppProxyPath() {
+    var root = getShopifyRoot();
+
+    return root.replace(/\/?$/, "/") + PROXY_PATH.replace(/^\//, "");
   }
 
   function getShopDomain() {
@@ -1746,6 +1750,72 @@
     if (typeof scope.querySelectorAll === "function") {
       scope.querySelectorAll("[data-gmb-block]").forEach(initBlock);
     }
+  }
+
+  function installGlobalToggleFallback() {
+    if (globalToggleFallbackInstalled) return;
+    globalToggleFallbackInstalled = true;
+
+    document.addEventListener(
+      "change",
+      function (event) {
+        var toggle = findGiftMessageToggle(event.target);
+        if (toggle) syncPanelFromToggle(toggle);
+      },
+      true,
+    );
+
+    document.addEventListener(
+      "click",
+      function (event) {
+        var toggle = findGiftMessageToggle(event.target);
+        if (!toggle) return;
+
+        window.setTimeout(function () {
+          syncPanelFromToggle(toggle);
+        }, 0);
+      },
+      true,
+    );
+  }
+
+  function findGiftMessageToggle(target) {
+    if (!target || typeof target.closest !== "function") return null;
+
+    if (target.matches && target.matches(".gmb-check")) {
+      return target;
+    }
+
+    var label = target.closest(".gmb-toggle");
+    if (!label) return null;
+
+    var targetId = label.getAttribute("for");
+    var labelledToggle = targetId ? document.getElementById(targetId) : null;
+    if (labelledToggle && labelledToggle.matches(".gmb-check")) {
+      return labelledToggle;
+    }
+
+    var block = label.closest("[data-gmb-block]");
+    return block ? block.querySelector(".gmb-check") : null;
+  }
+
+  function syncPanelFromToggle(toggle) {
+    var block = toggle && toggle.closest("[data-gmb-block]");
+    var field = block ? block.querySelector(".gmb-panel") : null;
+
+    if (!block || !field) return;
+
+    syncPanelOpenState(block, toggle, field, toggle.checked);
+  }
+
+  function syncPanelOpenState(block, toggle, field, open) {
+    if (!block || !toggle || !field) return;
+
+    field.hidden = !open;
+    field.toggleAttribute("hidden", !open);
+    field.toggleAttribute("data-gmb-open", open);
+    field.style.display = open ? "" : "none";
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
   }
 
   function initDrawerEmbedsIn(root) {
@@ -2049,6 +2119,7 @@
   }
 
   function bootstrapGiftMessageBridge() {
+    installGlobalToggleFallback();
     initBlocksIn(document);
     initDrawerEmbedsIn(document);
 
