@@ -2123,6 +2123,7 @@
   function insertDrawerMount(drawer, mount, placement) {
     var normalizedPlacement = normalizeDrawerPlacement(placement);
     var container = findDrawerContentContainer(drawer) || drawer;
+    mount.dataset.gmbDrawerPlacementPosition = normalizedPlacement;
 
     if (normalizedPlacement === "below_cart_items") {
       var cartItems = findCartItemsTarget(container, drawer);
@@ -2252,7 +2253,37 @@
     for (var i = 0; i < nodes.length; i += 1) {
       var node = nodes[i];
       if (isInvalidPlacementTarget(node, type)) continue;
-      return node;
+      return getPlacementAnchor(node, type);
+    }
+
+    return null;
+  }
+
+  function getPlacementAnchor(node, type) {
+    if (type === "subtotal") {
+      return (
+        findClosestMatchingSelector(node, [
+          ".cart-totals__container",
+          "[class*='cart-totals__container']",
+          ".cart-drawer__totals",
+          ".cart__totals",
+          ".totals",
+          ".cart-subtotal",
+          ".cart__subtotal",
+          ".cart-drawer__subtotal",
+        ]) || node
+      );
+    }
+
+    return node;
+  }
+
+  function findClosestMatchingSelector(node, selectors) {
+    if (!node || typeof node.closest !== "function") return null;
+
+    for (var i = 0; i < selectors.length; i += 1) {
+      var match = node.closest(selectors[i]);
+      if (match) return match;
     }
 
     return null;

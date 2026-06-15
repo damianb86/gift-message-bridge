@@ -19,6 +19,7 @@ import styles from "../styles/block-setup.module.css";
 
 const PRODUCT_VISIBILITY_SCOPE = "write_products";
 const PRODUCT_SETUP_SCOPE = PRODUCT_VISIBILITY_SCOPE;
+const THEME_SETUP_SCOPE = "read_themes";
 const VISIBILITY_METAFIELD_NAMESPACE = "custom";
 const VISIBILITY_METAFIELD_KEY = "show_gift_message";
 const VISIBILITY_METAFIELD_REFERENCE = `${VISIBILITY_METAFIELD_NAMESPACE}.${VISIBILITY_METAFIELD_KEY}`;
@@ -28,6 +29,7 @@ const VISIBILITY_METAFIELDS_PAGE_SIZE = 250;
 const CARD_PRODUCT_VARIANTS_PAGE_SIZE = 100;
 const SHOPIFY_APP_API_KEY =
   process.env.SHOPIFY_API_KEY || "5648b993ebb2c0c32aebf341a158f812";
+const GIFT_MESSAGE_BLOCK_HANDLE = "gift-message";
 const DRAWER_APP_EMBED_HANDLE = "gift-message-drawer";
 
 type VisibilityOwnerType = (typeof VISIBILITY_OWNER_TYPES)[number];
@@ -77,6 +79,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const canRequestProductWriteScope = scopeDetails.optional.includes(
     PRODUCT_VISIBILITY_SCOPE,
   );
+  const hasThemeReadScope = scopeDetails.granted.includes(THEME_SETUP_SCOPE);
+  const canRequestThemeReadScope =
+    scopeDetails.optional.includes(THEME_SETUP_SCOPE);
+  const themeSetupStatus = hasThemeReadScope
+    ? await getThemeSetupStatus(admin).catch((error) => {
+        console.error("[block-setup:theme-status]", error);
+        return createUnavailableThemeSetupStatus(
+          "Gift Pulse could not read the current theme setup.",
+        );
+      })
+    : createUnavailableThemeSetupStatus(
+        "Grant theme read permission to check the current theme setup.",
+      );
   const visibilityMetafieldDefinitions = hasProductWriteScope
     ? await getVisibilityMetafieldDefinitions(admin)
     : { product: null, collection: null };
@@ -90,13 +105,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return {
     cardProduct: parseCardProductConfig(cardProductSettings?.productsJson),
     canRequestProductWriteScope,
+    canRequestThemeReadScope,
     collectionsUrl: `https://${session.shop}/admin/collections`,
     customDataUrl: `https://${session.shop}/admin/settings/custom_data`,
     editorProductUrl: `${editorBase}?template=product`,
     editorCartUrl: `${editorBase}?template=cart`,
-    editorDrawerUrl: `${editorBase}?context=apps&template=cart&activateAppId=${SHOPIFY_APP_API_KEY}/${DRAWER_APP_EMBED_HANDLE}`,
+    editorDrawerUrl: `${editorBase}?context=apps&template=index&activateAppId=${SHOPIFY_APP_API_KEY}/${DRAWER_APP_EMBED_HANDLE}`,
     hasProductWriteScope,
+    hasThemeReadScope,
     productsUrl: `https://${session.shop}/admin/products`,
+    themeSetupStatus,
     visibilityMetafieldDefinitions,
     visibilityResourceSelections,
   };
@@ -324,13 +342,16 @@ export default function GiftMessageSetup() {
   const {
     cardProduct: initialCardProduct,
     canRequestProductWriteScope,
+    canRequestThemeReadScope,
     collectionsUrl,
     customDataUrl,
     editorCartUrl,
     editorDrawerUrl,
     editorProductUrl,
     hasProductWriteScope,
+    hasThemeReadScope,
     productsUrl,
+    themeSetupStatus,
     visibilityMetafieldDefinitions,
     visibilityResourceSelections,
   } = useLoaderData<typeof loader>();
@@ -341,6 +362,9 @@ export default function GiftMessageSetup() {
   const revalidator = useRevalidator();
   const [hasGrantedProductScope, setHasGrantedProductScope] =
     useState(hasProductWriteScope);
+  const [hasGrantedThemeScope, setHasGrantedThemeScope] =
+    useState(hasThemeReadScope);
+  const [isRequestingThemeScope, setIsRequestingThemeScope] = useState(false);
   const [definitionsReady, setDefinitionsReady] = useState({
     collection: Boolean(visibilityMetafieldDefinitions.collection),
     product: Boolean(visibilityMetafieldDefinitions.product),
@@ -372,6 +396,7 @@ export default function GiftMessageSetup() {
 
   useEffect(() => {
     setHasGrantedProductScope(hasProductWriteScope);
+    setHasGrantedThemeScope(hasThemeReadScope);
     setDefinitionsReady({
       collection: Boolean(visibilityMetafieldDefinitions.collection),
       product: Boolean(visibilityMetafieldDefinitions.product),
@@ -379,6 +404,7 @@ export default function GiftMessageSetup() {
     setVisibleResources(visibilityResourceSelections);
     setCardProduct(initialCardProduct);
   }, [
+    hasThemeReadScope,
     hasProductWriteScope,
     initialCardProduct,
     visibilityMetafieldDefinitions,
@@ -527,6 +553,47 @@ export default function GiftMessageSetup() {
         isError: true,
       });
       return false;
+    }
+  };
+
+  const requestThemePermission = async () => {
+    if (hasGrantedThemeScope) return true;
+
+    if (!canRequestThemeReadScope) {
+      shopify.toast.show(
+        "The optional theme permission is not available yet. Deploy the updated app configuration first.",
+        { isError: true },
+      );
+      return false;
+    }
+
+    setIsRequestingThemeScope(true);
+    try {
+      const scopeResult = await shopify.scopes.request([THEME_SETUP_SCOPE]);
+
+      if (
+        scopeResult.result !== "granted-all" ||
+        !scopeResult.detail.granted.includes(THEME_SETUP_SCOPE)
+      ) {
+        shopify.toast.show(
+          "Theme permission was not granted, so setup status cannot be checked.",
+          { isError: true },
+        );
+        return false;
+      }
+
+      setHasGrantedThemeScope(true);
+      shopify.toast.show("Theme permission granted. Checking block setup...");
+      revalidator.revalidate();
+      return true;
+    } catch (error) {
+      console.error("[block-setup:theme-scope-request]", error);
+      shopify.toast.show("Theme permission could not be requested.", {
+        isError: true,
+      });
+      return false;
+    } finally {
+      setIsRequestingThemeScope(false);
     }
   };
 
@@ -728,11 +795,11 @@ export default function GiftMessageSetup() {
 
               <div className={styles.editorChoices}>
                 <EditorDestination
-                  active
                   description="Collect the note before add to cart"
                   href={editorProductUrl}
                   icon={<ProductPageIcon />}
                   preview="product"
+                  status={themeSetupStatus.targets.product}
                   title="Product page"
                 />
                 <EditorDestination
@@ -740,6 +807,7 @@ export default function GiftMessageSetup() {
                   href={editorCartUrl}
                   icon={<CartPageIcon />}
                   preview="cart"
+                  status={themeSetupStatus.targets.cart}
                   title="Cart page"
                 />
                 <EditorDestination
@@ -747,6 +815,7 @@ export default function GiftMessageSetup() {
                   href={editorDrawerUrl}
                   icon={<DrawerIcon />}
                   preview="drawer"
+                  status={themeSetupStatus.targets.drawer}
                   title="Cart drawer"
                 />
                 <EditorDestination
@@ -754,8 +823,40 @@ export default function GiftMessageSetup() {
                   description="Checkout needs a separate checkout extension setup"
                   icon={<CheckoutIcon />}
                   preview="checkout"
+                  status={themeSetupStatus.targets.checkout}
                   title="Checkout"
                 />
+              </div>
+
+              <div
+                style={{
+                  alignItems: "center",
+                  borderTop: "1px solid rgba(130, 150, 185, 0.22)",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "0.65rem",
+                  justifyContent: "space-between",
+                  marginTop: "0.9rem",
+                  paddingTop: "0.85rem",
+                }}
+              >
+                <s-text color="subdued">
+                  {themeSetupStatus.checked
+                    ? `Checked current theme: ${themeSetupStatus.themeName || "published theme"}.`
+                    : themeSetupStatus.message}
+                </s-text>
+                {!hasGrantedThemeScope ? (
+                  <button
+                    className={styles.metafieldButton}
+                    disabled={isRequestingThemeScope}
+                    onClick={requestThemePermission}
+                    type="button"
+                  >
+                    {isRequestingThemeScope
+                      ? "Checking..."
+                      : "Check theme setup"}
+                  </button>
+                ) : null}
               </div>
             </div>
           </div>
@@ -1149,6 +1250,33 @@ type VisibilityResourceSelections = Record<
   VisibilityResourceSelection[]
 >;
 
+type ThemeSetupTarget = "cart" | "checkout" | "drawer" | "product";
+type ThemeSetupStatusState = "disabled" | "missing" | "ready" | "unavailable";
+
+type ThemeSetupTargetStatus = {
+  detail: string;
+  label: string;
+  state: ThemeSetupStatusState;
+};
+
+type ThemeSetupStatus = {
+  checked: boolean;
+  message: string;
+  targets: Record<ThemeSetupTarget, ThemeSetupTargetStatus>;
+  themeName: string;
+};
+
+type ThemeFileContent = {
+  content: string;
+  filename: string;
+};
+
+type ThemeBlockScanResult = {
+  disabled: number;
+  enabled: number;
+  found: number;
+};
+
 type PickerResource = {
   id: string;
   title?: string;
@@ -1210,6 +1338,273 @@ function parseVisibilityResourceIds(value: string): string[] {
 
 function isTrueMetafieldValue(value: unknown) {
   return value === true || value === "true";
+}
+
+function getThemeSetupStatusColor(state: ThemeSetupStatusState) {
+  if (state === "ready") return "#267a57";
+  if (state === "disabled") return "#9a6700";
+  if (state === "missing") return "#9f1239";
+  return "#61708a";
+}
+
+function createUnavailableThemeSetupStatus(message: string): ThemeSetupStatus {
+  return {
+    checked: false,
+    message,
+    targets: {
+      cart: {
+        detail: message,
+        label: "Check unavailable",
+        state: "unavailable",
+      },
+      checkout: {
+        detail: "Checkout requires a separate checkout extension setup.",
+        label: "Separate setup",
+        state: "unavailable",
+      },
+      drawer: {
+        detail: message,
+        label: "Check unavailable",
+        state: "unavailable",
+      },
+      product: {
+        detail: message,
+        label: "Check unavailable",
+        state: "unavailable",
+      },
+    },
+    themeName: "",
+  };
+}
+
+async function getThemeSetupStatus(
+  admin: AdminClient,
+): Promise<ThemeSetupStatus> {
+  const response = await admin.graphql(
+    `#graphql
+      query GiftPulseThemeSetupStatus($filenames: [String!]!) {
+        themes(first: 1, roles: [MAIN]) {
+          nodes {
+            id
+            name
+            files(filenames: $filenames, first: 50) {
+              nodes {
+                filename
+                body {
+                  ... on OnlineStoreThemeFileBodyText {
+                    content
+                  }
+                }
+              }
+              userErrors {
+                code
+                filename
+              }
+            }
+          }
+        }
+      }`,
+    {
+      variables: {
+        filenames: [
+          "config/settings_data.json",
+          "templates/cart*.json",
+          "templates/product*.json",
+        ],
+      },
+    },
+  );
+  const json = await response.json();
+  const errors = json.errors as { message?: string }[] | undefined;
+  if (errors?.length) {
+    throw new Error(errors.map((error) => error.message).join("; "));
+  }
+
+  const theme = json.data?.themes?.nodes?.[0];
+  if (!theme) {
+    return createUnavailableThemeSetupStatus("No published theme was found.");
+  }
+
+  const files = normalizeThemeFiles(theme.files?.nodes);
+  const productScan = scanThemeFilesForBlock(
+    files.filter((file) => file.filename.startsWith("templates/product")),
+    GIFT_MESSAGE_BLOCK_HANDLE,
+  );
+  const cartScan = scanThemeFilesForBlock(
+    files.filter((file) => file.filename.startsWith("templates/cart")),
+    GIFT_MESSAGE_BLOCK_HANDLE,
+  );
+  const drawerScan = scanThemeFilesForBlock(
+    files.filter((file) => file.filename === "config/settings_data.json"),
+    DRAWER_APP_EMBED_HANDLE,
+  );
+
+  return {
+    checked: true,
+    message: "Theme setup checked.",
+    targets: {
+      cart: createTemplateTargetStatus(
+        cartScan,
+        "Cart page block configured",
+        "Cart page block disabled",
+        "Cart page block not found",
+      ),
+      checkout: {
+        detail: "Checkout requires a separate checkout extension setup.",
+        label: "Separate setup",
+        state: "unavailable",
+      },
+      drawer: createTemplateTargetStatus(
+        drawerScan,
+        "Drawer embed enabled",
+        "Drawer embed disabled",
+        "Drawer embed not enabled",
+      ),
+      product: createTemplateTargetStatus(
+        productScan,
+        "Product block configured",
+        "Product block disabled",
+        "Product block not found",
+      ),
+    },
+    themeName: typeof theme.name === "string" ? theme.name : "",
+  };
+}
+
+function normalizeThemeFiles(value: unknown): ThemeFileContent[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((node): ThemeFileContent[] => {
+    if (
+      typeof node !== "object" ||
+      node === null ||
+      typeof (node as { filename?: unknown }).filename !== "string"
+    ) {
+      return [];
+    }
+
+    const body = (node as { body?: { content?: unknown } }).body;
+    const content = typeof body?.content === "string" ? body.content : "";
+    if (!content) return [];
+
+    return [
+      {
+        content,
+        filename: (node as { filename: string }).filename,
+      },
+    ];
+  });
+}
+
+function scanThemeFilesForBlock(
+  files: ThemeFileContent[],
+  blockHandle: string,
+): ThemeBlockScanResult {
+  return files.reduce<ThemeBlockScanResult>(
+    (result, file) =>
+      mergeThemeBlockScanResults(result, scanThemeFile(file, blockHandle)),
+    { disabled: 0, enabled: 0, found: 0 },
+  );
+}
+
+function scanThemeFile(
+  file: ThemeFileContent,
+  blockHandle: string,
+): ThemeBlockScanResult {
+  try {
+    return scanThemeJsonForBlock(JSON.parse(file.content), blockHandle);
+  } catch {
+    return { disabled: 0, enabled: 0, found: 0 };
+  }
+}
+
+function scanThemeJsonForBlock(
+  value: unknown,
+  blockHandle: string,
+): ThemeBlockScanResult {
+  const result: ThemeBlockScanResult = { disabled: 0, enabled: 0, found: 0 };
+
+  visitThemeJson(value, (node) => {
+    const blockType =
+      typeof (node as { type?: unknown }).type === "string"
+        ? (node as { type: string }).type
+        : "";
+
+    if (!isGiftPulseThemeBlockType(blockType, blockHandle)) return;
+
+    result.found += 1;
+    if ((node as { disabled?: unknown }).disabled === true) {
+      result.disabled += 1;
+    } else {
+      result.enabled += 1;
+    }
+  });
+
+  return result;
+}
+
+function visitThemeJson(
+  value: unknown,
+  visitor: (node: Record<string, unknown>) => void,
+) {
+  if (!value || typeof value !== "object") return;
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => visitThemeJson(item, visitor));
+    return;
+  }
+
+  const node = value as Record<string, unknown>;
+  visitor(node);
+  Object.values(node).forEach((item) => visitThemeJson(item, visitor));
+}
+
+function isGiftPulseThemeBlockType(blockType: string, blockHandle: string) {
+  return (
+    blockType.includes(`/blocks/${blockHandle}/`) ||
+    blockType.includes(`/blocks/${blockHandle}`) ||
+    blockType.includes(`blocks/${blockHandle}/`)
+  );
+}
+
+function mergeThemeBlockScanResults(
+  current: ThemeBlockScanResult,
+  next: ThemeBlockScanResult,
+): ThemeBlockScanResult {
+  return {
+    disabled: current.disabled + next.disabled,
+    enabled: current.enabled + next.enabled,
+    found: current.found + next.found,
+  };
+}
+
+function createTemplateTargetStatus(
+  scan: ThemeBlockScanResult,
+  readyLabel: string,
+  disabledLabel: string,
+  missingLabel: string,
+): ThemeSetupTargetStatus {
+  if (scan.enabled > 0) {
+    return {
+      detail: `${scan.enabled} active instance${scan.enabled === 1 ? "" : "s"} found.`,
+      label: readyLabel,
+      state: "ready",
+    };
+  }
+
+  if (scan.disabled > 0) {
+    return {
+      detail: `${scan.disabled} disabled instance${scan.disabled === 1 ? "" : "s"} found.`,
+      label: disabledLabel,
+      state: "disabled",
+    };
+  }
+
+  return {
+    detail: "No active instance found in the published theme.",
+    label: missingLabel,
+    state: "missing",
+  };
 }
 
 async function getVisibilityMetafieldDefinitions(
@@ -1783,6 +2178,7 @@ function EditorDestination({
   href,
   icon,
   preview,
+  status,
   title,
 }: {
   active?: boolean;
@@ -1791,20 +2187,32 @@ function EditorDestination({
   href?: string;
   icon: ReactNode;
   preview: "cart" | "checkout" | "drawer" | "product";
+  status?: ThemeSetupTargetStatus;
   title: string;
 }) {
+  const isReady = status?.state === "ready";
   const className = `${styles.editorChoice} ${
-    active ? styles.editorChoiceActive : ""
+    active || isReady ? styles.editorChoiceActive : ""
   }`;
   const content = (
     <>
       <span className={styles.editorChoiceStatus}>
-        {active ? <CheckIcon /> : null}
+        {isReady || active ? <CheckIcon /> : null}
       </span>
       <span className={styles.editorChoiceIcon}>{icon}</span>
       <span className={styles.editorChoiceCopy}>
         <strong>{title}</strong>
         <small>{description}</small>
+        {status ? (
+          <small
+            style={{
+              color: getThemeSetupStatusColor(status.state),
+              fontWeight: 750,
+            }}
+          >
+            {status.label}
+          </small>
+        ) : null}
       </span>
       <SetupPreview type={preview} />
     </>
