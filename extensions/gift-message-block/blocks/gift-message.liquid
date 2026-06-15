@@ -65,9 +65,7 @@
   assign card_variant_choices_label = block.settings.card_variant_choices_label | default: 'Choose a message card'
   assign money_currency_code = localization.country.currency.iso_code | default: cart.currency.iso_code | default: shop.currency
   assign manual_save = false
-  if text_form_enabled == false
-    assign manual_save = false
-  elsif mode == 'order' or block.settings.enable_save_button
+  if mode == 'order' or block.settings.enable_save_button
     assign manual_save = true
   endif
   assign width_unit = block.settings.width_unit | default: 'percent'
@@ -289,7 +287,7 @@
       <span class="gmb-saved-dot" aria-hidden="true"></span>
       <span class="gmb-saved-text">Gift message saved</span>
       <button type="button" class="gmb-edit-button">Edit</button>
-      <button type="button" class="gmb-summary-remove-button">Remove</button>
+      <button type="button" class="gmb-summary-remove-button">Delete</button>
     </div>
   {%- endif -%}
 </div>
@@ -554,8 +552,7 @@
       "id": "enable_save_button",
       "label": "Show save button on product pages",
       "info": "Cart pages always use a save button. Enable this to require the button on product pages too; the message is not saved until the customer clicks it.",
-      "default": false,
-      "visible_if": "{{ block.settings.enable_text_form == true }}"
+      "default": false
     },
     {
       "type": "header",
@@ -566,7 +563,7 @@
       "type": "checkbox",
       "id": "enable_app_visibility_rule",
       "label": "Use Gift Pulse visibility rule",
-      "info": "Default on. Disable it only if this block should appear on every product page regardless of the app-managed product or collection selection.",
+      "info": "Default on. Configure which products and collections show this block in the app Block setup: https://app-gift-pulse.zuam.dev/app#product-metafield-visibility. Disable this only if the block should appear on every product page.",
       "default": true
     },
     {
@@ -574,7 +571,7 @@
       "id": "save_button_label",
       "label": "Save button label",
       "default": "Save gift message",
-      "visible_if": "{{ block.settings.enable_text_form == true }}"
+      "visible_if": "{{ block.settings.enable_text_form == true or block.settings.show_card_variant_choices == true }}"
     },
     {
       "type": "select",

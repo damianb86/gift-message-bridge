@@ -17,9 +17,9 @@
   assign save_button_label = block.settings.save_button_label | default: 'Save gift message'
   assign accent_color = block.settings.accent_color | default: '#4FAF8F'
   assign drawer_selector = block.settings.drawer_selector | default: ''
-  assign drawer_placement = block.settings.drawer_placement | default: 'below_cart_items'
   assign drawer_padding_block = block.settings.drawer_padding_block | default: 0
   assign drawer_padding_inline = block.settings.drawer_padding_inline | default: 0
+  assign preset = block.settings.preset | default: 'default'
   assign custom_css = block.settings.custom_css | default: ''
   assign show_card_variant_choices = false
   if block.settings.show_card_variant_choices
@@ -69,7 +69,7 @@
   data-gmb-drawer-embed
   data-gmb-drawer-enabled="{{ drawer_enabled | json }}"
   data-gmb-drawer-selector="{{ drawer_selector | escape }}"
-  data-gmb-drawer-placement="{{ drawer_placement | escape }}"
+  data-gmb-drawer-placement="above_checkout"
   data-gmb-drawer-padding-block="{{ drawer_padding_block }}"
   data-gmb-drawer-padding-inline="{{ drawer_padding_inline }}"
   id="gmb-drawer-embed-{{ block.id }}"
@@ -78,7 +78,7 @@
 >
   <template data-gmb-drawer-template>
     <div
-      class="gmb-box gmb-box--drawer"
+      class="gmb-box gmb-box--drawer gmb-box--preset-{{ preset | handleize }}"
       data-gmb-block
       data-mode="order"
       data-cart-token="{{ cart.token }}"
@@ -190,7 +190,7 @@
         {%- endif -%}
       </div>
 
-      {%- if text_form_enabled -%}
+      {%- if render_actions -%}
         <div
           class="gmb-saved-summary"
           data-gmb-saved-summary
@@ -199,7 +199,7 @@
           <span class="gmb-saved-dot" aria-hidden="true"></span>
           <span class="gmb-saved-text">Gift message saved</span>
           <button type="button" class="gmb-edit-button">Edit</button>
-          <button type="button" class="gmb-summary-remove-button">Remove</button>
+          <button type="button" class="gmb-summary-remove-button">Delete</button>
         </div>
       {%- endif -%}
     </div>
@@ -220,8 +220,8 @@
   "settings": [
     {
       "type": "header",
-      "content": "Cart drawer placement",
-      "info": "Enable this app embed from App embeds. Gift Pulse will insert the form into the cart drawer when the theme provides one."
+      "content": "Cart drawer",
+      "info": "Enable this app embed from App embeds. Gift Pulse inserts the form above the checkout button when the theme provides a compatible cart drawer."
     },
     {
       "type": "checkbox",
@@ -234,40 +234,6 @@
       "id": "drawer_selector",
       "label": "Cart drawer CSS selector",
       "info": "Optional. Use this only for custom themes when the automatic drawer detection needs a specific target.",
-      "visible_if": "{{ block.settings.enable_drawer == true }}"
-    },
-    {
-      "type": "select",
-      "id": "drawer_placement",
-      "label": "Placement inside drawer",
-      "options": [
-        { "value": "below_cart_items", "label": "Below Cart Items" },
-        { "value": "above_subtotal", "label": "Above Subtotal" },
-        { "value": "above_checkout", "label": "Above Checkout Button" }
-      ],
-      "default": "below_cart_items",
-      "visible_if": "{{ block.settings.enable_drawer == true }}"
-    },
-    {
-      "type": "range",
-      "id": "drawer_padding_block",
-      "label": "Vertical padding",
-      "min": 0,
-      "max": 48,
-      "step": 2,
-      "unit": "px",
-      "default": 0,
-      "visible_if": "{{ block.settings.enable_drawer == true }}"
-    },
-    {
-      "type": "range",
-      "id": "drawer_padding_inline",
-      "label": "Horizontal padding",
-      "min": 0,
-      "max": 48,
-      "step": 2,
-      "unit": "px",
-      "default": 0,
       "visible_if": "{{ block.settings.enable_drawer == true }}"
     },
     {
@@ -394,10 +360,51 @@
       "content": "Style"
     },
     {
+      "type": "select",
+      "id": "preset",
+      "label": "Style preset",
+      "options": [
+        { "value": "default", "label": "Default — inherits theme styles" },
+        { "value": "rounded", "label": "Rounded — pill inputs, soft border" },
+        { "value": "minimal", "label": "Minimal — underlines only" },
+        { "value": "card", "label": "Card — elevated box with shadow" },
+        { "value": "accent", "label": "Accent — bold left border" },
+        { "value": "soft", "label": "Soft — filled inputs, no borders" },
+        { "value": "warm", "label": "Warm — blush background" },
+        { "value": "dark", "label": "Dark — inverted for dark sections" },
+        { "value": "glass", "label": "Glass — frosted glass over images" },
+        { "value": "outlined", "label": "Outlined — strong frame border" },
+        { "value": "accordion", "label": "Accordion — plus/minus dividers" }
+      ],
+      "default": "default"
+    },
+    {
       "type": "color",
       "id": "accent_color",
       "label": "Accent color",
       "default": "#4FAF8F"
+    },
+    {
+      "type": "range",
+      "id": "drawer_padding_block",
+      "label": "Vertical padding",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 0,
+      "visible_if": "{{ block.settings.enable_drawer == true }}"
+    },
+    {
+      "type": "range",
+      "id": "drawer_padding_inline",
+      "label": "Horizontal padding",
+      "min": 0,
+      "max": 48,
+      "step": 2,
+      "unit": "px",
+      "default": 0,
+      "visible_if": "{{ block.settings.enable_drawer == true }}"
     },
     {
       "type": "select",

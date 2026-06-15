@@ -40,6 +40,7 @@
     var saveButton = block.querySelector(".gmb-save-button");
     var savedSummary = block.querySelector("[data-gmb-saved-summary]");
     var editButton = block.querySelector(".gmb-edit-button");
+    var toggleLabel = block.querySelector(".gmb-toggle");
     var cardProductPicker = block.querySelector("[data-gmb-card-products]");
     var removeButtons = block.querySelectorAll(
       ".gmb-remove-button, .gmb-summary-remove-button",
@@ -212,6 +213,7 @@
       }
       if (editButton) {
         editButton.addEventListener("click", function () {
+          setToggleControlHidden(false);
           toggle.checked = true;
           setPanelOpen(true);
           if (textFormEnabled) textarea.focus();
@@ -474,6 +476,7 @@
       var hasContent = hasAnyContent();
       var showSavedSummary = hasSavedMessage && !isDirty && !toggle.checked;
 
+      setToggleControlHidden(showSavedSummary);
       if (savedSummary) savedSummary.hidden = !showSavedSummary;
 
       removeButtons.forEach(function (button) {
@@ -482,6 +485,14 @@
 
       if (saveButton) {
         saveButton.disabled = !hasContent || (hasSavedMessage && !isDirty);
+      }
+    }
+
+    function setToggleControlHidden(hidden) {
+      block.toggleAttribute("data-gmb-summary-visible", hidden);
+      toggle.disabled = Boolean(hidden);
+      if (toggleLabel) {
+        toggleLabel.hidden = Boolean(hidden);
       }
     }
 
@@ -2214,10 +2225,14 @@
   function syncPanelOpenState(block, toggle, field, open) {
     if (!block || !toggle || !field) return;
 
-    field.hidden = !open;
-    field.toggleAttribute("hidden", !open);
+    field.hidden = false;
+    field.removeAttribute("hidden");
     field.toggleAttribute("data-gmb-open", open);
-    field.style.display = open ? "" : "none";
+    field.setAttribute("aria-hidden", open ? "false" : "true");
+    field.style.display = "";
+    if ("inert" in field) {
+      field.inert = !open;
+    }
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
   }
 
