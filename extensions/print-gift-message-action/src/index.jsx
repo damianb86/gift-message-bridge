@@ -21,8 +21,11 @@ const PRINT_ORDER_ENDPOINT = "/api/print-order-gift-message";
 const GIFT_MESSAGE_PROPERTY = "Gift Message";
 const GIFT_MESSAGE_REF_PROPERTY = "Gift Message Ref";
 const GIFT_MESSAGE_CARD_PROPERTY = "_Gift Message Card";
+const GIFT_MESSAGE_CARD_SELECTION_PROPERTY = "_Gift Message Card Selection";
+const GIFT_MESSAGE_CARD_VARIANT_PROPERTY = "_Gift Message Card Variant";
 const GIFT_MESSAGE_FROM_ATTRIBUTE = "Gift Message From";
 const GIFT_MESSAGE_TO_ATTRIBUTE = "Gift Message To";
+const ORDER_CARD_SOURCE_LABEL = "Cart drawer";
 
 const ORDER_QUERY = `#graphql
 query GiftMessageOrder($id: ID!) {
@@ -37,9 +40,14 @@ query GiftMessageOrder($id: ID!) {
     }
     lineItems(first: 100) {
       nodes {
+        id
         title
         variantTitle
         sku
+        quantity
+        variant {
+          id
+        }
         customAttributes {
           key
           value
@@ -375,51 +383,125 @@ function collectGiftMessages(order) {
   const lines = order?.lineItems?.nodes || [];
   const orderReference = clean(order?.name) || clean(order?.id);
   const orderDate = formatDate(order?.processedAt || order?.createdAt);
-  const linkedProductReferences = buildLinkedProductReferences(lines);
+  const lineContexts = lines.map((line, index) =>
+    buildLineContext(line, index, orderReference),
+  );
+  const linkedProductReferences = buildLinkedProductReferences(lineContexts);
+  const giftCardRelations = buildGiftCardRelationIndex(lineContexts);
   const orderMessages = collectOrderGiftMessages(
     order?.customAttributes || [],
     orderReference,
     orderDate,
+    giftCardRelations,
   );
-  const lineMessages = lines.flatMap((line, index) =>
+  const lineMessages = lineContexts.flatMap((lineContext) =>
     collectLineGiftMessages(
-      line,
-      index,
       orderReference,
       orderDate,
       linkedProductReferences,
+      giftCardRelations,
+      lineContext,
     ),
   );
 
-  return dedupeGiftMessages([...orderMessages, ...lineMessages]);
+  return expandGiftMessages(
+    dedupeGiftMessages([...orderMessages, ...lineMessages]),
+  );
 }
 
-function buildLinkedProductReferences(lines) {
-  const references = new Map();
+function buildLineContext(line, index, orderReference) {
+  const attributes = line?.customAttributes || [];
+  const explicitReference = findAttributeValue(
+    attributes,
+    GIFT_MESSAGE_REF_PROPERTY,
+  );
+  const giftMessageCardVariantId = findAttributeValue(
+    attributes,
+    GIFT_MESSAGE_CARD_VARIANT_PROPERTY,
+  );
 
-  for (const line of lines || []) {
-    const attributes = line.customAttributes || [];
-    const reference = findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY);
-    const giftMessageValue = findGiftMessage(attributes);
-    const giftMessageCardSource = findAttributeValue(
+  return {
+    attributes,
+    explicitReference,
+    giftMessageCardSelection: findAttributeValue(
+      attributes,
+      GIFT_MESSAGE_CARD_SELECTION_PROPERTY,
+    ),
+    giftMessageCardSource: findAttributeValue(
       attributes,
       GIFT_MESSAGE_CARD_PROPERTY,
-    );
+    ),
+    giftMessageCardVariantId,
+    giftMessageValue: findGiftMessage(attributes),
+    index,
+    line,
+    normalizedGiftMessageCardVariantId: normalizeVariantId(
+      giftMessageCardVariantId || line?.variant?.id,
+    ),
+    productReference: buildProductReference(line),
+    quantity: parseQuantity(line?.quantity),
+    reference: explicitReference || `${orderReference || "Order"}-${index + 1}`,
+  };
+}
 
-    if (!reference || giftMessageValue || giftMessageCardSource) {
+function buildLinkedProductReferences(lineContexts) {
+  const references = new Map();
+
+  for (const lineContext of lineContexts || []) {
+    if (
+      !lineContext.explicitReference ||
+      lineContext.giftMessageValue ||
+      lineContext.giftMessageCardSource
+    ) {
       continue;
     }
 
-    const productReference = buildProductReference(line);
-    if (productReference && !references.has(reference)) {
-      references.set(reference, productReference);
+    if (
+      lineContext.productReference &&
+      !references.has(lineContext.explicitReference)
+    ) {
+      references.set(
+        lineContext.explicitReference,
+        lineContext.productReference,
+      );
     }
   }
 
   return references;
 }
 
-function collectOrderGiftMessages(attributes, orderReference, orderDate) {
+function buildGiftCardRelationIndex(lineContexts) {
+  const giftCardLines = lineContexts.filter(isGiftCardLineContext);
+  const byReference = new Map();
+  const byVariantId = new Map();
+  const orderLevel = [];
+
+  for (const lineContext of giftCardLines) {
+    addLineContextToMap(
+      byReference,
+      lineContext.explicitReference || lineContext.reference,
+      lineContext,
+    );
+    addLineContextToMap(
+      byVariantId,
+      lineContext.normalizedGiftMessageCardVariantId,
+      lineContext,
+    );
+
+    if (isOrderLevelGiftCardLine(lineContext)) {
+      orderLevel.push(lineContext);
+    }
+  }
+
+  return { byReference, byVariantId, giftCardLines, orderLevel };
+}
+
+function collectOrderGiftMessages(
+  attributes,
+  orderReference,
+  orderDate,
+  giftCardRelations,
+) {
   const giftMessageValue = findGiftMessage(attributes);
 
   if (!giftMessageValue) {
@@ -433,14 +515,28 @@ function collectOrderGiftMessages(attributes, orderReference, orderDate) {
     return [];
   }
 
+  const explicitReference =
+    findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY) ||
+    findLooseAttributeValue(attributes, "gift_order_reference");
+  const relatedGiftCardLine = findRelatedGiftCardLineForOrder(
+    attributes,
+    explicitReference,
+    giftCardRelations,
+  );
+  const reference =
+    explicitReference ||
+    relatedGiftCardLine?.explicitReference ||
+    relatedGiftCardLine?.reference ||
+    orderReference;
+
   return [
     {
-      reference:
-        findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY) ||
-        findLooseAttributeValue(attributes, "gift_order_reference") ||
-        orderReference,
+      reference,
       cartReference: orderReference,
       cartToken: orderReference,
+      isMessageCardAddon: Boolean(relatedGiftCardLine),
+      messageCardReference: buildGiftCardPrintReference(relatedGiftCardLine),
+      printQuantity: getGiftCardPrintQuantity(relatedGiftCardLine),
       productReference: "Cart gift message",
       sender:
         findAttributeValue(attributes, GIFT_MESSAGE_FROM_ATTRIBUTE) ||
@@ -457,51 +553,52 @@ function collectOrderGiftMessages(attributes, orderReference, orderDate) {
 }
 
 function collectLineGiftMessages(
-  line,
-  index,
   orderReference,
   orderDate,
   linkedProductReferences,
+  giftCardRelations,
+  lineContext,
 ) {
-  const attributes = line.customAttributes || [];
-  const giftMessageValue = findGiftMessage(attributes);
-  const giftMessageCardSource = findAttributeValue(
-    attributes,
-    GIFT_MESSAGE_CARD_PROPERTY,
-  );
-  const reference =
-    findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY) ||
-    `${orderReference || "Order"}-${index + 1}`;
-  const linkedProductReference = linkedProductReferences.get(reference);
-
-  if (!giftMessageValue) {
+  if (!lineContext.giftMessageValue) {
     return [];
   }
 
-  const parsed = parseGiftMessageProperty(giftMessageValue);
-  const message = clean(parsed.message || giftMessageValue);
+  const parsed = parseGiftMessageProperty(lineContext.giftMessageValue);
+  const message = clean(parsed.message || lineContext.giftMessageValue);
 
   if (!message) {
     return [];
   }
 
+  const relatedGiftCardLine = findRelatedGiftCardLineForLine(
+    lineContext,
+    giftCardRelations,
+  );
+  const linkedProductReference = linkedProductReferences.get(
+    lineContext.explicitReference || lineContext.reference,
+  );
+
   return [
     {
-      reference,
+      reference: lineContext.reference,
       cartReference: orderReference,
       cartToken: orderReference,
       isMessageCardAddon: Boolean(
-        giftMessageCardSource || linkedProductReference,
+        lineContext.giftMessageCardSource || relatedGiftCardLine,
       ),
-      productReference:
-        linkedProductReference ||
-        giftMessageCardSource ||
-        buildProductReference(line),
+      messageCardReference: buildGiftCardPrintReference(relatedGiftCardLine),
+      printQuantity: getGiftCardPrintQuantity(relatedGiftCardLine),
+      productReference: resolveLineProductReference(
+        lineContext,
+        linkedProductReference,
+      ),
       sender:
-        findAttributeValue(attributes, GIFT_MESSAGE_FROM_ATTRIBUTE) ||
-        parsed.sender,
+        findAttributeValue(
+          lineContext.attributes,
+          GIFT_MESSAGE_FROM_ATTRIBUTE,
+        ) || parsed.sender,
       recipient:
-        findAttributeValue(attributes, GIFT_MESSAGE_TO_ATTRIBUTE) ||
+        findAttributeValue(lineContext.attributes, GIFT_MESSAGE_TO_ATTRIBUTE) ||
         parsed.recipient,
       message,
       date: orderDate,
@@ -514,6 +611,43 @@ function findGiftMessage(attributes) {
     findAttributeValue(attributes, GIFT_MESSAGE_PROPERTY) ||
     findLooseAttributeValue(attributes, "gift message") ||
     findLooseAttributeValue(attributes, "gift_message")
+  );
+}
+
+function findRelatedGiftCardLineForOrder(
+  attributes,
+  explicitReference,
+  giftCardRelations,
+) {
+  const byReference = getFirstLineContext(
+    giftCardRelations.byReference,
+    explicitReference,
+  );
+
+  if (byReference) return byReference;
+
+  const byVariantId = getFirstLineContext(
+    giftCardRelations.byVariantId,
+    normalizeVariantId(
+      findAttributeValue(attributes, GIFT_MESSAGE_CARD_VARIANT_PROPERTY),
+    ),
+  );
+
+  return byVariantId || giftCardRelations.orderLevel[0] || null;
+}
+
+function findRelatedGiftCardLineForLine(lineContext, giftCardRelations) {
+  if (isGiftCardLineContext(lineContext)) return lineContext;
+
+  return (
+    getFirstLineContext(
+      giftCardRelations.byReference,
+      lineContext.explicitReference || lineContext.reference,
+    ) ||
+    getFirstLineContext(
+      giftCardRelations.byVariantId,
+      lineContext.normalizedGiftMessageCardVariantId,
+    )
   );
 }
 
@@ -540,31 +674,193 @@ function dedupeGiftMessages(messages) {
       continue;
     }
 
-    if (current.isMessageCardAddon && !message.isMessageCardAddon) {
-      byKey.set(key, message);
-    }
+    byKey.set(key, mergeGiftMessages(current, message));
   }
 
   return [
     ...passthrough,
     ...orderedKeys.map((key) => byKey.get(key)).filter(Boolean),
-  ].map((message) => {
-    const printableMessage = { ...message };
-    delete printableMessage.isMessageCardAddon;
-    return printableMessage;
+  ];
+}
+
+function mergeGiftMessages(current, next) {
+  const preferred =
+    current.isMessageCardAddon && !next.isMessageCardAddon ? next : current;
+  const fallback = preferred === current ? next : current;
+  const merged = { ...preferred };
+
+  if (!merged.messageCardReference && fallback.messageCardReference) {
+    merged.messageCardReference = fallback.messageCardReference;
+  }
+
+  if (!merged.productReference && fallback.productReference) {
+    merged.productReference = fallback.productReference;
+  }
+
+  if (
+    parseQuantity(fallback.printQuantity) > parseQuantity(merged.printQuantity)
+  ) {
+    merged.printQuantity = fallback.printQuantity;
+  }
+
+  return merged;
+}
+
+function expandGiftMessages(messages) {
+  return messages.flatMap((message) => {
+    const quantity = parseQuantity(message.printQuantity);
+    const copies = [];
+
+    for (let index = 0; index < quantity; index += 1) {
+      copies.push(toPrintableGiftMessage(message, index, quantity));
+    }
+
+    return copies;
   });
 }
 
+function toPrintableGiftMessage(message, copyIndex, quantity) {
+  const printableMessage = { ...message };
+
+  if (quantity > 1) {
+    printableMessage.printCopyLabel = `Copy ${copyIndex + 1} of ${quantity}`;
+  }
+
+  delete printableMessage.isMessageCardAddon;
+  delete printableMessage.printQuantity;
+
+  return printableMessage;
+}
+
+function getGiftCardPrintQuantity(lineContext) {
+  return lineContext ? lineContext.quantity : 1;
+}
+
+function resolveLineProductReference(lineContext, linkedProductReference) {
+  if (linkedProductReference) return linkedProductReference;
+
+  if (isGiftCardLineContext(lineContext)) {
+    if (isOrderGiftCardSource(lineContext.giftMessageCardSource)) {
+      return "Cart gift message";
+    }
+
+    return lineContext.giftMessageCardSource || lineContext.productReference;
+  }
+
+  return lineContext.productReference;
+}
+
+function buildGiftCardPrintReference(lineContext) {
+  if (!lineContext) return "";
+
+  const line = lineContext.line || {};
+  const title = clean(line.title) || "Message card";
+  const variantTitle = getMeaningfulVariantTitle(line);
+  const selection = clean(lineContext.giftMessageCardSelection);
+  const variantId = formatShopifyId(
+    lineContext.giftMessageCardVariantId || line.variant?.id,
+  );
+  const lineId = formatShopifyId(line.id);
+  const sku = clean(line.sku || line.variant?.sku);
+  const parts = [`Name: ${title}`];
+
+  if (variantTitle && !title.includes(variantTitle)) {
+    parts.push(`Variant: ${variantTitle}`);
+  }
+
+  if (selection && selection !== title && selection !== variantTitle) {
+    parts.push(`Selection: ${selection}`);
+  }
+
+  if (variantId) {
+    parts.push(`Variant ID: ${variantId}`);
+  }
+
+  if (lineId) {
+    parts.push(`Line ID: ${lineId}`);
+  }
+
+  parts.push(`Quantity: ${lineContext.quantity}`);
+
+  if (sku) {
+    parts.push(`SKU: ${sku}`);
+  }
+
+  return parts.join(" | ");
+}
+
 function buildProductReference(line) {
-  const title = clean(line.title);
-  const variantTitle = clean(line.variantTitle);
-  const sku = clean(line.sku);
+  const title = clean(line?.title);
+  const variantTitle = getMeaningfulVariantTitle(line);
+  const sku = clean(line?.sku || line?.variant?.sku);
   const productTitle =
     title && variantTitle && !title.includes(variantTitle)
       ? `${title} - ${variantTitle}`
       : title;
 
   return [productTitle, sku ? `SKU: ${sku}` : ""].filter(Boolean).join(" | ");
+}
+
+function getMeaningfulVariantTitle(line) {
+  const variantTitle = clean(line?.variantTitle || line?.variant?.title);
+
+  return normalizeKey(variantTitle) === "default title" ? "" : variantTitle;
+}
+
+function isGiftCardLineContext(lineContext) {
+  return Boolean(clean(lineContext?.giftMessageCardSource));
+}
+
+function isOrderLevelGiftCardLine(lineContext) {
+  return isOrderGiftCardSource(lineContext?.giftMessageCardSource);
+}
+
+function isOrderGiftCardSource(value) {
+  const source = normalizeKey(value);
+
+  return (
+    source === normalizeKey(ORDER_CARD_SOURCE_LABEL) ||
+    source === "cart" ||
+    source === "order" ||
+    source === "cart gift message"
+  );
+}
+
+function addLineContextToMap(map, key, lineContext) {
+  const normalizedKey = normalizeRelationKey(key);
+  if (!normalizedKey) return;
+
+  const items = map.get(normalizedKey) || [];
+  items.push(lineContext);
+  map.set(normalizedKey, items);
+}
+
+function getFirstLineContext(map, key) {
+  const normalizedKey = normalizeRelationKey(key);
+  if (!normalizedKey) return null;
+
+  return map.get(normalizedKey)?.[0] || null;
+}
+
+function normalizeRelationKey(value) {
+  return clean(value).toLowerCase();
+}
+
+function normalizeVariantId(value) {
+  return normalizeRelationKey(formatShopifyId(value));
+}
+
+function formatShopifyId(value) {
+  const text = clean(value);
+  const match = text.match(/\/([^/?#]+)$/);
+
+  return match ? match[1] : text;
+}
+
+function parseQuantity(value) {
+  const quantity = parseInt(String(value || "1"), 10);
+
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
 }
 
 function findAttributeValue(attributes, key) {

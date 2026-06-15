@@ -233,7 +233,7 @@ function sanitizeMessages(
   }
 
   return input
-    .map((item, index) => {
+    .map((item, index): TemplateMessage | null => {
       const record = isRecord(item) ? item : {};
       const message = clean(record.message);
 
@@ -250,6 +250,8 @@ function sanitizeMessages(
         cartReference,
         cartToken: clean(record.cartToken) || cartReference,
         productReference: clean(record.productReference),
+        messageCardReference: clean(record.messageCardReference),
+        printCopyLabel: clean(record.printCopyLabel),
         sender: clean(record.sender),
         recipient: clean(record.recipient),
         message,

@@ -89,6 +89,8 @@ export type TemplateMessage = {
   cartReference: string;
   cartToken: string;
   productReference: string;
+  messageCardReference?: string;
+  printCopyLabel?: string;
   sender: string;
   recipient: string;
   message: string;
@@ -101,6 +103,11 @@ export function renderTemplate(tpl: string, msg: TemplateMessage): string {
     .replace(/\{\{reference\}\}/g, escapeHtml(msg.reference))
     .replace(/\{\{cart_token\}\}/g, escapeHtml(msg.cartReference))
     .replace(/\{\{product_reference\}\}/g, escapeHtml(msg.productReference))
+    .replace(
+      /\{\{message_card_reference\}\}/g,
+      escapeHtml(msg.messageCardReference || ""),
+    )
+    .replace(/\{\{print_copy\}\}/g, escapeHtml(msg.printCopyLabel || ""))
     .replace(/\{\{from\}\}/g, escapeHtml(msg.sender || ""))
     .replace(/\{\{to\}\}/g, escapeHtml(msg.recipient || ""))
     .replace(/\{\{message\}\}/g, escapeHtml(msg.message))
@@ -124,6 +131,22 @@ export function renderPrintMessage(tpl: string, msg: TemplateMessage): string {
         ? `<div>
       <div class="print-meta-title">Product</div>
       <div class="print-meta-muted">${escapeHtml(msg.productReference)}</div>
+    </div>`
+        : ""
+    }
+    ${
+      msg.messageCardReference
+        ? `<div>
+      <div class="print-meta-title">Message card</div>
+      <div class="print-meta-muted">${escapeHtml(msg.messageCardReference)}</div>
+    </div>`
+        : ""
+    }
+    ${
+      msg.printCopyLabel
+        ? `<div>
+      <div class="print-meta-title">Print copy</div>
+      <div class="print-meta-value">${escapeHtml(msg.printCopyLabel)}</div>
     </div>`
         : ""
     }
