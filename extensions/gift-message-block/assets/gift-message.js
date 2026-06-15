@@ -2121,27 +2121,103 @@
   }
 
   function insertDrawerMount(drawer, mount, placement) {
-    var normalizedPlacement = cleanString(placement) || "before_checkout";
+    var normalizedPlacement = normalizeDrawerPlacement(placement);
     var container = findDrawerContentContainer(drawer) || drawer;
 
-    if (normalizedPlacement === "top") {
-      if (container.firstElementChild !== mount) {
-        container.insertBefore(mount, container.firstElementChild);
-      }
+    if (normalizedPlacement === "below_cart_items") {
+      var cartItems = findCartItemsTarget(container, drawer);
+      if (placeMountAfter(mount, cartItems)) return;
+
+      var fallbackSubtotal = findSubtotalTarget(container, drawer);
+      if (placeMountBefore(mount, fallbackSubtotal)) return;
+
+      var fallbackCheckout = findCheckoutTarget(container, drawer);
+      if (placeMountBefore(mount, fallbackCheckout)) return;
+
+      appendMountIfNeeded(container, mount);
       return;
     }
 
-    if (normalizedPlacement === "bottom") {
-      if (
-        mount.parentNode !== container ||
-        container.lastElementChild !== mount
-      ) {
-        container.appendChild(mount);
-      }
+    if (normalizedPlacement === "above_subtotal") {
+      var subtotal = findSubtotalTarget(container, drawer);
+      if (placeMountBefore(mount, subtotal)) return;
+
+      var checkoutFallback = findCheckoutTarget(container, drawer);
+      if (placeMountBefore(mount, checkoutFallback)) return;
+
+      appendMountIfNeeded(container, mount);
       return;
     }
 
-    var checkoutTarget = container.querySelector(
+    var checkoutTarget = findCheckoutTarget(container, drawer);
+    if (placeMountBefore(mount, checkoutTarget)) return;
+
+    appendMountIfNeeded(container, mount);
+  }
+
+  function normalizeDrawerPlacement(value) {
+    var placement = cleanString(value);
+
+    if (
+      placement === "below_cart_items" ||
+      placement === "above_subtotal" ||
+      placement === "above_checkout"
+    ) {
+      return placement;
+    }
+
+    if (placement === "top") return "below_cart_items";
+    if (placement === "bottom" || placement === "before_checkout") {
+      return "above_checkout";
+    }
+
+    return "below_cart_items";
+  }
+
+  function findCartItemsTarget(container, drawer) {
+    return findFirstPlacementTarget(
+      container,
+      drawer,
+      [
+        "cart-drawer-items",
+        "[data-cart-items]",
+        "[data-cart-drawer-items]",
+        ".cart-drawer__items",
+        ".drawer__cart-items-wrapper",
+        ".cart-items",
+        ".cart__items",
+        "table.cart-items",
+      ],
+      "cartItems",
+    );
+  }
+
+  function findSubtotalTarget(container, drawer) {
+    return findFirstPlacementTarget(
+      container,
+      drawer,
+      [
+        "[data-cart-subtotal]",
+        "[data-subtotal]",
+        "[data-subtotal-price]",
+        ".cart-drawer__subtotal",
+        ".cart__subtotal",
+        ".cart-subtotal",
+        ".totals",
+        ".cart-drawer__totals",
+        ".cart_ctas [class*='subtotal']",
+        ".cart_ctas [class*='Subtotal']",
+        "[class*='subtotal']",
+        "[class*='Subtotal']",
+      ],
+      "subtotal",
+    );
+  }
+
+  function findCheckoutTarget(container, drawer) {
+    return findFirstPlacementTarget(
+      container,
+      drawer,
       [
         "button[name='checkout']",
         "input[name='checkout']",
@@ -2149,35 +2225,115 @@
         "[data-cart-checkout-button]",
         ".cart__checkout-button",
         ".cart-drawer__checkout",
-      ].join(","),
+        ".shopify-payment-button",
+      ],
+      "checkout",
     );
+  }
 
-    if (
-      checkoutTarget &&
-      checkoutTarget.parentNode &&
-      container.contains(checkoutTarget.parentNode) &&
-      checkoutTarget.parentNode !== mount
-    ) {
-      checkoutTarget.parentNode.insertBefore(mount, checkoutTarget);
-      return;
+  function findFirstPlacementTarget(container, drawer, selectors, type) {
+    for (var i = 0; i < selectors.length; i += 1) {
+      var target =
+        findPlacementTargetIn(container, selectors[i], type) ||
+        (drawer !== container
+          ? findPlacementTargetIn(drawer, selectors[i], type)
+          : null);
+
+      if (target) return target;
     }
 
-    var footer = container.querySelector(
-      [
-        ".cart-drawer__footer",
-        ".drawer__footer",
-        "[class*='cart-drawer__footer']",
-        "[class*='CartDrawer-Footer']",
-        "footer",
-      ].join(","),
-    );
+    return null;
+  }
 
-    if (footer && footer !== mount && container.contains(footer)) {
-      footer.insertBefore(mount, footer.firstElementChild);
+  function findPlacementTargetIn(root, selector, type) {
+    if (!root || typeof root.querySelectorAll !== "function") return null;
+
+    var nodes = root.querySelectorAll(selector);
+    for (var i = 0; i < nodes.length; i += 1) {
+      var node = nodes[i];
+      if (isInvalidPlacementTarget(node, type)) continue;
+      return node;
+    }
+
+    return null;
+  }
+
+  function isInvalidPlacementTarget(node, type) {
+    if (!node) return true;
+    if (node.matches("[data-gmb-drawer-mount], [data-gmb-block]")) return true;
+    if (node.closest("[data-gmb-drawer-mount]")) return true;
+    if (type !== "checkout" && node.closest(".gmb-box")) return true;
+
+    if (type === "subtotal") {
+      var text = cleanString(node.textContent).toLowerCase();
+      if (text && /checkout|paypal|shop pay|apple pay|google pay/.test(text)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function placeMountBefore(mount, target) {
+    if (!canPlaceMountNearTarget(mount, target)) return false;
+
+    if (
+      mount.parentNode === target.parentNode &&
+      getNextElementSibling(mount) === target
+    ) {
+      return true;
+    }
+
+    target.parentNode.insertBefore(mount, target);
+    return true;
+  }
+
+  function placeMountAfter(mount, target) {
+    if (!canPlaceMountNearTarget(mount, target)) return false;
+
+    if (
+      mount.parentNode === target.parentNode &&
+      getPreviousElementSibling(mount) === target
+    ) {
+      return true;
+    }
+
+    target.parentNode.insertBefore(mount, target.nextSibling);
+    return true;
+  }
+
+  function canPlaceMountNearTarget(mount, target) {
+    return Boolean(
+      mount &&
+      target &&
+      target.parentNode &&
+      target !== mount &&
+      !mount.contains(target),
+    );
+  }
+
+  function appendMountIfNeeded(container, mount) {
+    if (!container || !mount) return;
+    if (
+      mount.parentNode === container &&
+      container.lastElementChild === mount
+    ) {
       return;
     }
 
     container.appendChild(mount);
+  }
+
+  function getNextElementSibling(element) {
+    var node = element ? element.nextSibling : null;
+    while (node && node.nodeType !== 1) node = node.nextSibling;
+    return node || null;
+  }
+
+  function getPreviousElementSibling(element) {
+    var node = element ? element.previousSibling : null;
+    while (node && node.nodeType !== 1) node = node.previousSibling;
+    return node || null;
   }
 
   function findDrawerContentContainer(drawer) {
@@ -2223,6 +2379,8 @@
         var shouldSyncDrawers = false;
 
         mutations.forEach(function (mutation) {
+          if (shouldIgnoreDrawerMutation(mutation)) return;
+
           if (mutation.type === "attributes") {
             shouldSyncDrawers = true;
             return;
@@ -2244,6 +2402,35 @@
         subtree: true,
       });
     }
+  }
+
+  function shouldIgnoreDrawerMutation(mutation) {
+    if (!mutation) return false;
+
+    if (isGiftMessageOwnedNode(mutation.target)) return true;
+
+    if (mutation.type !== "childList") return false;
+
+    var addedNodes = Array.prototype.slice.call(mutation.addedNodes || []);
+    var removedNodes = Array.prototype.slice.call(mutation.removedNodes || []);
+    var changedNodes = addedNodes.concat(removedNodes).filter(function (node) {
+      return node.nodeType === 1;
+    });
+
+    if (changedNodes.length === 0) return false;
+
+    return changedNodes.every(isGiftMessageOwnedNode);
+  }
+
+  function isGiftMessageOwnedNode(node) {
+    return Boolean(
+      node &&
+      node.nodeType === 1 &&
+      (node.matches(
+        "[data-gmb-drawer-mount], [data-gmb-block], [data-gmb-drawer-embed]",
+      ) ||
+        node.closest("[data-gmb-drawer-mount]")),
+    );
   }
 
   // ── Bootstrap ────────────────────────────────────────────────────────────

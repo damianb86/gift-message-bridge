@@ -13,7 +13,7 @@
   assign save_button_label = block.settings.save_button_label | default: 'Save gift message'
   assign accent_color = block.settings.accent_color | default: '#4FAF8F'
   assign drawer_selector = block.settings.drawer_selector | default: ''
-  assign drawer_placement = block.settings.drawer_placement | default: 'before_checkout'
+  assign drawer_placement = block.settings.drawer_placement | default: 'below_cart_items'
   assign custom_css = block.settings.custom_css | default: ''
   assign width_unit = block.settings.width_unit | default: 'percent'
   assign width_value = block.settings.width_percent | default: 100 | append: '%'
@@ -180,11 +180,11 @@
       "id": "drawer_placement",
       "label": "Placement inside drawer",
       "options": [
-        { "value": "before_checkout", "label": "Before checkout button" },
-        { "value": "top", "label": "Top of drawer" },
-        { "value": "bottom", "label": "Bottom of drawer" }
+        { "value": "below_cart_items", "label": "Below Cart Items" },
+        { "value": "above_subtotal", "label": "Above Subtotal" },
+        { "value": "above_checkout", "label": "Above Checkout Button" }
       ],
-      "default": "before_checkout"
+      "default": "below_cart_items"
     },
     {
       "type": "header",
