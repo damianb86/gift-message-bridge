@@ -156,15 +156,16 @@
   background: var(--gmb-block-panel-bg);
   border: 0 solid transparent;
   border-radius: var(--inputs-radius, var(--buttons-radius, 8px));
+  box-sizing: border-box;
+  height: 0;
   margin-top: 0;
-  max-height: 0;
   opacity: 0;
   overflow: hidden;
   padding: 0 0.75rem;
   pointer-events: none;
   transform: translateY(-0.35rem);
   transition:
-    max-height 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.46s cubic-bezier(0.22, 1, 0.36, 1),
     margin-top 0.3s ease,
     opacity 0.26s ease,
     padding 0.34s ease,
@@ -181,14 +182,14 @@
 .gmb-check:checked ~ .gmb-panel {
   border-color: var(--gmb-block-panel-border);
   border-width: 1px;
+  height: var(--gmb-panel-open-height, auto);
   margin-top: 0.7rem;
-  max-height: 90rem;
   opacity: 1;
   padding: 0.75rem;
   pointer-events: auto;
   transform: translateY(0);
   transition:
-    max-height 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.56s cubic-bezier(0.22, 1, 0.36, 1),
     margin-top 0.28s ease,
     opacity 0.28s ease,
     padding 0.34s ease,

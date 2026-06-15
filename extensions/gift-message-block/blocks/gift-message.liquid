@@ -391,9 +391,9 @@
   #gmb-{{ block.id }} .gmb-check:checked + .gmb-toggle .gmb-check-ui::after{transform:translate(-50%,-50%) rotate(180deg);}
   #gmb-{{ block.id }} .gmb-check:focus-visible + .gmb-toggle .gmb-check-ui{box-shadow:0 0 0 3px rgba(17,17,17,.12);}
   #gmb-{{ block.id }} .gmb-panel,
-  #gmb-{{ block.id }} .gmb-panel[hidden]{animation:none;background:transparent;border:0;border-radius:0;display:block!important;margin:0;max-height:0;opacity:0;overflow:hidden;padding:0;pointer-events:none;transform:translateY(-.35rem);transition:max-height .42s cubic-bezier(.22,1,.36,1),opacity .26s ease,transform .34s cubic-bezier(.22,1,.36,1),padding .34s ease;visibility:hidden;}
+  #gmb-{{ block.id }} .gmb-panel[hidden]{animation:none;background:transparent;border:0;border-radius:0;display:block!important;height:0;margin:0;max-height:none;opacity:0;overflow:hidden;padding:0;pointer-events:none;transform:translateY(-.35rem);transition:height .46s cubic-bezier(.22,1,.36,1),opacity .26s ease,transform .34s cubic-bezier(.22,1,.36,1),padding .34s ease;visibility:hidden;}
   #gmb-{{ block.id }} .gmb-panel[data-gmb-open="true"],
-  #gmb-{{ block.id }} .gmb-check:checked ~ .gmb-panel{max-height:44rem;opacity:1;padding:0 0 1.1rem;pointer-events:auto;transform:translateY(0);visibility:visible;}
+  #gmb-{{ block.id }} .gmb-check:checked ~ .gmb-panel{height:var(--gmb-panel-open-height,auto);opacity:1;padding:0 0 1.1rem;pointer-events:auto;transform:translateY(0);visibility:visible;}
   #gmb-{{ block.id }} .gmb-row{gap:.75rem;margin-bottom:.75rem;}
   #gmb-{{ block.id }} .gmb-input,
   #gmb-{{ block.id }} .gmb-message{background:transparent;border:1px solid #d8d6d1;border-radius:0;color:#4f4f4f;font-size:.95em;line-height:1.45;padding:.7rem 0;resize:vertical;}

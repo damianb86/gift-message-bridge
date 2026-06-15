@@ -96,6 +96,7 @@
     function setPanelOpen(open) {
       syncPanelOpenState(block, toggle, field, open);
       setCardProductPickerDisabled(!open);
+      refreshPanelHeight();
 
       if (mode === "product") {
         textarea.disabled = !open || !textFormEnabled;
@@ -726,6 +727,8 @@
       if (!toggle.checked) {
         setCardProductPickerDisabled(true);
       }
+
+      refreshPanelHeight();
     }
 
     function renderCardVariantDropdown(container, label, variants) {
@@ -846,6 +849,7 @@
       container.appendChild(dropdown);
       container.hidden = false;
       updateCardVariantImageDropdown();
+      refreshPanelHeight();
     }
 
     function appendCardVariantImage(parent, variant) {
@@ -936,6 +940,7 @@
             option.dataset.variantId === selectedCardVariant.variantId;
           option.setAttribute("aria-selected", selected ? "true" : "false");
         });
+      refreshPanelHeight();
     }
 
     function setCardVariantImageDropdownOpen(dropdown, open) {
@@ -949,6 +954,7 @@
       dropdown.toggleAttribute("data-gmb-open", open);
       menu.hidden = !open;
       button.setAttribute("aria-expanded", open ? "true" : "false");
+      refreshPanelHeight();
     }
 
     function closeCardVariantImageDropdown(dropdown) {
@@ -1020,6 +1026,19 @@
           .querySelectorAll(".gmb-card-product-image-dropdown")
           .forEach(closeCardVariantImageDropdown);
       }
+
+      refreshPanelHeight();
+    }
+
+    function refreshPanelHeight() {
+      if (!field || field.getAttribute("data-gmb-open") !== "true") return;
+
+      window.requestAnimationFrame(function () {
+        field.style.setProperty(
+          "--gmb-panel-open-height",
+          field.scrollHeight + "px",
+        );
+      });
     }
 
     function buildCardProductAddContext(form) {
@@ -2228,9 +2247,26 @@
     field.hidden = false;
     field.removeAttribute("hidden");
     if (open) {
+      field.style.setProperty("--gmb-panel-open-height", "0px");
       field.setAttribute("data-gmb-open", "true");
+      window.requestAnimationFrame(function () {
+        if (field.getAttribute("data-gmb-open") !== "true") return;
+        field.style.setProperty(
+          "--gmb-panel-open-height",
+          field.scrollHeight + "px",
+        );
+      });
     } else {
+      var currentHeight = field.getBoundingClientRect
+        ? field.getBoundingClientRect().height
+        : field.scrollHeight;
+      field.style.setProperty(
+        "--gmb-panel-open-height",
+        Math.max(0, Math.round(currentHeight)) + "px",
+      );
+      field.getBoundingClientRect();
       field.removeAttribute("data-gmb-open");
+      field.style.setProperty("--gmb-panel-open-height", "0px");
     }
     field.setAttribute("aria-hidden", open ? "false" : "true");
     field.style.display = "";

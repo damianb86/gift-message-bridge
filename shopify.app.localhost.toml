@@ -15,7 +15,7 @@ api_version = "2026-04"
 
 [access_scopes]
 scopes = "read_orders"
-optional_scopes = [ "write_products" ]
+optional_scopes = [ "write_products", "read_themes" ]
 
 [auth]
 redirect_urls = [ "https://localhost:3458/auth/callback" ]
