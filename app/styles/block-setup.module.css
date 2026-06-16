@@ -1442,11 +1442,32 @@
   }
 
   .flowStep {
+    justify-items: center;
     grid-template-columns: 1fr;
+    max-width: 300px;
+    text-align: center;
+    width: 100%;
+  }
+
+  .flowBand {
+    justify-items: center;
+  }
+
+  .flowIconWrap {
+    justify-self: center;
+  }
+
+  .flowStepCopy {
+    justify-items: center;
+  }
+
+  .flowStepCopy p {
+    max-width: 260px;
   }
 
   .flowConnector {
-    margin-left: 36px;
+    justify-self: center;
+    margin-left: 0;
   }
 
   .trustStrip {
