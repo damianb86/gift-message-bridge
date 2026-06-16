@@ -19,10 +19,21 @@ import {
 } from "../lib/print-presets";
 import { getPrintTemplateStyleVars } from "../lib/print-template-themes";
 
+const DEFAULT_DATE_RANGE = "3days";
+const DATE_RANGE_VALUES = new Set([
+  "today",
+  "3days",
+  "5days",
+  "7days",
+  "10days",
+  "30days",
+  "all",
+]);
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
-  const dateRange = url.searchParams.get("dateRange") || "today";
+  const dateRange = normalizeDateRange(url.searchParams.get("dateRange"));
   const product = url.searchParams.get("product") || "all";
   const query = url.searchParams.get("query")?.trim() || "";
   const showPrinted = url.searchParams.get("showPrinted") === "true";
@@ -277,6 +288,13 @@ function getUpdatedAtFilter(dateRange: string): Prisma.DateTimeFilter | null {
 
   const start = new Date();
   start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+
+  if (dateRange === "today") {
+    return { gte: start, lt: end };
+  }
+
   const daysMatch = dateRange.match(/^(\d+)days$/);
 
   if (daysMatch) {
@@ -284,7 +302,13 @@ function getUpdatedAtFilter(dateRange: string): Prisma.DateTimeFilter | null {
     start.setDate(start.getDate() - Math.max(days - 1, 0));
   }
 
-  return { gte: start };
+  return { gte: start, lt: end };
+}
+
+function normalizeDateRange(value: string | null): string {
+  const cleanValue = String(value || "").trim();
+
+  return DATE_RANGE_VALUES.has(cleanValue) ? cleanValue : DEFAULT_DATE_RANGE;
 }
 
 function getSourceLabel(mode: string): string {
@@ -1003,7 +1027,7 @@ ${
   ]);
 
   const clearFilters = () => {
-    setDateRange("today");
+    setDateRange(DEFAULT_DATE_RANGE);
     setProduct("all");
     setQuery("");
     setShowPrinted(false);
@@ -1046,7 +1070,7 @@ ${
     (product === "__no_product" ? "No product" : "All products");
   const printedLabel = showPrinted ? "Printed included" : "Hiding printed";
   const hasActiveFilters =
-    dateRange !== "today" ||
+    dateRange !== DEFAULT_DATE_RANGE ||
     product !== "all" ||
     query.trim().length > 0 ||
     showPrinted;
@@ -1163,8 +1187,8 @@ body > .gift-card {
                   )
                 }
               >
-                <s-option value="today">Today</s-option>
                 <s-option value="3days">Last 3 days</s-option>
+                <s-option value="today">Today</s-option>
                 <s-option value="5days">Last 5 days</s-option>
                 <s-option value="7days">Last 7 days</s-option>
                 <s-option value="10days">Last 10 days</s-option>
