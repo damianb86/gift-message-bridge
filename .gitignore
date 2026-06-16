@@ -16,6 +16,9 @@ database.sqlite
 *.sqlite
 
 .env
+.env.*
+!.env.example
+*.pem
 
 
 
