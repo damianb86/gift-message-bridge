@@ -31,6 +31,8 @@ const SHOPIFY_APP_API_KEY =
   process.env.SHOPIFY_API_KEY || "5648b993ebb2c0c32aebf341a158f812";
 const GIFT_MESSAGE_BLOCK_HANDLE = "gift-message";
 const DRAWER_APP_EMBED_HANDLE = "gift-message-drawer";
+const THEME_SETUP_STORAGE_VERSION = 1;
+const THEME_SETUP_STORAGE_PREFIX = "gift-pulse:theme-setup";
 
 type VisibilityOwnerType = (typeof VISIBILITY_OWNER_TYPES)[number];
 type VisibilityResourceType = "product" | "collection";
@@ -109,6 +111,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     hasProductWriteScope,
     hasThemeReadScope,
     productsUrl: `https://${session.shop}/admin/products`,
+    shop: session.shop,
     themeSetupStatus,
     visibilityMetafieldDefinitions,
     visibilityResourceSelections,
@@ -380,6 +383,7 @@ export default function GiftMessageSetup() {
     hasProductWriteScope,
     hasThemeReadScope,
     productsUrl,
+    shop,
     themeSetupStatus,
     visibilityMetafieldDefinitions,
     visibilityResourceSelections,
@@ -428,6 +432,17 @@ export default function GiftMessageSetup() {
     themeSetupFetcher.state !== "idle" || isRequestingThemeScope;
   const allDefinitionsReady =
     definitionsReady.product && definitionsReady.collection;
+
+  useEffect(() => {
+    const savedThemeSetupStatus = readSavedThemeSetupStatus(shop);
+
+    if (savedThemeSetupStatus) {
+      setCurrentThemeSetupStatus(savedThemeSetupStatus);
+      return;
+    }
+
+    setCurrentThemeSetupStatus(themeSetupStatus);
+  }, [shop, themeSetupStatus]);
 
   useEffect(() => {
     setHasGrantedProductScope(hasProductWriteScope);
@@ -518,13 +533,16 @@ export default function GiftMessageSetup() {
       "themeSetupStatus" in data &&
       data.themeSetupStatus
     ) {
-      setCurrentThemeSetupStatus(data.themeSetupStatus as ThemeSetupStatus);
+      const nextThemeSetupStatus = data.themeSetupStatus as ThemeSetupStatus;
+
+      setCurrentThemeSetupStatus(nextThemeSetupStatus);
+      saveThemeSetupStatus(shop, nextThemeSetupStatus);
       shopify.toast.show(data.message);
       return;
     }
 
     shopify.toast.show(data.message, { isError: true });
-  }, [shopify, themeSetupFetcher.data, themeSetupFetcher.state]);
+  }, [shop, shopify, themeSetupFetcher.data, themeSetupFetcher.state]);
 
   useEffect(() => {
     if (
@@ -1325,6 +1343,13 @@ type ThemeSetupStatus = {
   themeName: string;
 };
 
+type SavedThemeSetupStatus = {
+  savedAt: string;
+  shop: string;
+  status: ThemeSetupStatus;
+  version: number;
+};
+
 type ThemeFileContent = {
   content: string;
   filename: string;
@@ -1345,6 +1370,103 @@ function isVisibilityResourceType(
   resourceType: string,
 ): resourceType is VisibilityResourceType {
   return resourceType === "product" || resourceType === "collection";
+}
+
+function getThemeSetupStorageKey(shop: string) {
+  return `${THEME_SETUP_STORAGE_PREFIX}:${shop}`;
+}
+
+function readSavedThemeSetupStatus(shop: string): ThemeSetupStatus | null {
+  if (typeof window === "undefined" || !shop) return null;
+
+  try {
+    const rawValue = window.localStorage.getItem(getThemeSetupStorageKey(shop));
+    if (!rawValue) return null;
+
+    const savedValue = JSON.parse(rawValue) as SavedThemeSetupStatus;
+    if (
+      savedValue.version !== THEME_SETUP_STORAGE_VERSION ||
+      savedValue.shop !== shop ||
+      !isThemeSetupStatus(savedValue.status) ||
+      !savedValue.status.checked
+    ) {
+      return null;
+    }
+
+    return savedValue.status;
+  } catch {
+    return null;
+  }
+}
+
+function saveThemeSetupStatus(shop: string, status: ThemeSetupStatus) {
+  if (typeof window === "undefined" || !shop || !status.checked) return;
+
+  try {
+    window.localStorage.setItem(
+      getThemeSetupStorageKey(shop),
+      JSON.stringify({
+        savedAt: new Date().toISOString(),
+        shop,
+        status,
+        version: THEME_SETUP_STORAGE_VERSION,
+      } satisfies SavedThemeSetupStatus),
+    );
+  } catch {
+    // localStorage can be unavailable in embedded or private browsing contexts.
+  }
+}
+
+function isThemeSetupStatus(value: unknown): value is ThemeSetupStatus {
+  if (!value || typeof value !== "object") return false;
+
+  const status = value as Partial<ThemeSetupStatus>;
+
+  return (
+    typeof status.checked === "boolean" &&
+    typeof status.message === "string" &&
+    typeof status.themeName === "string" &&
+    isThemeSetupTargetStatuses(status.targets)
+  );
+}
+
+function isThemeSetupTargetStatuses(
+  value: unknown,
+): value is Record<ThemeSetupTarget, ThemeSetupTargetStatus> {
+  if (!value || typeof value !== "object") return false;
+
+  const targets = value as Partial<
+    Record<ThemeSetupTarget, ThemeSetupTargetStatus>
+  >;
+
+  return ["cart", "checkout", "drawer", "product"].every((target) =>
+    isThemeSetupTargetStatus(targets[target as ThemeSetupTarget]),
+  );
+}
+
+function isThemeSetupTargetStatus(
+  value: unknown,
+): value is ThemeSetupTargetStatus {
+  if (!value || typeof value !== "object") return false;
+
+  const status = value as Partial<ThemeSetupTargetStatus>;
+
+  return (
+    typeof status.detail === "string" &&
+    typeof status.label === "string" &&
+    isThemeSetupStatusState(status.state)
+  );
+}
+
+function isThemeSetupStatusState(
+  value: unknown,
+): value is ThemeSetupStatusState {
+  return (
+    value === "disabled" ||
+    value === "missing" ||
+    value === "ready" ||
+    value === "unavailable"
+  );
 }
 
 function normalizePickerSelection(selection: unknown): PickerResource[] {
