@@ -6,16 +6,21 @@ const DEFAULT_FROM_NAME = `Zuam ${APP_NAME}`;
 
 function getSmtpConfig() {
   const port = Number(process.env.EMAIL_PORT ?? 587);
+  const configuredSecure = process.env.EMAIL_SECURE;
 
   return {
     host: process.env.EMAIL_HOST,
     port,
-    secure: port === 465,
+    secure:
+      configuredSecure === undefined
+        ? port === 465
+        : configuredSecure.toLowerCase() === "true",
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
     recipient: process.env.CONTACT_EMAIL,
     fromEmail: process.env.EMAIL_FROM ?? DEFAULT_FROM_EMAIL,
     fromName: process.env.EMAIL_FROM_NAME ?? DEFAULT_FROM_NAME,
+    replyToEmail: process.env.EMAIL_REPLY_TO || process.env.CONTACT_EMAIL,
   };
 }
 
@@ -33,12 +38,17 @@ export async function sendContactEmail({
   shop: string;
 }) {
   const smtp = getSmtpConfig();
+  const normalizedReplyEmail = isValidEmail(replyEmail)
+    ? replyEmail
+    : isValidEmail(smtp.replyToEmail)
+      ? smtp.replyToEmail
+      : undefined;
   const payload = {
     app: APP_NAME,
     type,
     subject,
     message,
-    replyEmail,
+    replyEmail: normalizedReplyEmail,
     shop,
     recipient: smtp.recipient,
   };
@@ -77,13 +87,13 @@ export async function sendContactEmail({
   await transporter.sendMail({
     from: { name: smtp.fromName, address: smtp.fromEmail },
     to: smtp.recipient,
-    replyTo: replyEmail,
+    replyTo: normalizedReplyEmail,
     subject: `[${APP_NAME}] ${subject || type}`,
     text: [
       `App: ${APP_NAME}`,
       `Shop: ${shop}`,
       `Type: ${type}`,
-      `Reply email: ${replyEmail ?? "not provided"}`,
+      `Reply email: ${normalizedReplyEmail ?? "not provided"}`,
       "",
       message,
     ].join("\n"),
@@ -94,4 +104,8 @@ export async function sendContactEmail({
   });
 
   return payload;
+}
+
+function isValidEmail(value?: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || ""));
 }
