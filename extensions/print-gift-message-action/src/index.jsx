@@ -32,6 +32,7 @@ query GiftMessageOrder($id: ID!) {
   order(id: $id) {
     id
     name
+    note
     processedAt
     createdAt
     customAttributes {
@@ -309,8 +310,8 @@ function PrintActionContent({
   if (status.type === "not_found") {
     return (
       <s-banner tone="info" heading="No gift messages in this order">
-        This order does not have a Gift Message order attribute or line item
-        property.
+        This order does not have a Gift Message order attribute, a gift message
+        in the order Notes field, or a line item property.
       </s-banner>
     );
   }
@@ -393,6 +394,7 @@ function collectGiftMessages(order) {
     orderReference,
     orderDate,
     giftCardRelations,
+    order?.note,
   );
   const lineMessages = lineContexts.flatMap((lineContext) =>
     collectLineGiftMessages(
@@ -503,8 +505,11 @@ function collectOrderGiftMessages(
   orderReference,
   orderDate,
   giftCardRelations,
+  orderNote,
 ) {
-  const giftMessageValue = findGiftMessage(attributes);
+  const giftMessageValue =
+    findGiftMessage(attributes) ||
+    findOrderNoteGiftMessage(attributes, orderNote);
   const parsed = parseGiftMessageProperty(giftMessageValue);
   const explicitReference =
     findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY) ||
@@ -611,6 +616,53 @@ function findGiftMessage(attributes) {
     findLooseAttributeValue(attributes, "gift message") ||
     findLooseAttributeValue(attributes, "gift_message")
   );
+}
+
+/**
+ * Note mode: the app writes the message into the order Notes field instead of
+ * the Gift Message attribute. The note is shared with the shopper's own special
+ * instructions and with the theme, so it is only read as a gift message when
+ * the app left its reference attribute on the order, or when the text carries
+ * the structured From / To / Message shape the app writes.
+ *
+ * Blocks carrying a `Product:` header describe a specific line item and are
+ * already covered by that line item's properties, so only the headerless block
+ * is returned here.
+ */
+function findOrderNoteGiftMessage(attributes, orderNote) {
+  const note = clean(orderNote);
+
+  if (!note) return "";
+
+  const hasAppReference = Boolean(
+    findAttributeValue(attributes, GIFT_MESSAGE_REF_PROPERTY) ||
+    findLooseAttributeValue(attributes, "gift_order_reference"),
+  );
+
+  if (!hasAppReference && !isStructuredGiftMessage(note)) {
+    return "";
+  }
+
+  for (const block of splitOrderNoteBlocks(note)) {
+    if (/^product:/i.test(block)) continue;
+    if (!isStructuredGiftMessage(block)) continue;
+    return block;
+  }
+
+  // A single unstructured note is only trusted when the app itself marked the
+  // order, otherwise it is the shopper's delivery instructions.
+  return hasAppReference && !isStructuredGiftMessage(note) ? note : "";
+}
+
+function splitOrderNoteBlocks(note) {
+  return String(note || "")
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+}
+
+function isStructuredGiftMessage(value) {
+  return /^\s*(from|to|message):/im.test(String(value || ""));
 }
 
 function findRelatedGiftCardLineForOrder(

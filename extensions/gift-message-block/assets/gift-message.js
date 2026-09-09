@@ -13,6 +13,13 @@
   var CARD_PRODUCT_SOURCE_PROPERTY = "_Gift Message Card";
   var CARD_PRODUCT_SELECTION_PROPERTY = "_Gift Message Card Selection";
   var CARD_PRODUCT_VARIANT_ID_PROPERTY = "_Gift Message Card Variant";
+  // Private mirror of the order-level message while the note field is in use.
+  // The Gift Message attribute is cleared in that mode, so the storefront form
+  // and the note builder read this instead.
+  var ORDER_NOTE_MIRROR_PROPERTY = "_Gift Message Note";
+  // Exact text the app last wrote into the cart note, so append mode can strip
+  // its own previous block without touching what the shopper wrote.
+  var ORDER_NOTE_WRITTEN_PROPERTY = "_Gift Message Note Text";
   var REFERENCE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   var REFERENCE_LENGTH = 5;
   var CARD_PRODUCTS_INTENT = "card-products";
@@ -23,7 +30,13 @@
   var drawerSyncTimer = null;
   var globalToggleFallbackInstalled = false;
   var mutationObserverInstalled = false;
+  var cartMutationWatcherInstalled = false;
   var nativeFetch = window.fetch ? window.fetch.bind(window) : null;
+  var orderNoteConfig = null;
+  var orderNoteSyncTimer = null;
+  var orderNoteSyncInFlight = false;
+  var orderNoteSyncQueued = false;
+  var writingOrderNote = false;
 
   function initBlock(block) {
     if (block.dataset.gmbInitialized === "true") return;
@@ -58,6 +71,11 @@
     var textFormEnabled = block.dataset.textFormEnabled !== "false";
     var lineItemPropertiesEnabled =
       block.dataset.lineItemProperties !== "false";
+    var orderNoteEnabled = block.dataset.orderNote === "true";
+
+    if (orderNoteEnabled) {
+      registerOrderNoteConfig(block);
+    }
     var cardVariantChoicesEnabled =
       block.dataset.cardVariantChoices !== "false";
     var cardVariantStyle = normalizeCardVariantStyle(
@@ -1785,8 +1803,15 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           attributes: {
+            // In note mode the public attribute is cleared and the same text
+            // goes to the cart note instead; the private mirror keeps the form
+            // and the note builder in sync.
             "Gift Message":
-              value || sender || recipient
+              orderNoteEnabled || !(value || sender || recipient)
+                ? ""
+                : formatLineItemGiftMessage(sender, recipient, value),
+            "_Gift Message Note":
+              orderNoteEnabled && (value || sender || recipient)
                 ? formatLineItemGiftMessage(sender, recipient, value)
                 : "",
             "Gift Message From": "",
@@ -1807,6 +1832,7 @@
       })
         .then(function (res) {
           if (!res.ok) throw new Error("cart/update " + res.status);
+          if (orderNoteEnabled) scheduleOrderNoteSync(0);
           if (typeof onSuccess === "function") onSuccess();
         })
         .catch(function (err) {
@@ -2181,6 +2207,282 @@
       title: cleanString(product.title),
       variants: variants,
     };
+  }
+
+  // ── Order note mode ────────────────────────────────────────────────────
+  // The cart note is a single string for the whole cart, so it cannot hold one
+  // message per product on its own. Instead of letting each save overwrite the
+  // previous one, the note is rebuilt from the real cart state on every change:
+  // the order-level message plus one block per line item that carries a gift
+  // message. That keeps the write idempotent and self-healing.
+
+  function registerOrderNoteConfig(block) {
+    var config = {
+      appendMode: block.dataset.orderNoteMode === "append",
+      includeFrom: block.dataset.orderNoteIncludeFrom !== "false",
+      includeTo: block.dataset.orderNoteIncludeTo !== "false",
+      includeMessage: block.dataset.orderNoteIncludeMessage !== "false",
+      includeProduct: block.dataset.orderNoteIncludeProduct !== "false",
+    };
+
+    // Several blocks can be on the page at once. The first one that enables the
+    // mode defines the format so the note never flips between two shapes.
+    if (!orderNoteConfig) {
+      orderNoteConfig = config;
+    }
+
+    installCartMutationWatcher();
+    scheduleOrderNoteSync();
+  }
+
+  function scheduleOrderNoteSync(delay) {
+    if (!orderNoteConfig || !nativeFetch) return;
+
+    if (orderNoteSyncTimer) {
+      window.clearTimeout(orderNoteSyncTimer);
+    }
+
+    orderNoteSyncTimer = window.setTimeout(
+      syncOrderNote,
+      typeof delay === "number" ? delay : 250,
+    );
+  }
+
+  function syncOrderNote() {
+    orderNoteSyncTimer = null;
+
+    if (!orderNoteConfig || !nativeFetch) return;
+
+    if (orderNoteSyncInFlight) {
+      orderNoteSyncQueued = true;
+      return;
+    }
+
+    orderNoteSyncInFlight = true;
+
+    var root = getShopifyRoot();
+
+    nativeFetch(root + "cart.js", { headers: { Accept: "application/json" } })
+      .then(function (res) {
+        if (!res.ok) throw new Error("cart.js " + res.status);
+        return res.json();
+      })
+      .then(function (cart) {
+        var attributes = (cart && cart.attributes) || {};
+        var blocks = collectOrderNoteBlocks(cart);
+        var giftText = formatOrderNoteText(blocks);
+        var previous = cleanString(attributes[ORDER_NOTE_WRITTEN_PROPERTY]);
+        var nextNote = buildNextCartNote(
+          cleanString(cart && cart.note),
+          previous,
+          giftText,
+        );
+
+        if (
+          nextNote === cleanString(cart && cart.note) &&
+          previous === giftText
+        ) {
+          return null;
+        }
+
+        var payload = { note: nextNote, attributes: {} };
+        payload.attributes[ORDER_NOTE_WRITTEN_PROPERTY] = giftText;
+
+        writingOrderNote = true;
+
+        return nativeFetch(root + "cart/update.js", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }).then(function (res) {
+          if (!res.ok) throw new Error("cart/update note " + res.status);
+          return res;
+        });
+      })
+      .catch(function (err) {
+        console.warn("[GiftMessage] order note sync failed:", err);
+      })
+      .then(function () {
+        writingOrderNote = false;
+        orderNoteSyncInFlight = false;
+
+        if (orderNoteSyncQueued) {
+          orderNoteSyncQueued = false;
+          scheduleOrderNoteSync(0);
+        }
+      });
+  }
+
+  function collectOrderNoteBlocks(cart) {
+    var blocks = [];
+    var attributes = (cart && cart.attributes) || {};
+    var orderLevel = cleanString(
+      attributes[ORDER_NOTE_MIRROR_PROPERTY] || attributes[MESSAGE_PROPERTY],
+    );
+
+    if (orderLevel) {
+      blocks.push({ product: "", text: orderLevel });
+    }
+
+    var items = (cart && cart.items) || [];
+
+    for (var i = 0; i < items.length; i += 1) {
+      var item = items[i];
+      var properties = (item && item.properties) || {};
+      var text = cleanString(properties[MESSAGE_PROPERTY]);
+
+      if (!text) continue;
+
+      // Message card add-ons carry a copy of the buyer's message. Printing it
+      // twice in the note would confuse the receiving system.
+      if (cleanString(properties[CARD_PRODUCT_SOURCE_PROPERTY])) continue;
+
+      blocks.push({
+        product: buildOrderNoteProductLabel(item),
+        text: text,
+      });
+    }
+
+    return dedupeOrderNoteBlocks(blocks);
+  }
+
+  function dedupeOrderNoteBlocks(blocks) {
+    var seen = {};
+    var result = [];
+
+    for (var i = 0; i < blocks.length; i += 1) {
+      var key = blocks[i].product + "\u0000" + blocks[i].text;
+      if (seen[key]) continue;
+      seen[key] = true;
+      result.push(blocks[i]);
+    }
+
+    return result;
+  }
+
+  function buildOrderNoteProductLabel(item) {
+    var title = cleanString(item && (item.product_title || item.title));
+    var variant = cleanString(item && item.variant_title);
+
+    if (title && variant && variant.toLowerCase() !== "default title") {
+      return title + " - " + variant;
+    }
+
+    return title;
+  }
+
+  function formatOrderNoteText(blocks) {
+    if (!blocks.length) return "";
+
+    var showProduct = orderNoteConfig.includeProduct && blocks.length > 1;
+    var rendered = [];
+
+    for (var i = 0; i < blocks.length; i += 1) {
+      var body = filterOrderNoteBlockLines(blocks[i].text);
+      if (!body) continue;
+
+      if (showProduct && blocks[i].product) {
+        body = "Product: " + blocks[i].product + "\n" + body;
+      }
+
+      rendered.push(body);
+    }
+
+    return rendered.join("\n\n");
+  }
+
+  // The stored text always keeps From, To and Message so the storefront form can
+  // repopulate. The merchant's include settings are applied only here, on the
+  // copy that leaves for the note.
+  function filterOrderNoteBlockLines(text) {
+    var lines = String(text || "").split(/\r?\n/);
+    var kept = [];
+    var section = "";
+
+    for (var i = 0; i < lines.length; i += 1) {
+      var line = lines[i];
+      var trimmed = line.trim();
+
+      if (/^from:/i.test(trimmed)) {
+        section = "from";
+      } else if (/^to:/i.test(trimmed)) {
+        section = "to";
+      } else if (/^message:/i.test(trimmed)) {
+        section = "message";
+      } else if (!trimmed) {
+        continue;
+      }
+
+      if (section === "from" && !orderNoteConfig.includeFrom) continue;
+      if (section === "to" && !orderNoteConfig.includeTo) continue;
+      if (section === "message" && !orderNoteConfig.includeMessage) continue;
+
+      kept.push(line);
+    }
+
+    return kept.join("\n").trim();
+  }
+
+  function buildNextCartNote(currentNote, previousGiftText, giftText) {
+    if (!orderNoteConfig.appendMode) {
+      return giftText;
+    }
+
+    var preserved = currentNote;
+
+    if (previousGiftText) {
+      preserved = removeFirstOccurrence(preserved, previousGiftText);
+    }
+
+    preserved = preserved.replace(/\n{3,}/g, "\n\n").trim();
+
+    if (!giftText) return preserved;
+    if (!preserved) return giftText;
+
+    return preserved + "\n\n" + giftText;
+  }
+
+  function removeFirstOccurrence(haystack, needle) {
+    var index = haystack.indexOf(needle);
+    if (index === -1) return haystack;
+    return haystack.slice(0, index) + haystack.slice(index + needle.length);
+  }
+
+  function installCartMutationWatcher() {
+    if (!nativeFetch) return;
+
+    installCartAddInterceptor();
+
+    if (cartMutationWatcherInstalled) return;
+    cartMutationWatcherInstalled = true;
+
+    var previousFetch = window.fetch ? window.fetch.bind(window) : nativeFetch;
+
+    window.fetch = function (input, init) {
+      var promise = previousFetch(input, init);
+
+      if (writingOrderNote || !isCartMutationRequest(input, init)) {
+        return promise;
+      }
+
+      return promise.then(function (response) {
+        if (response && response.ok) {
+          scheduleOrderNoteSync();
+        }
+        return response;
+      });
+    };
+  }
+
+  function isCartMutationRequest(input, init) {
+    var method = cleanString((init && init.method) || (input && input.method));
+    var url = cleanString(input && input.url ? input.url : input);
+
+    if (method.toUpperCase() !== "POST") return false;
+    return /\/cart\/(add|change|update)(\.js)?(?:\?|$)/.test(url);
   }
 
   function installCartAddInterceptor() {

@@ -57,6 +57,27 @@
   if block.settings.write_line_item_properties == false
     assign write_line_item_properties = false
   endif
+  assign use_order_note = false
+  if block.settings.use_order_note
+    assign use_order_note = true
+  endif
+  assign order_note_mode = block.settings.order_note_mode | default: 'replace'
+  assign order_note_include_from = true
+  if block.settings.order_note_include_from == false
+    assign order_note_include_from = false
+  endif
+  assign order_note_include_to = true
+  if block.settings.order_note_include_to == false
+    assign order_note_include_to = false
+  endif
+  assign order_note_include_message = true
+  if block.settings.order_note_include_message == false
+    assign order_note_include_message = false
+  endif
+  assign order_note_include_product = true
+  if block.settings.order_note_include_product == false
+    assign order_note_include_product = false
+  endif
   assign show_card_variant_choices = true
   if block.settings.show_card_variant_choices == false
     assign show_card_variant_choices = false
@@ -81,6 +102,9 @@
 
   if mode == 'order' and text_form_enabled
     assign raw_existing = cart.attributes['Gift Message'] | default: cart.attributes.gift_message | default: ''
+    if use_order_note
+      assign raw_existing = cart.attributes['_Gift Message Note'] | default: ''
+    endif
     assign existing = raw_existing
     assign existing_sender = cart.attributes['Gift Message From'] | default: cart.attributes.gift_message_from | default: ''
     assign existing_recipient = cart.attributes['Gift Message To'] | default: cart.attributes.gift_message_to | default: ''
@@ -126,6 +150,12 @@
   data-mode="{{ mode }}"
   data-cart-token="{{ cart.token }}"
   data-line-item-properties="{{ write_line_item_properties | json }}"
+  data-order-note="{{ use_order_note | json }}"
+  data-order-note-mode="{{ order_note_mode | escape }}"
+  data-order-note-include-from="{{ order_note_include_from | json }}"
+  data-order-note-include-to="{{ order_note_include_to | json }}"
+  data-order-note-include-message="{{ order_note_include_message | json }}"
+  data-order-note-include-product="{{ order_note_include_product | json }}"
   data-card-variant-choices="{{ show_card_variant_choices | json }}"
   data-card-variant-style="{{ card_variant_choices_style | escape }}"
   data-card-variant-label="{{ card_variant_choices_label | escape }}"
@@ -505,6 +535,59 @@
       "label": "Add product gift message to line item properties",
       "info": "Strongly recommended for product pages. Cart pages always save one order-level cart attribute named Gift Message, containing From, To, and Message in one text field.",
       "default": true
+    },
+    {
+      "type": "header",
+      "content": "Order Notes field",
+      "info": "Use this when an ERP, WMS or 3PL reads the order Notes field instead of the order attributes."
+    },
+    {
+      "type": "checkbox",
+      "id": "use_order_note",
+      "label": "Save the gift message in the order Notes field",
+      "info": "Writes the message to the cart note, which Shopify turns into the order Notes field. The Gift Message order attribute is cleared, and the Gift Message Ref attribute is kept so the app can still match the message.",
+      "default": false
+    },
+    {
+      "type": "select",
+      "id": "order_note_mode",
+      "label": "Existing note handling",
+      "info": "Replace gives the cleanest text for an external system. Append keeps anything the shopper or theme already wrote in the note.",
+      "options": [
+        { "value": "replace", "label": "Replace the note" },
+        { "value": "append", "label": "Append below the existing note" }
+      ],
+      "default": "replace",
+      "visible_if": "{{ block.settings.use_order_note == true }}"
+    },
+    {
+      "type": "checkbox",
+      "id": "order_note_include_from",
+      "label": "Include the From line",
+      "default": true,
+      "visible_if": "{{ block.settings.use_order_note == true }}"
+    },
+    {
+      "type": "checkbox",
+      "id": "order_note_include_to",
+      "label": "Include the To line",
+      "default": true,
+      "visible_if": "{{ block.settings.use_order_note == true }}"
+    },
+    {
+      "type": "checkbox",
+      "id": "order_note_include_message",
+      "label": "Include the Message line",
+      "default": true,
+      "visible_if": "{{ block.settings.use_order_note == true }}"
+    },
+    {
+      "type": "checkbox",
+      "id": "order_note_include_product",
+      "label": "Add a Product line when the cart holds several gift messages",
+      "info": "Only used when more than one message is present. Keeps each block identifiable for the receiving system.",
+      "default": true,
+      "visible_if": "{{ block.settings.use_order_note == true }}"
     },
     {
       "type": "header",
